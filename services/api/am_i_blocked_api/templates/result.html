@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Result – Am I Blocked?</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #222; min-height: 100vh; display: flex; flex-direction: column; }
+    header { background: #1b2a4a; color: #fff; padding: 1rem 2rem; }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header a { color: #aac4ff; font-size: 0.85rem; text-decoration: none; }
+    main { flex: 1; max-width: 780px; width: 100%; margin: 2rem auto; padding: 0 1rem; }
+    .badge { display: inline-block; padding: 0.4rem 1rem; border-radius: 20px; font-weight: 700; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .badge-allowed { background: #d4edda; color: #155724; }
+    .badge-denied  { background: #f8d7da; color: #721c24; }
+    .badge-unknown { background: #fff3cd; color: #856404; }
+    .badge-pending { background: #e2e3e5; color: #495057; }
+    .section { background: #fff; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); padding: 1.5rem; margin-bottom: 1.2rem; }
+    .section h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 0.8rem; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.8rem; }
+    .meta-item label { font-size: 0.75rem; color: #999; font-weight: 600; text-transform: uppercase; display: block; }
+    .meta-item span { font-size: 0.95rem; font-weight: 500; }
+    .confidence-bar { height: 8px; border-radius: 4px; background: #eee; margin-top: 4px; }
+    .confidence-fill { height: 8px; border-radius: 4px; background: #3b6fd4; }
+    .evidence-card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.9rem; margin-bottom: 0.6rem; }
+    .evidence-card .ev-source { font-size: 0.75rem; font-weight: 700; color: #3b6fd4; text-transform: uppercase; }
+    .evidence-card .ev-summary { font-size: 0.9rem; margin-top: 0.25rem; }
+    .next-steps { list-style: disc; padding-left: 1.2rem; }
+    .next-steps li { margin-bottom: 0.4rem; font-size: 0.9rem; }
+    .download-btn { display: inline-block; margin-top: 1rem; background: #1b2a4a; color: #fff; border: none; border-radius: 4px; padding: 0.5rem 1.2rem; font-size: 0.85rem; cursor: pointer; text-decoration: none; }
+    .pending-notice { text-align: center; padding: 2rem; color: #777; }
+    footer { text-align: center; font-size: 0.75rem; color: #aaa; padding: 1rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔍 Am I Blocked?</h1>
+    <a href="/">← New check</a>
+  </header>
+  <main>
+    <div class="section">
+      <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+        {% if result %}
+          <span class="badge badge-{{ result.verdict }}">{{ result.verdict }}</span>
+          <span style="font-size:1rem; font-weight:600;">{{ record.destination_value }}{% if record.port %}:{{ record.port }}{% endif %}</span>
+        {% else %}
+          <span class="badge badge-{{ record.status }}">{{ record.status }}</span>
+          <span style="font-size:1rem; font-weight:600;">{{ record.destination_value }}{% if record.port %}:{{ record.port }}{% endif %}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if result %}
+    <div class="section">
+      <h3>Context &amp; confidence</h3>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <label>Path context</label>
+          <span>{{ result.path_context }}</span>
+        </div>
+        <div class="meta-item">
+          <label>Enforcement plane</label>
+          <span>{{ result.enforcement_plane }}</span>
+        </div>
+        <div class="meta-item">
+          <label>Owner team</label>
+          <span>{{ result.routing_recommendation.owner_team }}</span>
+        </div>
+      </div>
+      <div style="margin-top:1rem;">
+        {% for label, value in [('Path confidence', result.path_confidence), ('Result confidence', result.result_confidence), ('Evidence completeness', result.evidence_completeness)] %}
+        <div style="margin-bottom:0.6rem;">
+          <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#666;">
+            <span>{{ label }}</span><span>{{ (value * 100)|int }}%</span>
+          </div>
+          <div class="confidence-bar"><div class="confidence-fill" style="width:{{ (value * 100)|int }}%;"></div></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Summary</h3>
+      <p>{{ result.summary }}</p>
+    </div>
+
+    {% if result.observed_facts %}
+    <div class="section">
+      <h3>Evidence</h3>
+      {% for fact in result.observed_facts %}
+      <div class="evidence-card">
+        <div class="ev-source">{{ fact.source }}</div>
+        <div class="ev-summary">{{ fact.summary }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <h3>Next steps</h3>
+      <ul class="next-steps">
+        {% for step in result.routing_recommendation.next_steps %}
+        <li>{{ step }}</li>
+        {% else %}
+        <li>No specific next steps.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Download evidence bundle</h3>
+      <p style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;">Raw JSON evidence bundle for ticket or escalation use.</p>
+      <a class="download-btn" href="/api/v1/requests/{{ request_id }}/result" download="evidence-{{ request_id }}.json">
+        Download JSON
+      </a>
+    </div>
+    {% else %}
+    <div class="section pending-notice">
+      <p style="font-size:1.1rem; margin-bottom:0.5rem;">⏳ Diagnostic in progress…</p>
+      <p>Request ID: <code>{{ request_id }}</code></p>
+      <p style="margin-top:0.5rem; font-size:0.85rem; color:#999;">Status: {{ record.status }}</p>
+    </div>
+    <script>
+      // Auto-refresh while pending
+      setTimeout(function(){ window.location.reload(); }, 3000);
+    </script>
+    {% endif %}
+  </main>
+  <footer>Internal use only — not for external distribution</footer>
+</body>
+</html>
