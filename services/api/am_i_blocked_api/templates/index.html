@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Am I Blocked? – Network Self-Diagnosis</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #222; display: flex; flex-direction: column; min-height: 100vh; }
+    header { background: #1b2a4a; color: #fff; padding: 1rem 2rem; }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header p { font-size: 0.85rem; opacity: 0.7; margin-top: 0.25rem; }
+    main { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 3rem 1rem; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 2rem; width: 100%; max-width: 540px; }
+    .card h2 { font-size: 1.1rem; margin-bottom: 1.5rem; color: #1b2a4a; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; color: #444; }
+    input, select { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; margin-bottom: 1.1rem; }
+    input:focus, select:focus { outline: none; border-color: #3b6fd4; box-shadow: 0 0 0 2px rgba(59,111,212,0.2); }
+    button[type=submit] { width: 100%; background: #3b6fd4; color: #fff; border: none; border-radius: 4px; padding: 0.75rem; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    button[type=submit]:hover { background: #2f5bb5; }
+    .hint { font-size: 0.78rem; color: #777; margin-top: -0.8rem; margin-bottom: 1rem; }
+    footer { text-align: center; font-size: 0.75rem; color: #aaa; padding: 1rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🔍 Am I Blocked?</h1>
+    <p>Network self-diagnosis &amp; routing assistant — internal tool</p>
+  </header>
+  <main>
+    <div class="card">
+      <h2>Check connectivity</h2>
+      <form method="post" action="/api/v1/am-i-blocked" id="diag-form">
+        <label for="destination">Destination (URL, FQDN, or IP)</label>
+        <input
+          type="text"
+          id="destination"
+          name="destination"
+          placeholder="e.g. api.example.com or 10.20.30.40"
+          required
+          autocomplete="off"
+        />
+        <label for="port">Port (optional)</label>
+        <input
+          type="number"
+          id="port"
+          name="port"
+          min="1"
+          max="65535"
+          placeholder="e.g. 443"
+        />
+        <label for="time_window">Time window</label>
+        <select id="time_window" name="time_window">
+          <option value="now">Now (last 1 min)</option>
+          <option value="last_15m" selected>Last 15 minutes</option>
+          <option value="last_60m">Last 60 minutes</option>
+        </select>
+        <button type="submit">Check</button>
+      </form>
+    </div>
+  </main>
+  <footer>Internal use only — not for external distribution</footer>
+  <script>
+    // Submit as JSON and redirect to result page
+    document.getElementById('diag-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const dest = document.getElementById('destination').value.trim();
+      const port = document.getElementById('port').value;
+      const tw = document.getElementById('time_window').value;
+      const body = { destination: dest, time_window: tw };
+      if (port) body.port = parseInt(port, 10);
+      try {
+        const resp = await fetch('/api/v1/am-i-blocked', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+          alert('Error: ' + (err.detail || 'Unknown error'));
+          return;
+        }
+        const data = await resp.json();
+        window.location.href = '/requests/' + data.request_id;
+      } catch(err) {
+        alert('Request failed: ' + err);
+      }
+    });
+  </script>
+</body>
+</html>
