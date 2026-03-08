@@ -138,6 +138,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 
 10. **Create PAN-OS verification fixture pack and validation scaffolding**
    - Status: completed (2026-03-08)
+   - Note: added `scripts/gather_panos_fixtures.sh` helper and corresponding Makefile target/test to simplify real‑world sample collection.
    - Priority: P1
    - Depends on: tasks 1-9
    - Acceptance:
@@ -157,7 +158,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 
 ## ROI-Ranked TODO Backlog
 
-1. Populate PAN-OS fixture pack with sanitized real-environment XML captures and use them to validate/correct adapter query-field/XPath placeholders.
+1. Populate PAN-OS fixture pack with sanitized real-environment XML captures and use them to validate/correct adapter query-field/XPath placeholders.  (helper script now available to automate extraction)
 2. Validate unknown-confidence explainability wording with operators and tighten thresholds/messages if needed (explainability only).
 3. Later enrichment work (SCM deepening, SD-WAN deepening, LogScale deepening, Torq).
 

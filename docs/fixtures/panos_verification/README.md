@@ -15,6 +15,22 @@ In both cases, samples are verification artifacts, not production truth by thems
 - `traffic_log_poll_response.xml`
 - `rule_metadata_config_response.xml`
 
+## Helper script
+
+There is a convenience shell script at `scripts/gather_panos_fixtures.sh` which
+can be run against a live firewall to grab the usual set of API exchanges and
+perform a first-pass sanitisation.  It is not required – you can collect your
+own samples by hand – but it can speed up fixture creation in a repeatable
+manner.
+
+Usage:
+
+```sh
+./scripts/gather_panos_fixtures.sh <firewall-host> <api-key> <rule-xpath-or-name>
+```
+
+See the script header for more details.
+
 ## Sanitization Rules (Required)
 
 1. Redact/tokenize **all auth/session material**:

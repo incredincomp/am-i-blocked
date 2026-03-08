@@ -1,4 +1,4 @@
-.PHONY: install lint test run-api run-worker
+.PHONY: install lint test run-api run-worker panos-fixtures
 
 install:
 	pip install -r requirements-dev.txt
@@ -31,3 +31,7 @@ docker-up:
 
 docker-down:
 	docker compose -f infra/docker-compose.yml down
+
+panos-fixtures:
+	# run the helper using environment variables or explicit args
+	@bash scripts/gather_panos_fixtures.sh "$${PANOS_HOST}" "$${PANOS_KEY}" "$${PANOS_XPATH}"
