@@ -43,6 +43,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Failed status transitions are written to `audit` with structured metadata (`reason`, `stage`, `category`) using bounded enums (`FailureStage`, `FailureCategory`) and read back by API/UI (`failure_reason`, `failure_stage`, `failure_category`).
 - UI request page maps normalized failure stage/category to compact first-hop triage hints while preserving raw failure values in the rendered metadata.
 - Result evidence cards now visually distinguish observed facts tagged as enrichment-only vs authoritative using observed-fact detail metadata.
+- Result evidence cards now also render minimal PAN-OS metadata from persisted observed-fact detail when authoritative PAN-OS deny facts include `detail.rule_metadata`.
 - Pipeline itself is implemented and exercised in tests via direct calls.
 - Target MVP:
 - API persists + enqueues.
@@ -67,6 +68,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 
 - `tests/unit`: step and classifier unit tests.
 - `tests/routes`: FastAPI API/route tests.
+- `tests/routes/test_api_routes.py`: includes route/UI checks for PAN-OS metadata render behavior (present, absent, malformed).
 - `tests/fixtures`: pipeline integration-style tests with mocked adapters/readiness.
 - `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval coverage with controlled PAN-OS deny and no-authoritative-evidence outcomes.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
@@ -108,6 +110,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `docs/api.md` defines observed-fact detail metadata keys used by UI fact-type labeling:
   - `classification_role` (recognized enrichment value: `enrichment_only_unverified`)
   - `authoritative` (boolean; `false` indicates enrichment-only context)
+- PAN-OS rule metadata is currently surfaced through existing observed-fact detail payload (`observed_facts[].detail.rule_metadata`) without introducing new top-level API fields.
 - `docs/api.md` now also includes `RequestDetail` failed-state response examples documenting:
   - `failure_reason`
   - `failure_stage`

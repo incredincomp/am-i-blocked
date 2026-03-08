@@ -383,6 +383,65 @@ class TestGetResult:
         )
         assert resp.json()["request_id"] == request_id
 
+    def test_result_includes_panos_rule_metadata_when_present(self, client):
+        request_id = "12121212-1212-1212-1212-121212121212"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "vpn_gp_onprem_static",
+                "path_confidence": 0.8,
+                "result_confidence": 0.85,
+                "evidence_completeness": 0.8,
+                "summary": "On-prem PAN-OS deny detected.",
+                "observed_facts": [
+                    {
+                        "source": "panos",
+                        "summary": "On-prem PAN deny: rule=block-ext",
+                        "detail": {
+                            "action": "deny",
+                            "authoritative": True,
+                            "rule_name": "block-ext",
+                            "rule_metadata": {
+                                "rule_name": "block-ext",
+                                "action": "deny",
+                                "description": "Block external traffic",
+                            },
+                        },
+                    }
+                ],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "On-prem PAN deny evidence found",
+                    "next_steps": ["Review PAN-OS rule"],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        detail = resp.json()["observed_facts"][0]["detail"]
+        assert detail["rule_metadata"]["rule_name"] == "block-ext"
+        assert detail["rule_metadata"]["description"] == "Block external traffic"
+
 
 class TestUIRoutes:
     def test_index_returns_html(self, client):
@@ -566,3 +625,170 @@ class TestUIRoutes:
 
         assert resp.status_code == 200
         assert f"/api/v1/requests/{request_id}/result/evidence-bundle" in resp.text
+
+    def test_request_page_renders_panos_rule_metadata_when_present(self, client):
+        request_id = "98989898-9898-9898-9898-989898989898"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "vpn_gp_onprem_static",
+                "path_confidence": 0.8,
+                "result_confidence": 0.85,
+                "evidence_completeness": 0.8,
+                "summary": "On-prem PAN-OS deny detected.",
+                "observed_facts": [
+                    {
+                        "source": "panos",
+                        "summary": "On-prem PAN deny: rule=block-ext",
+                        "detail": {
+                            "action": "deny",
+                            "authoritative": True,
+                            "rule_metadata": {
+                                "rule_name": "block-ext",
+                                "action": "deny",
+                                "description": "Block external traffic",
+                                "disabled": False,
+                                "tags": ["internet", "critical"],
+                            },
+                        },
+                    }
+                ],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "On-prem PAN deny evidence found",
+                    "next_steps": ["Review PAN-OS rule"],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "PAN-OS rule metadata" in resp.text
+        assert "<strong>Rule</strong>: block-ext" in resp.text
+        assert "<strong>Action</strong>: deny" in resp.text
+        assert "<strong>Description</strong>: Block external traffic" in resp.text
+        assert "<strong>Disabled</strong>: no" in resp.text
+        assert "<strong>Tags</strong>: internet, critical" in resp.text
+
+    def test_request_page_omits_panos_rule_metadata_when_absent(self, client):
+        request_id = "78787878-7878-7878-7878-787878787878"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "vpn_gp_onprem_static",
+                "path_confidence": 0.8,
+                "result_confidence": 0.85,
+                "evidence_completeness": 0.8,
+                "summary": "On-prem PAN-OS deny detected.",
+                "observed_facts": [
+                    {
+                        "source": "panos",
+                        "summary": "On-prem PAN deny: rule=block-ext",
+                        "detail": {
+                            "action": "deny",
+                            "authoritative": True,
+                        },
+                    }
+                ],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "On-prem PAN deny evidence found",
+                    "next_steps": ["Review PAN-OS rule"],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "PAN-OS rule metadata" not in resp.text
+
+    def test_request_page_handles_malformed_panos_rule_metadata_gracefully(self, client):
+        request_id = "67676767-6767-6767-6767-676767676767"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "vpn_gp_onprem_static",
+                "path_confidence": 0.8,
+                "result_confidence": 0.85,
+                "evidence_completeness": 0.8,
+                "summary": "On-prem PAN-OS deny detected.",
+                "observed_facts": [
+                    {
+                        "source": "panos",
+                        "summary": "On-prem PAN deny: rule=block-ext",
+                        "detail": {
+                            "action": "deny",
+                            "authoritative": True,
+                            "rule_metadata": "not-a-dict",
+                        },
+                    }
+                ],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "On-prem PAN deny evidence found",
+                    "next_steps": ["Review PAN-OS rule"],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "On-prem PAN deny: rule=block-ext" in resp.text
+        assert "PAN-OS rule metadata" not in resp.text

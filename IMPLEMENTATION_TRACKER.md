@@ -12,13 +12,14 @@ Deliver the MVP single-destination flow that returns `allowed | denied | unknown
 
 ## Current Phase
 
-MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, and adapter-level rule metadata lookup now implemented as optional explainability enrichment.
+MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, and PAN-OS rule metadata now minimally surfaced in operator-facing result output as optional explainability enrichment.
 
 - API -> Redis -> worker -> Postgres lifecycle is implemented and tested.
 - API remains thin and worker-only vendor access is preserved.
 - PAN-OS adapter supports XML traffic-log job submission + polling with conservative deny/reset normalization.
 - Authoritative-correlation now enforces PAN-OS deny-authoritative gating (`source=panos`, `authoritative=true`, `action=deny`) before evidence enters classification.
 - PAN-OS adapter now performs conservative optional rule metadata lookup and attaches metadata to deny evidence when available.
+- API/UI result rendering now surfaces persisted PAN-OS rule metadata (when present on authoritative PAN-OS deny observed facts) without changing verdict authority semantics.
 
 ## Architecture Snapshot
 
@@ -43,8 +44,9 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - Authoritative-correlation now consumes PAN-OS adapter output with deny-only authoritative filtering and step-level test coverage for deny, non-deny, malformed, timeout, and no-match behavior.
   - Integration-style lifecycle test now proves submit -> queue -> worker -> persist -> API result retrieval for both PAN-OS authoritative deny and no-authoritative-evidence paths.
   - PAN-OS `lookup_rule_metadata(...)` is now implemented with conservative XML config lookup, graceful failure handling, and optional attachment to deny evidence.
+  - Minimal operator-facing API/UI output now renders PAN-OS rule metadata from persisted observed-fact detail when present (`rule_name`, optional `action`, `description`, `disabled`, `tags`) and degrades gracefully when absent or malformed.
 - Remaining MVP-critical work:
-  - PAN-OS metadata is attached in evidence records but not yet minimally surfaced in operator-focused result/UI output.
+  - Add one persisted lifecycle integration assertion set proving PAN-OS metadata survives worker classify/persist -> API result retrieval -> result page rendering without patched route loaders.
 
 ## Prioritized Task Queue
 
@@ -84,16 +86,24 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
      - test exercises submit -> queue -> worker -> persist -> result fetch - done
      - no real vendor calls (controlled fake adapter/server fixture) - done
 
-5. **Docs alignment updates after authoritative PAN-OS path lands**
-   - Status: deferred until tasks 1-2 complete
+5. **Surface persisted PAN-OS rule metadata in minimal operator output**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 1-4
+   - Acceptance:
+     - API result output continues exposing observed-fact detail metadata without verdict logic changes - done
+     - result UI displays PAN-OS rule metadata only when present on authoritative PAN-OS deny observed facts - done
+     - absent or malformed metadata does not break API/UI rendering and does not affect verdict authority - done
+
+6. **Docs alignment updates after PAN-OS metadata output surfacing**
+   - Status: completed (2026-03-08)
    - Priority: P2
 
 ## ROI-Ranked TODO Backlog
 
-1. Minimal operator-facing surfacing of PAN-OS rule metadata from persisted deny evidence (API/UI/result output).
+1. Add integration-style persistence test proving PAN-OS rule metadata survives full worker->persist->API/UI retrieval path (no mocked route result loader).
 2. Confidence/readiness quality improvements (`unknown` clarity and evidence completeness signals).
-3. Documentation refresh after authoritative path is implemented.
-4. Later enrichment work (SCM deepening, SD-WAN deepening, LogScale deepening, Torq).
+3. Later enrichment work (SCM deepening, SD-WAN deepening, LogScale deepening, Torq).
 
 ## Active Blockers / Open Questions
 
@@ -116,6 +126,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Authoritative-correlation now drops PAN-OS records that are non-deny, non-authoritative, or malformed so absent authoritative evidence continues to bias toward `unknown`.
 - 2026-03-08: Integration-style lifecycle coverage now proves persisted deny and non-deny outcomes through API submit, queue handoff, worker dispatch, persistence, and API result retrieval using controlled PAN-OS adapter behavior.
 - 2026-03-08: PAN-OS rule metadata lookup is optional explainability enrichment only; metadata lookup failures never create or remove deny authority.
+- 2026-03-08: Operator-facing PAN-OS metadata output is sourced only from persisted observed-fact detail on authoritative PAN-OS deny facts and remains optional explainability data (not authority input).
 
 ## Test Log
 
@@ -131,6 +142,9 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 - 2026-03-08: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py tests/adapters/test_adapter_contracts.py` (pass, 32 tests).
 - 2026-03-08: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/panos/__init__.py tests/adapters/test_panos_adapter.py tests/adapters/test_adapter_contracts.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "panos_rule_metadata or labels_enrichment_and_authoritative_facts or evidence_bundle_download_returns_attachment or result_returns_persisted_result_when_available"` (pass, 7 selected).
+- 2026-03-08: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 34 tests).
+- 2026-03-08: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
 
 ## Iteration Journal
 
@@ -148,6 +162,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Wired authoritative-correlation PAN-OS consumption with deny-authoritative filtering and added step-level tests proving non-deny/malformed/timeout/no-match paths do not emit authoritative evidence.
 - 2026-03-08: Added integration-style lifecycle tests covering submit/enqueue, worker dequeue/dispatch, persistence, and API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths.
 - 2026-03-08: Implemented PAN-OS adapter rule metadata lookup with tests for success/no-match/malformed/timeout and optional attachment to deny evidence without changing deny authority semantics.
+- 2026-03-08: Added minimal result-page PAN-OS metadata rendering from observed-fact detail (`rule_name` + optional action/description/disabled/tags) with route tests for present, absent, and malformed metadata behavior.
 
 ## Historical / Superseded Checkpoints
 
@@ -163,7 +178,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Attach PAN-OS rule metadata from persisted deny evidence into minimal operator-facing API/UI result output (without changing verdict authority or adding new vendor dependencies).
+Add one integration-style test that persists a PAN-OS deny result containing rule metadata through worker execution and asserts metadata is returned by `GET /api/v1/requests/{id}/result` and shown on `/requests/{id}` without route-level result-loader patching.
 
 ## Deferred / Later
 

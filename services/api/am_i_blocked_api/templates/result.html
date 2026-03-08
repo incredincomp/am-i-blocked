@@ -26,6 +26,9 @@
     .evidence-card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.9rem; margin-bottom: 0.6rem; }
     .evidence-card .ev-source { font-size: 0.75rem; font-weight: 700; color: #3b6fd4; text-transform: uppercase; }
     .evidence-card .ev-summary { font-size: 0.9rem; margin-top: 0.25rem; }
+    .rule-meta { margin-top: 0.55rem; padding: 0.55rem; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; }
+    .rule-meta-title { font-size: 0.74rem; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.04em; }
+    .rule-meta-item { font-size: 0.82rem; color: #334155; margin-top: 0.18rem; }
     .fact-type { display: inline-block; margin-left: 0.5rem; padding: 0.12rem 0.45rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
     .fact-type-auth { background: #dcfce7; color: #166534; }
     .fact-type-enrich { background: #fef3c7; color: #92400e; }
@@ -103,6 +106,26 @@
           {% endif %}
         </div>
         <div class="ev-summary">{{ fact.summary }}</div>
+        {% set is_panos_deny = fact.source == "panos" and fact.detail and fact.detail.action == "deny" and not is_enrichment %}
+        {% set rule_metadata = fact.detail.rule_metadata if is_panos_deny and (fact.detail.rule_metadata is mapping) else none %}
+        {% if rule_metadata and rule_metadata.rule_name %}
+        <div class="rule-meta">
+          <div class="rule-meta-title">PAN-OS rule metadata</div>
+          <div class="rule-meta-item"><strong>Rule</strong>: {{ rule_metadata.rule_name }}</div>
+          {% if rule_metadata.action %}
+          <div class="rule-meta-item"><strong>Action</strong>: {{ rule_metadata.action }}</div>
+          {% endif %}
+          {% if rule_metadata.description %}
+          <div class="rule-meta-item"><strong>Description</strong>: {{ rule_metadata.description }}</div>
+          {% endif %}
+          {% if rule_metadata.disabled is not none %}
+          <div class="rule-meta-item"><strong>Disabled</strong>: {{ "yes" if rule_metadata.disabled else "no" }}</div>
+          {% endif %}
+          {% if rule_metadata.tags is sequence and (rule_metadata.tags is not string) and rule_metadata.tags %}
+          <div class="rule-meta-item"><strong>Tags</strong>: {{ rule_metadata.tags|join(", ") }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
       {% endfor %}
     </div>
