@@ -84,6 +84,21 @@ Required trust filters must fail closed:
 - no implicit trust escalation from version naming alone.
 - newest-match behavior is applied only after provenance/scope gating.
 
+## PAN-OS Protocol Distinction (Required)
+
+Keep these API contracts distinct:
+
+- Traffic log retrieval:
+  - `type=log`
+  - `query=...` uses Monitor/Traffic filter syntax.
+  - polling uses `type=log&action=get&job-id=...`
+- Rule/config metadata retrieval:
+  - `type=config`
+  - `action=get|show|complete`
+  - `xpath=...` uses XPath semantics.
+
+Do not treat log-query tokens as XPath claims, and do not treat XPath examples as log-query token evidence.
+
 ## Helper script
 
 There is a convenience shell script at `scripts/gather_panos_fixtures.sh` which
@@ -134,6 +149,36 @@ Script behavior:
   - `panos_version_source=auto_detected` when discovered from system info
   - `panos_version_source=override` when `--version` is explicitly used
   - `verification_scope` defaults to `real_env_partial` (override via `--verification-scope`)
+
+### Local Firewall Run Pattern
+
+When collecting from a local firewall using repo `.env` credentials:
+
+```sh
+set -a
+source ./.env
+set +a
+
+./scripts/gather_panos_fixtures.sh \
+  --host <local-fw-host> \
+  --username "$PANOS_USERNAME" \
+  --password "$PANOS_PASSWORD" \
+  --rule-xpath "<read-only-xpath>" \
+  --capture-label "deny-hit"
+```
+
+The harness enforces a read-only allowlist and fails closed on disallowed request types/actions.
+
+Allowed live request classes/actions:
+- `type=op` with read-only `show_system_info`
+- `type=log` submit and `action=get` poll
+- `type=config` with `action=get|show|complete`
+- `type=keygen` bootstrap only
+
+Disallowed live actions include:
+- `set`, `edit`, `delete`, `move`, `rename`, `clone`, `override`
+- `multi-config`, `commit`, `commit-all`
+- any request type/action outside the allowlist
 
 ### Template or Synthetic Seeding (Manual)
 

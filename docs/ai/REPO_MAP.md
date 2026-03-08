@@ -77,7 +77,9 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/fixtures/test_panos_verification_fixture_pack.py`: fixture-pack scaffolding validation (required PAN-OS XML sample files exist, parse, and contain minimum structural markers).
 - `tests/fixtures/panos_fixture_selector.py`: helper for selecting versioned PAN-OS captures by `version + scenario` with provenance/scope gating (`require_provenance`, `minimum_verification_scope`) and strict manifest validation.
 - `tests/fixtures/test_panos_fixture_selector.py`: unit coverage for version/scenario fixture selection and manifest parsing.
+- `tests/fixtures/test_panos_collection_harness.py`: harness safety tests for read-only allowlist enforcement and real-capture manifest/sanitization behavior using fake `curl`.
 - `scripts/gather_panos_fixtures.sh`: helper to capture sanitized PAN-OS XML samples, write versioned fixture packs, and mirror canonical required fixture files.
+- `scripts/panos_readonly_guard.sh`: read-only PAN-OS XML request allowlist guard used by fixture collection harness and testable via `--assert`.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
 - `tests/adapters/test_panos_adapter.py`: also covers PAN-OS rule metadata lookup behavior (success, no-match, malformed response, timeout/failure) and graceful deny-path behavior when metadata lookup fails.
@@ -105,6 +107,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - PAN-OS fixture pack currently validates parser shape expectations (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`) but does not independently verify version-specific query-field/XPath correctness.
 - Fixture helper supports explicit capture labels, optional destination/port/time-window query generation, API-key or keygen-based auth (`--username`/`--password` fallback), and per-capture metadata manifests with required trust fields (`capture_provenance`, `verification_scope`, `panos_version_source`).
 - Versioned fixture selectors can now require `capture_provenance` and minimum `verification_scope`; newest-match selection is applied only after those trust filters pass.
+- Live fixture collection is constrained to read-only PAN-OS classes/actions by guard helper: `op(show_system_info)`, `log(submit/get)`, `config(get/show/complete)`, and `keygen` bootstrap only.
 - Worker step modules in `services/worker/am_i_blocked_worker/steps/`.
 - Authoritative-correlation now applies PAN-OS deny-authoritative gating before passing evidence to classification (`services/worker/am_i_blocked_worker/steps/authoritative_correlation.py`).
 - Classification logic isolated in `services/worker/am_i_blocked_worker/steps/classify.py`.

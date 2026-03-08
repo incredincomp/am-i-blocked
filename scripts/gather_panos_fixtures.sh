@@ -25,6 +25,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/panos_readonly_guard.sh"
+
 ROOT_OUT="docs/fixtures/panos_verification"
 CAPTURE_LABEL=""
 OVERRIDE_VERSION=""
@@ -107,18 +111,25 @@ sanitize_text() {
 xml_get() {
     local xpath=$1
     local file=$2
+    local value=""
     if command -v xmllint >/dev/null 2>&1; then
-        xmllint --xpath "string(${xpath})" "$file" 2>/dev/null || true
-    else
-        if [[ $xpath == './/job' ]]; then
-            grep -oPm1 '(?<=<job>)[^<]+' "$file" || true
-        elif [[ $xpath == './/status' ]]; then
-            grep -oPm1 '(?<=<status>)[^<]+' "$file" || true
-        elif [[ $xpath == './/sw-version' ]]; then
-            grep -oPm1 '(?<=<sw-version>)[^<]+' "$file" || true
-        else
-            true
+        value=$(xmllint --xpath "string(${xpath})" "$file" 2>/dev/null || true)
+        if [[ -n "$value" ]]; then
+            printf '%s' "$value"
+            return
         fi
+    fi
+
+    if [[ $xpath == './/job' ]]; then
+        grep -oPm1 '(?<=<job>)[^<]+' "$file" || true
+    elif [[ $xpath == './/status' ]]; then
+        grep -oPm1 '(?<=<status>)[^<]+' "$file" || true
+    elif [[ $xpath == './/sw-version' ]]; then
+        grep -oPm1 '(?<=<sw-version>)[^<]+' "$file" || true
+    elif [[ $xpath == './/key' ]]; then
+        grep -oPm1 '(?<=<key>)[^<]+' "$file" || true
+    else
+        true
     fi
 }
 
@@ -163,7 +174,10 @@ ensure_required() {
         missing=1
     fi
     [[ -z "$RULE_XPATH" ]] && { echo "ERROR: --rule-xpath is required" >&2; missing=1; }
-    [[ "$missing" -eq 1 ]] && exit 1
+    if [[ "$missing" -eq 1 ]]; then
+        exit 1
+    fi
+    return 0
 }
 
 # Backward-compatible positional mode.
@@ -231,6 +245,7 @@ request_get() {
 request_keygen() {
     local raw_out=$1
     local req_out=$2
+    panos_guard_allowed_request "keygen" ""
     printf 'GET https://%s/api/?type=keygen&user=%s&password=%s\n' \
         "$FW_HOST" "$USERNAME" "$PASSWORD" | sanitize_text > "$req_out"
     curl "${curl_opts[@]}" --get \
@@ -241,6 +256,10 @@ request_keygen() {
 }
 
 API_KEY_SOURCE="provided"
+sanitize_scalar() {
+    printf '%s' "$1" | sanitize_text
+}
+
 if [[ -z "$API_KEY" ]]; then
     echo "[0/5] requesting API key using username/password..."
     API_KEY_SOURCE="keygen"
@@ -257,6 +276,7 @@ fi
 echo "[1/4] collecting system info..."
 SYSTEM_INFO_RAW="$TMP_DIR/system_info.raw.xml"
 SYSTEM_INFO_REQ="$TMP_DIR/system_info.request.txt"
+panos_guard_allowed_request "op" "show_system_info"
 request_get \
     "https://${FW_HOST}/api/?type=op&cmd=<show><system><info></info></system></show>&key=${API_KEY}" \
     "$SYSTEM_INFO_RAW" \
@@ -304,6 +324,7 @@ SUBMIT_REQ="$VERSION_DIR/traffic_log_submit_request.txt"
 SUBMIT_SAN="$VERSION_DIR/traffic_log_submit_response.xml"
 
 echo "[2/4] submitting traffic-log query job..."
+panos_guard_allowed_request "log" ""
 request_get "$SUBMIT_URL" "$SUBMIT_RAW" "$SUBMIT_REQ"
 sanitize_text < "$SUBMIT_RAW" > "$SUBMIT_SAN"
 
@@ -320,6 +341,7 @@ if [[ -n "$JOB_ID" ]]; then
         POLL_REQ="$VERSION_DIR/traffic_log_poll_request_${poll_count}.txt"
         POLL_SAN="$VERSION_DIR/traffic_log_poll_response_${poll_count}.xml"
 
+        panos_guard_allowed_request "log" "get"
         request_get "$POLL_URL" "$POLL_RAW" "$POLL_REQ"
         sanitize_text < "$POLL_RAW" > "$POLL_SAN"
         POLL_RAW_LAST="$POLL_RAW"
@@ -343,6 +365,7 @@ echo "[4/4] collecting rule metadata config response..."
 RULE_CFG_RAW="$TMP_DIR/rule_config.raw.xml"
 RULE_CFG_REQ="$VERSION_DIR/rule_metadata_config_request.txt"
 RULE_CFG_SAN="$VERSION_DIR/rule_metadata_config_response.xml"
+panos_guard_allowed_request "config" "show"
 request_get \
     "https://${FW_HOST}/api/?type=config&action=show&xpath=${RULE_XPATH}&key=${API_KEY}" \
     "$RULE_CFG_RAW" \
@@ -353,6 +376,7 @@ RULE_PARENT=$(dirname "$RULE_XPATH")
 RULE_COMPLETE_RAW="$TMP_DIR/rule_complete.raw.xml"
 RULE_COMPLETE_REQ="$VERSION_DIR/rule_metadata_config_complete_request.txt"
 RULE_COMPLETE_SAN="$VERSION_DIR/rule_metadata_config_complete_response.xml"
+panos_guard_allowed_request "config" "complete"
 request_get \
     "https://${FW_HOST}/api/?type=config&action=complete&xpath=${RULE_PARENT}&key=${API_KEY}" \
     "$RULE_COMPLETE_RAW" \
@@ -367,8 +391,8 @@ verification_scope=${VERIFICATION_SCOPE}
 panos_version_reported=${SW_VERSION}
 panos_version_source=${PANOS_VERSION_SOURCE}
 scenario=${CAPTURE_SLUG}
-firewall_host_input=${FW_HOST}
-rule_xpath_input=${RULE_XPATH}
+firewall_host_input=$(sanitize_scalar "${FW_HOST}")
+rule_xpath_input=$(sanitize_scalar "${RULE_XPATH}")
 log_query_expr=${LOG_QUERY_EXPR}
 max_polls=${MAX_POLLS}
 poll_interval_secs=${POLL_INTERVAL_SECS}

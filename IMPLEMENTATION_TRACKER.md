@@ -27,6 +27,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - PAN-OS fixture gather helper now writes versioned capture sets (`versions/<panos_version>/<capture_label>_<timestamp>/`), capture metadata manifests, and canonical fixture mirrors for validation tests.
 - PAN-OS fixture tooling now includes a `version + scenario` selector helper for tests and optional keygen auth fallback (`--username`/`--password`) in the capture script.
 - Versioned fixture manifests and selectors are now provenance-aware (`real_capture` vs `template_seeded` vs `synthetic`) with explicit verification-scope gating and fail-closed selection semantics.
+- Local fixture collection now enforces a repo-owned read-only PAN-OS request allowlist guard before each live call (`op/show system info`, `log submit/get`, `config get/show/complete`, keygen bootstrap only).
 - PAN-OS traffic-log filter fields and metadata XPath remain explicitly `UNVERIFIED` placeholders pending target-environment evidence capture.
 
 ## Architecture Snapshot
@@ -62,6 +63,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - Fixture tests can now auto-select newest versioned capture by `version + scenario` via helper, reducing hardcoded fixture-path coupling.
   - One existing PAN-OS adapter fixture-alignment test now uses the versioned selector path end-to-end (`11.0.2` + `deny-hit`) with manifest assertions.
   - Selector/manifest hardening now prevents trust confusion between template/synthetic fixtures and real-capture evidence in verification workflows.
+  - Local-firewall collection harness is now constrained by explicit read-only request allowlist checks and test-backed fake-curl harness validation.
 - Remaining MVP-critical work:
   - Capture sanitized target PAN-OS XML samples/version data into the fixture pack and then verify or correct `addr.dst`/`port.dst` and metadata XPath placeholders.
 
@@ -194,6 +196,16 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
      - fixture validation tests enforce stricter manifest contract - done
      - no PAN-OS adapter runtime behavior changes - done
 
+15. **Harden local-firewall read-only collection harness**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 10-14
+   - Acceptance:
+     - repo-owned guard enforces PAN-OS read-only request allowlist and rejects disallowed classes/actions - done
+     - gather script uses allowlist guard for all live request paths - done
+     - local collection harness tests prove guard rejection and real-capture manifest/sanitization behavior - done
+     - no classifier/API/UI/PAN-OS adapter runtime changes - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -231,6 +243,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Fixture-based parser-shape verification is distinct from environment/version verification; query-field and XPath placeholders remain `UNVERIFIED` until real sanitized captures validate them.
 - 2026-03-08: Fixture collection now uses versioned capture packs plus canonical file mirrors, so multi-version evidence can be stored without breaking existing fixture validation tests.
 - 2026-03-08: Versioned fixture trust policy is now explicit: `real_capture` may support environment verification; `template_seeded`/`synthetic` are limited to wiring/parser-shape coverage and cannot promote `UNVERIFIED` assumptions.
+- 2026-03-08: Local PAN-OS fixture collection is restricted to repo-owned read-only allowlist guard checks; arbitrary request classes/actions are disallowed by default.
 
 ## Test Log
 
@@ -274,6 +287,9 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py -k "fixture_poll_shape_parses_log_entries_with_current_extractor" tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 1 selected / 33 deselected due to targeted `-k` filter).
 - 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 13 tests).
 - 2026-03-08: Ran `uv run ruff check tests/adapters/test_panos_adapter.py tests/fixtures/panos_fixture_selector.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass).
+- 2026-03-08: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_collection_harness.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py tests/adapters/test_panos_adapter.py -k "fixture_poll_shape_parses_log_entries_with_current_extractor or panos_collection_harness or panos_fixture_selector or verification_fixture_pack"` (pass, 17 tests; 20 deselected).
+- 2026-03-08: Ran `uv run ruff check tests/fixtures/test_panos_collection_harness.py tests/fixtures/panos_fixture_selector.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py tests/adapters/test_panos_adapter.py` (pass).
 
 ## Iteration Journal
 
@@ -301,6 +317,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Added `tests/fixtures/panos_fixture_selector.py` helper so tests can resolve versioned fixture captures by `version + scenario`, and extended capture script auth to support API-key generation from username/password when needed.
 - 2026-03-08: Wired one existing PAN-OS adapter fixture-alignment test to load fixtures through `select_versioned_capture(version, scenario)` and assert capture manifest metadata for explicit test provenance.
 - 2026-03-08: Hardened fixture-manifest trust schema and selector gating so provenance/scope filters are explicit, fail-closed, and cannot silently downgrade real-capture verification requirements.
+- 2026-03-08: Added a repo-owned read-only PAN-OS request guard and wired fixture collection through it; added harness tests with fake-curl execution to verify disallowed-action rejection and sanitized real-capture manifest output.
 
 ## Historical / Superseded Checkpoints
 
@@ -316,7 +333,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Collect sanitized `capture_provenance=real_capture` PAN-OS XML sets for each accessible version/scenario (deny/no-match/metadata/malformed), then add verification tests that require `require_provenance="real_capture"` and appropriate `minimum_verification_scope` before promoting any mapping assumption from `UNVERIFIED`.
+Run the hardened read-only local-firewall harness against target devices (using `.env` PAN-OS credentials) to collect sanitized `capture_provenance=real_capture` versioned scenario packs (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`), then add verification tests that require `require_provenance=\"real_capture\"` before promoting any `UNVERIFIED` mapping assumption.
 
 ## Deferred / Later
 
