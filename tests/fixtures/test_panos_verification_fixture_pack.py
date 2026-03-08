@@ -42,3 +42,24 @@ def test_panos_verification_fixture_pack_contains_minimum_expected_markers() -> 
 
     metadata_root = _load_xml_fixture("rule_metadata_config_response.xml")
     assert metadata_root.find(".//entry") is not None
+
+
+def test_panos_verification_fixture_pack_readme_contains_required_sanitization_contract() -> None:
+    readme = (FIXTURE_ROOT / "README.md").read_text(encoding="utf-8").lower()
+    required_terms = (
+        "ips",
+        "usernames",
+        "hostnames",
+        "serial numbers",
+        "device names",
+        "rule names",
+        "ticket ids",
+        "tokens",
+        "cookies",
+        "api keys",
+        "preserve xml",
+        "consistent placeholders",
+        "never treat redacted sample values as authoritative",
+    )
+    for term in required_terms:
+        assert term in readme

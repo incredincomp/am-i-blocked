@@ -78,6 +78,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
 - `tests/adapters/test_panos_adapter.py`: also covers PAN-OS rule metadata lookup behavior (success, no-match, malformed response, timeout/failure) and graceful deny-path behavior when metadata lookup fails.
+- `tests/adapters/test_panos_adapter.py`: includes PAN-OS fixture-pack alignment checks proving current parser assumptions match fixture submit/poll/metadata XML shapes.
 - `tests/unit/test_authoritative_correlation.py`: step-level PAN-OS authoritative gating tests (deny accepted, non-deny/malformed/timeout/no-match excluded).
 - `tests/unit/test_source_readiness_check.py`: readiness-step coverage including LogScale configured/unconfigured paths.
 
@@ -97,6 +98,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Adapter abstraction in `packages/adapters/am_i_blocked_adapters/base.py`.
 - PAN-OS adapter now contains XML log-job submit/poll helpers, conservative deny/reset normalization, and optional XML config-based `lookup_rule_metadata(...)` enrichment in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
 - PAN-OS adapter query-field mapping (`addr.dst`, `port.dst`) and metadata XPath shape are explicitly documented in code as `UNVERIFIED` placeholders pending target-environment capture; no PAN-OS version pin/source file exists in repo config today.
+- PAN-OS fixture pack currently validates parser shape expectations (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`) but does not independently verify version-specific query-field/XPath correctness.
 - Worker step modules in `services/worker/am_i_blocked_worker/steps/`.
 - Authoritative-correlation now applies PAN-OS deny-authoritative gating before passing evidence to classification (`services/worker/am_i_blocked_worker/steps/authoritative_correlation.py`).
 - Classification logic isolated in `services/worker/am_i_blocked_worker/steps/classify.py`.

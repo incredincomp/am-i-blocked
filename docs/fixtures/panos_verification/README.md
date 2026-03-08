@@ -3,8 +3,11 @@
 This folder holds **sanitized** PAN-OS XML samples used to validate adapter assumptions
 without changing runtime adapter behavior.
 
-These files are **fixture templates/scaffolding**, not verified environment truth.
-Replace placeholder values with sanitized real-environment captures when available.
+These files may be either:
+- template scaffolding with placeholders, or
+- sanitized real-environment captures.
+
+In both cases, samples are verification artifacts, not production truth by themselves.
 
 ## Required Files
 
@@ -14,16 +17,24 @@ Replace placeholder values with sanitized real-environment captures when availab
 
 ## Sanitization Rules (Required)
 
-1. Remove or replace all secrets:
-   - API keys, auth tokens, cookies, session IDs.
-2. Remove or anonymize environment identifiers:
-   - firewall hostnames, serial numbers, device groups, vsys labels that map to production naming.
-3. Replace sensitive network/app data:
-   - internal IPs, private domains/FQDNs, URLs, usernames, email addresses, ticket IDs.
-4. Keep protocol structure intact:
-   - XML tags/attributes required for parsing must remain.
-5. Keep one realistic deny example where available:
-   - include a deny/reset traffic entry and associated rule metadata entry.
+1. Redact/tokenize **all auth/session material**:
+   - API keys, bearer tokens, cookies, session IDs, auth headers.
+2. Redact/tokenize sensitive infrastructure identifiers:
+   - public/private IPs when sensitive, hostnames, firewall serial numbers, device names.
+3. Redact/tokenize sensitive identity/business data:
+   - usernames, emails, ticket IDs, internal references, internal object names when sensitive.
+4. Redact/tokenize policy identifiers when needed:
+   - rule names if sensitive.
+5. Preserve XML protocol shape:
+   - keep tag names, nesting, and relevant attributes required for parser behavior.
+6. Preserve representative response shape:
+   - keep realistic field names and structural placement used by adapter parsing.
+7. Use consistent placeholders when redacting values:
+   - prefer `REDACTED_*` or `SANITIZED_*` patterns within a file set.
+8. Never commit raw secrets:
+   - no tokens, cookies, API keys, credentials, or session material in git.
+9. Never treat redacted sample values as authoritative production values:
+   - only structure and field presence are considered evidence.
 
 ## Expected Structural Fields
 
@@ -69,3 +80,16 @@ It validates:
 - required files exist
 - XML parses
 - minimal structural markers are present
+- sanitization contract text is present in this README
+
+## What This Pack Can and Cannot Verify
+
+Can verify (when samples are present):
+- submit response job-id parsing shape
+- poll response status/log-entry container shape
+- metadata response rule-entry field shape
+
+Cannot verify by itself:
+- universal PAN-OS behavior across versions
+- query field correctness beyond what samples explicitly show
+- Panorama-specific behavior unless explicitly represented in samples

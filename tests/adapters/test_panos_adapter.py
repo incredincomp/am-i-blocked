@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import uuid
+import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import httpx
 import pytest
@@ -12,6 +14,7 @@ from am_i_blocked_adapters.panos import PANOSAdapter
 REQUEST_ID = str(uuid.uuid4())
 TIME_START = "2026-01-01T00:00:00+00:00"
 TIME_END = "2026-01-01T00:15:00+00:00"
+FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "docs" / "fixtures" / "panos_verification"
 
 
 def _job_submit_xml(job_id: str = "17") -> str:
@@ -275,3 +278,39 @@ class TestPANOSAdapterRuleMetadataLookup:
         respx.get("https://10.0.0.1/api/").mock(side_effect=httpx.ReadTimeout("timeout"))
         metadata = await self.adapter.lookup_rule_metadata(rule_name="block-ext")
         assert metadata == {}
+
+
+class TestPANOSAdapterFixtureAlignment:
+    def setup_method(self) -> None:
+        self.adapter = PANOSAdapter(
+            fw_hosts=["10.0.0.1"],
+            api_key="test-key",
+            verify_ssl=False,
+        )
+
+    def test_fixture_submit_shape_contains_job_marker_used_by_adapter(self) -> None:
+        root = ET.fromstring((FIXTURE_ROOT / "traffic_log_submit_response.xml").read_text(encoding="utf-8"))
+        assert (root.findtext(".//job") or "").strip()
+
+    def test_fixture_poll_shape_parses_log_entries_with_current_extractor(self) -> None:
+        root = ET.fromstring((FIXTURE_ROOT / "traffic_log_poll_response.xml").read_text(encoding="utf-8"))
+        status = (root.findtext(".//status") or "").strip().upper()
+        assert status
+        entries = self.adapter._extract_log_entries(root)
+        assert entries
+        assert "action" in entries[0]
+        assert "rule" in entries[0]
+
+    def test_fixture_metadata_shape_parses_with_current_metadata_extractor(self) -> None:
+        root = ET.fromstring((FIXTURE_ROOT / "rule_metadata_config_response.xml").read_text(encoding="utf-8"))
+        entry = root.find(".//entry")
+        assert entry is not None
+        rule_name = entry.attrib.get("name")
+        assert rule_name
+        metadata = self.adapter._extract_rule_metadata(
+            root=root,
+            rule_name=rule_name,
+            vsys="vsys1",
+            host="10.0.0.1",
+        )
+        assert metadata.get("rule_name") == rule_name

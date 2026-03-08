@@ -12,7 +12,7 @@ Deliver the MVP single-destination flow that returns `allowed | denied | unknown
 
 ## Current Phase
 
-MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, minimal unknown-confidence explainability in place, and PAN-OS verification fixture-pack scaffolding ready for real-environment evidence capture.
+MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, minimal unknown-confidence explainability in place, and fixture-based PAN-OS parser-shape verification completed without adapter behavior changes.
 
 - API -> Redis -> worker -> Postgres lifecycle is implemented and tested.
 - API remains thin and worker-only vendor access is preserved.
@@ -23,6 +23,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - Integration-style lifecycle coverage now proves PAN-OS metadata survives submit -> queue -> worker -> persist -> API result retrieval -> UI rendering via normal persisted retrieval paths.
 - API/UI now surfaces compact unknown-confidence explainability (`path_confidence`, `evidence_completeness`, and `unknown_reason_signals`) for `unknown` verdicts.
 - PAN-OS verification fixture pack scaffolding now exists (`docs/fixtures/panos_verification`) with required sample file templates and sanitization rules.
+- PAN-OS fixture validation now confirms current parser marker assumptions against fixture XML shapes (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`).
 - PAN-OS traffic-log filter fields and metadata XPath remain explicitly `UNVERIFIED` placeholders pending target-environment evidence capture.
 
 ## Architecture Snapshot
@@ -53,6 +54,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - PAN-OS validation pass confirmed async XML job flow assumptions are supported by repo-level vendor grounding, but found no target-version XML evidence to promote current filter-field or XPath placeholders from `UNVERIFIED`.
   - Unknown-result confidence surfacing is now implemented: API returns `unknown_reason_signals`, and UI renders compact "Why unknown" signals tied to `path_confidence` and `evidence_completeness`.
   - PAN-OS fixture/documentation scaffolding now defines exact XML sample files required for verification and includes parser/structure checks in tests.
+  - Fixture-based verification run completed: parser shape assumptions align with fixture XML; adapter runtime behavior remains unchanged because fixtures are still placeholder-level and not version-pinned production captures.
 - Remaining MVP-critical work:
   - Capture sanitized target PAN-OS XML samples/version data into the fixture pack and then verify or correct `addr.dst`/`port.dst` and metadata XPath placeholders.
 
@@ -144,6 +146,15 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
      - add small validation test/helper that loads/parses required samples - done
      - no adapter behavior changes - done
 
+11. **Fixture-based PAN-OS placeholder verification and contract hardening**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 1-10
+   - Acceptance:
+     - validate adapter submit/poll/metadata parser assumptions against fixture pack - done
+     - strengthen fixture sanitization contract wording with explicit redaction/tokenization rules - done
+     - change adapter behavior only if fixture evidence disproves current assumptions - done (no runtime changes required)
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures and use them to validate/correct adapter query-field/XPath placeholders.
@@ -177,6 +188,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: PAN-OS validation policy remains conservative: no query-field/XPath mapping changes without target-environment versioned XML evidence.
 - 2026-03-08: Unknown-confidence surfacing is explainability-only (`unknown_reason_signals`), and confidence values do not influence verdict authority semantics.
 - 2026-03-08: PAN-OS verification fixture templates + parser checks are the required staging path before promoting any PAN-OS XML mapping assumption from `UNVERIFIED`.
+- 2026-03-08: Fixture-based parser-shape verification is distinct from environment/version verification; query-field and XPath placeholders remain `UNVERIFIED` until real sanitized captures validate them.
 
 ## Test Log
 
@@ -205,6 +217,9 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py packages/core/am_i_blocked_core/models.py tests/routes/test_api_routes.py` (pass).
 - 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 3 tests).
 - 2026-03-08: Ran `uv run ruff check tests/fixtures/test_panos_verification_fixture_pack.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_verification_fixture_pack.py tests/adapters/test_panos_adapter.py -k "FixtureAlignment or verification_fixture_pack"` (pass, 7 selected).
+- 2026-03-08: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py` (pass, 21 tests).
+- 2026-03-08: Ran `uv run ruff check tests/adapters/test_panos_adapter.py tests/fixtures/test_panos_verification_fixture_pack.py docs/fixtures/panos_verification/README.md` (pass).
 
 ## Iteration Journal
 
@@ -227,6 +242,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Ran PAN-OS validation review against repo docs/config/tests; no target-environment XML/version artifacts were found, so `addr.dst`/`port.dst` filter fields and metadata XPath remain documented as `UNVERIFIED` placeholders.
 - 2026-03-08: Added minimal unknown-result confidence explainability in API/UI with derived `unknown_reason_signals` and loader-level confidence coercion for malformed/missing persisted values.
 - 2026-03-08: Added PAN-OS verification fixture-pack scaffolding (required XML sample templates, sanitization guidance, and parser/shape validation test) without changing adapter behavior.
+- 2026-03-08: Hardened PAN-OS fixture sanitization contract and added fixture-alignment tests; validation confirmed parser shape compatibility but did not justify query-field/XPath runtime changes.
 
 ## Historical / Superseded Checkpoints
 
