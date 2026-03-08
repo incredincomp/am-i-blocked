@@ -95,6 +95,11 @@ class PANOSAdapter(BaseAdapter):
             for entry in entries:
                 record = self._normalize_entry(entry=entry, request_id=request_uuid, host=host)
                 if record is not None:
+                    rule_name = record.normalized.get("rule_name")
+                    if isinstance(rule_name, str) and rule_name:
+                        metadata = await self.lookup_rule_metadata(rule_name=rule_name)
+                        if metadata:
+                            record.normalized["rule_metadata"] = metadata
                     evidence.append(record)
         return evidence
 
@@ -221,13 +226,66 @@ class PANOSAdapter(BaseAdapter):
         )
 
     async def lookup_rule_metadata(self, rule_name: str, vsys: str = "vsys1") -> dict[str, Any]:
-        """Retrieve rule metadata from the firewall REST API.
+        """Retrieve rule metadata from PAN-OS XML config API conservatively.
 
-        TODO: Implement REST API call to retrieve security rule details.
+        This lookup is explainability-only and optional. Any failures or malformed
+        responses return an empty dict so deny authority remains based solely on
+        traffic-log deny evidence.
         """
-        return {
-            "stub": True,
-            "message": "TODO: implement PAN-OS REST API rule metadata lookup",
+        if not rule_name or not self._fw_hosts:
+            return {}
+
+        # UNVERIFIED: xpath may vary by PAN-OS version / device config shape.
+        xpath = (
+            f"/config/devices/entry/vsys/entry[@name='{vsys}']"
+            f"/rulebase/security/rules/entry[@name='{rule_name}']"
+        )
+        for host in self._fw_hosts:
+            root = await self._call_xml_api(
+                host=host,
+                params={
+                    "type": "config",
+                    "action": "get",
+                    "xpath": xpath,
+                },
+            )
+            if root is None:
+                continue
+            metadata = self._extract_rule_metadata(root=root, rule_name=rule_name, vsys=vsys, host=host)
+            if metadata:
+                return metadata
+
+        return {}
+
+    def _extract_rule_metadata(
+        self,
+        root: ET.Element,
+        rule_name: str,
+        vsys: str,
+        host: str,
+    ) -> dict[str, Any]:
+        """Extract minimal rule metadata fields from XML response."""
+        entry = root.find(f".//entry[@name='{rule_name}']")
+        if entry is None:
+            return {}
+
+        metadata: dict[str, Any] = {
             "rule_name": rule_name,
             "vsys": vsys,
+            "device_host": host,
         }
+        if action := entry.findtext("action"):
+            metadata["rule_action"] = action.strip()
+        if description := entry.findtext("description"):
+            metadata["description"] = description.strip()
+        disabled = entry.findtext("disabled")
+        if isinstance(disabled, str):
+            disabled_norm = disabled.strip().lower()
+            if disabled_norm in {"yes", "true"}:
+                metadata["disabled"] = True
+            elif disabled_norm in {"no", "false"}:
+                metadata["disabled"] = False
+        tags = [m.text.strip() for m in entry.findall("tag/member") if m.text and m.text.strip()]
+        if tags:
+            metadata["tags"] = tags
+        return metadata

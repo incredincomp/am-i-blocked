@@ -91,6 +91,15 @@ class TestPANOSAdapterTrafficLogJobs:
                         _entry_xml("reset-client", "block-reset"),
                     ),
                 ),
+                httpx.Response(
+                    200,
+                    text=(
+                        "<response status=\"success\"><result><entry name=\"block-reset\">"
+                        "<action>deny</action><description>Block reset traffic</description>"
+                        "<disabled>no</disabled><tag><member>secops</member></tag>"
+                        "</entry></result></response>"
+                    ),
+                ),
             ]
         )
 
@@ -109,6 +118,33 @@ class TestPANOSAdapterTrafficLogJobs:
         assert record.normalized["action_raw"] == "reset-client"
         assert record.normalized["rule_name"] == "block-reset"
         assert record.normalized["authoritative"] is True
+        assert record.normalized["rule_metadata"]["rule_name"] == "block-reset"
+        assert record.normalized["rule_metadata"]["rule_action"] == "deny"
+        assert record.normalized["rule_metadata"]["disabled"] is False
+
+    @pytest.mark.anyio
+    @respx.mock
+    async def test_query_evidence_metadata_lookup_failure_still_returns_deny_record(self) -> None:
+        route = respx.get("https://10.0.0.1/api/")
+        route.mock(
+            side_effect=[
+                httpx.Response(200, text=_job_submit_xml("22")),
+                httpx.Response(200, text=_poll_finished_xml(_entry_xml("deny", "block-ext"))),
+                httpx.Response(200, text="<response><result><entry name=\"block-ext\">"),
+            ]
+        )
+
+        records = await self.adapter.query_evidence(
+            destination="api.example.com",
+            port=443,
+            time_window_start=TIME_START,
+            time_window_end=TIME_END,
+            request_id=REQUEST_ID,
+        )
+
+        assert len(records) == 1
+        assert records[0].normalized["action"] == "deny"
+        assert "rule_metadata" not in records[0].normalized
 
     @pytest.mark.anyio
     @respx.mock
@@ -179,3 +215,63 @@ class TestPANOSAdapterTrafficLogJobs:
         )
 
         assert records == []
+
+
+class TestPANOSAdapterRuleMetadataLookup:
+    def setup_method(self) -> None:
+        self.adapter = PANOSAdapter(
+            fw_hosts=["10.0.0.1"],
+            api_key="test-key",
+            verify_ssl=False,
+        )
+
+    @pytest.mark.anyio
+    @respx.mock
+    async def test_lookup_rule_metadata_success(self) -> None:
+        respx.get("https://10.0.0.1/api/").mock(
+            return_value=httpx.Response(
+                200,
+                text=(
+                    "<response status=\"success\"><result><entry name=\"block-ext\">"
+                    "<action>deny</action><description>Block external</description>"
+                    "<disabled>no</disabled><tag><member>secops</member><member>internet</member></tag>"
+                    "</entry></result></response>"
+                ),
+            )
+        )
+
+        metadata = await self.adapter.lookup_rule_metadata(rule_name="block-ext")
+        assert metadata["rule_name"] == "block-ext"
+        assert metadata["rule_action"] == "deny"
+        assert metadata["description"] == "Block external"
+        assert metadata["disabled"] is False
+        assert metadata["tags"] == ["secops", "internet"]
+
+    @pytest.mark.anyio
+    @respx.mock
+    async def test_lookup_rule_metadata_no_match_returns_empty(self) -> None:
+        respx.get("https://10.0.0.1/api/").mock(
+            return_value=httpx.Response(
+                200,
+                text="<response status=\"success\"><result></result></response>",
+            )
+        )
+
+        metadata = await self.adapter.lookup_rule_metadata(rule_name="missing-rule")
+        assert metadata == {}
+
+    @pytest.mark.anyio
+    @respx.mock
+    async def test_lookup_rule_metadata_malformed_response_returns_empty(self) -> None:
+        respx.get("https://10.0.0.1/api/").mock(
+            return_value=httpx.Response(200, text="<response><result><entry"),
+        )
+        metadata = await self.adapter.lookup_rule_metadata(rule_name="block-ext")
+        assert metadata == {}
+
+    @pytest.mark.anyio
+    @respx.mock
+    async def test_lookup_rule_metadata_timeout_returns_empty(self) -> None:
+        respx.get("https://10.0.0.1/api/").mock(side_effect=httpx.ReadTimeout("timeout"))
+        metadata = await self.adapter.lookup_rule_metadata(rule_name="block-ext")
+        assert metadata == {}

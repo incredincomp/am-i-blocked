@@ -71,6 +71,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval coverage with controlled PAN-OS deny and no-authoritative-evidence outcomes.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
+- `tests/adapters/test_panos_adapter.py`: also covers PAN-OS rule metadata lookup behavior (success, no-match, malformed response, timeout/failure) and graceful deny-path behavior when metadata lookup fails.
 - `tests/unit/test_authoritative_correlation.py`: step-level PAN-OS authoritative gating tests (deny accepted, non-deny/malformed/timeout/no-match excluded).
 - `tests/unit/test_source_readiness_check.py`: readiness-step coverage including LogScale configured/unconfigured paths.
 
@@ -88,7 +89,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 ## Known Architectural Seams
 
 - Adapter abstraction in `packages/adapters/am_i_blocked_adapters/base.py`.
-- PAN-OS adapter now contains XML log-job submit/poll helpers and conservative deny/reset normalization in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
+- PAN-OS adapter now contains XML log-job submit/poll helpers, conservative deny/reset normalization, and optional XML config-based `lookup_rule_metadata(...)` enrichment in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
 - Worker step modules in `services/worker/am_i_blocked_worker/steps/`.
 - Authoritative-correlation now applies PAN-OS deny-authoritative gating before passing evidence to classification (`services/worker/am_i_blocked_worker/steps/authoritative_correlation.py`).
 - Classification logic isolated in `services/worker/am_i_blocked_worker/steps/classify.py`.

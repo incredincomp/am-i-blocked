@@ -8,6 +8,9 @@ Living validation log for durable vendor/repo facts and explicit unknowns.
 
 | Date/Time (UTC) | Source Area | Fact | Confidence | Implementation Impact | Code Changes Needed |
 |---|---|---|---|---|---|
+| 2026-03-08T09:04:13Z | PAN-OS adapter | `lookup_rule_metadata(...)` now performs conservative optional PAN-OS XML config lookup and returns minimal parsed fields (`rule_name`, optional action/description/disabled/tags/device_host/vsys) when present. | MEDIUM | Improves deny explainability while preserving deny authority behavior because metadata remains enrichment-only. | YES (completed in this run) |
+| 2026-03-08T09:04:13Z | PAN-OS adapter | Metadata lookup failures (timeout/request error/malformed/no-match) now degrade gracefully to empty metadata; deny evidence path remains intact. | HIGH | Prevents metadata retrieval instability from breaking the core authoritative deny path. | YES (completed in this run) |
+| 2026-03-08T09:04:13Z | tests | PAN-OS adapter tests now cover metadata lookup success/no-match/malformed/timeout and verify deny evidence still returns when metadata lookup fails. | HIGH | Locks optional explainability enrichment semantics without weakening existing authoritative deny gating. | YES (completed in this run) |
 | 2026-03-08T08:50:00Z | integration tests | Added integration-style lifecycle coverage (`tests/fixtures/test_lifecycle_integration.py`) proving submit -> queue enqueue -> worker dequeue/dispatch -> persistence -> API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths. | HIGH | Confirms end-to-end persisted lifecycle behavior for deny/non-deny outcomes without real vendor calls, reducing risk of regressions in queue/persist/report path. | YES (completed in this run) |
 | 2026-03-08T08:05:39Z | authoritative_correlation | Step now filters PAN-OS evidence conservatively: only records with `source=panos`, `normalized.authoritative=true`, and `normalized.action=deny` are forwarded as authoritative evidence. | HIGH | Prevents non-deny/malformed PAN-OS outputs from influencing deny decisions while preserving worker-only vendor boundary. | YES (completed in this run) |
 | 2026-03-08T08:05:39Z | tests | Added `tests/unit/test_authoritative_correlation.py` to prove PAN-OS deny inclusion and exclusion of non-deny, malformed, timeout, and no-match adapter outputs; also verifies absent PAN-OS authoritative evidence classifies as `unknown`. | HIGH | Locks conservative PAN-OS consumption behavior at step level and guards against regressions that could create weak deny signals. | YES (completed in this run) |
@@ -42,6 +45,8 @@ Living validation log for durable vendor/repo facts and explicit unknowns.
 
 - PAN-OS XML log-job request/response shapes for target firewall versions: `UNVERIFIED`.
 - PAN-OS XML query filter field names currently used by adapter (`addr.dst`, `port.dst`) are implementation placeholders pending environment validation: `UNVERIFIED`.
+- PAN-OS XML config XPath used for rule metadata lookup may vary by PAN-OS version/device schema and remains `UNVERIFIED`.
+- PAN-OS metadata field completeness/semantics (for example tags/disabled/action normalization) remain intentionally minimal and `UNVERIFIED` beyond tested subset.
 - SCM/Prisma tenant-approved inbound query endpoints and schemas: `UNVERIFIED`.
 - SD-WAN API bootstrap/profile call requirements in this tenant: `NEEDS_CONFIRMATION`.
 - LogScale role in MVP deny authority (enrichment vs authoritative source): `UNVERIFIED`.
