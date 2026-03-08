@@ -281,6 +281,15 @@ Only durable, implementation-relevant facts belong here.
   - forwarded-log query layer when official forwarding/query paths are established
 - Keep field normalization explicit; do not assume Palo/Prisma fields map cleanly without a documented transform.
 
+#### Current repo implementation status (`UNVERIFIED`)
+- `check_readiness` currently performs a lightweight repository endpoint reachability check and treats HTTP `200` and `403` as reachable.
+- `query_evidence` currently returns a normalized stub sample tagged:
+  - `classification_role=enrichment_only_unverified`
+  - `authoritative=false`
+  - message prefixed with `UNVERIFIED`
+- Async LogScale query-job submit/poll flows are not implemented yet in this repo and remain `UNVERIFIED`.
+- These enrichment records must remain excluded from deny authority decisions in MVP.
+
 #### Do not assume
 - that LogScale field names match raw Palo/Prisma names
 - that NG SIEM alone should determine the final policy verdict in MVP

@@ -21,20 +21,26 @@ def _mock_settings() -> Settings:
     )
 
 
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
 @pytest.mark.anyio
 async def test_dns_probe_timeout_returns_failure(monkeypatch):
-    async def _raise_timeout(*args, **kwargs):  # noqa: ANN002, ANN003
-        raise TimeoutError
+    class _SlowLoop:
+        async def getaddrinfo(self, *args, **kwargs):
+            await bounded_probes.asyncio.sleep(0.05)
+            return []
 
-    monkeypatch.setattr(bounded_probes.asyncio, "wait_for", _raise_timeout)
-
+    monkeypatch.setattr(bounded_probes.asyncio, "get_event_loop", lambda: _SlowLoop())
     result = await bounded_probes._dns_probe("example.com", 0.01)
     assert result == {"success": False, "error": "timeout"}
 
 
 @pytest.mark.anyio
 async def test_tcp_probe_connection_error_returns_failure(monkeypatch):
-    async def _raise_connection_error(*args, **kwargs):  # noqa: ANN002, ANN003
+    def _raise_connection_error(*args, **kwargs):
         raise OSError("network unreachable")
 
     monkeypatch.setattr(bounded_probes.asyncio, "open_connection", _raise_connection_error)
@@ -46,7 +52,7 @@ async def test_tcp_probe_connection_error_returns_failure(monkeypatch):
 
 @pytest.mark.anyio
 async def test_tls_probe_cert_error_is_classified(monkeypatch):
-    async def _raise_cert_error(*args, **kwargs):  # noqa: ANN002, ANN003
+    def _raise_cert_error(*args, **kwargs):
         raise ssl.SSLCertVerificationError("certificate verify failed")
 
     monkeypatch.setattr(bounded_probes.asyncio, "open_connection", _raise_cert_error)
@@ -58,16 +64,16 @@ async def test_tls_probe_cert_error_is_classified(monkeypatch):
 
 @pytest.mark.anyio
 async def test_run_records_probe_failures_without_raising(monkeypatch):
-    async def _dns(*args, **kwargs):  # noqa: ANN002, ANN003
+    async def _dns(*args, **kwargs):
         return {"success": False, "error": "timeout"}
 
-    async def _tcp(*args, **kwargs):  # noqa: ANN002, ANN003
+    async def _tcp(*args, **kwargs):
         return {"success": False, "error": "connection refused"}
 
-    async def _tls(*args, **kwargs):  # noqa: ANN002, ANN003
+    async def _tls(*args, **kwargs):
         return {"success": False, "error": "cert_verification: failed"}
 
-    async def _http(*args, **kwargs):  # noqa: ANN002, ANN003
+    async def _http(*args, **kwargs):
         return {"success": False, "error": "head request failed"}
 
     monkeypatch.setattr(bounded_probes, "_dns_probe", _dns)

@@ -1,24 +1,48 @@
 # SOURCE_REFRESH.md
 
-**Purpose**
+## Purpose
 
-Maintain a living log of vendor facts, verification status, and areas that require further investigation.  This helps keep the AI agent honest about what it knows.
-
-## How Entries Are Recorded
-
-- Each entry includes date/time, source (file or external doc), a concise fact, and a status.
-- Status values: `VERIFIED`, `UNVERIFIED`, `CHANGED`, `NEEDS_CONFIRMATION`.
-- Confidence and implementation impact are noted, along with any follow‑up actions.
+Living validation log for durable vendor/repo facts and explicit unknowns.
 
 ## Verification Log
 
-_No entries yet._
+| Date/Time (UTC) | Source Area | Fact | Confidence | Implementation Impact | Code Changes Needed |
+|---|---|---|---|---|---|
+| 2026-03-08T08:50:00Z | integration tests | Added integration-style lifecycle coverage (`tests/fixtures/test_lifecycle_integration.py`) proving submit -> queue enqueue -> worker dequeue/dispatch -> persistence -> API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths. | HIGH | Confirms end-to-end persisted lifecycle behavior for deny/non-deny outcomes without real vendor calls, reducing risk of regressions in queue/persist/report path. | YES (completed in this run) |
+| 2026-03-08T08:05:39Z | authoritative_correlation | Step now filters PAN-OS evidence conservatively: only records with `source=panos`, `normalized.authoritative=true`, and `normalized.action=deny` are forwarded as authoritative evidence. | HIGH | Prevents non-deny/malformed PAN-OS outputs from influencing deny decisions while preserving worker-only vendor boundary. | YES (completed in this run) |
+| 2026-03-08T08:05:39Z | tests | Added `tests/unit/test_authoritative_correlation.py` to prove PAN-OS deny inclusion and exclusion of non-deny, malformed, timeout, and no-match adapter outputs; also verifies absent PAN-OS authoritative evidence classifies as `unknown`. | HIGH | Locks conservative PAN-OS consumption behavior at step level and guards against regressions that could create weak deny signals. | YES (completed in this run) |
+| 2026-03-08T07:37:54Z | PAN-OS adapter | `PANOSAdapter.query_evidence` now performs XML traffic-log async job submission (`type=log`, `log-type=traffic`) and polling (`action=get`, `job-id`) per configured firewall host, and returns evidence only for deny/reset actions. | MEDIUM | Provides the adapter-side PAN-OS deny evidence path consumed by authoritative-correlation. | YES (completed in this run) |
+| 2026-03-08T07:37:54Z | PAN-OS adapter | PAN-OS adapter now handles timeout, no-match, HTTP errors, and malformed XML conservatively by returning no authoritative deny matches instead of forcing evidence. | HIGH | Preserves MVP invariant (`unknown` over weak certainty) when upstream log responses are incomplete/unreliable. | YES (completed in this run) |
+| 2026-03-08T07:37:54Z | tests | Added `tests/adapters/test_panos_adapter.py` to cover PAN-OS XML job flow for success, timeout, no-match, and malformed XML; updated adapter contract test to validate list output without stub assumptions. | HIGH | Locks adapter behavior to conservative authority semantics and prevents regression to stub-only response assumptions. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | API entrypoint is `am_i_blocked_api:app` in `services/api/am_i_blocked_api/__init__.py`; there is no `services/api/main.py`. | HIGH | Updated `REPO_MAP.md` entrypoint section to prevent incorrect launch assumptions. | NO |
+| 2026-03-08T00:00:00Z | repo | Historical note (superseded later 2026-03-08): worker process was a heartbeat placeholder and Redis dequeue loop was TODO at that time. | HIGH | Historical context only; superseded by later verification entries showing queue consumption implementation. | NO |
+| 2026-03-08T00:00:00Z | repo | Bounded probe helpers currently catch timeout/error paths and return structured failure payloads; pipeline/classifier falls back to `unknown` when no authoritative deny evidence exists. | HIGH | Added tests to lock this safety behavior and prevent regressions. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | Shared infra checks now exist in core (`check_database_readiness`, `check_redis_readiness`) and are used by API readiness and worker startup logging. | HIGH | API/worker can report DB+Redis availability explicitly without vendor coupling. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | API `/api/v1/readyz` returns structured dependency status (`ok` or `degraded`) based on Postgres/Redis checks. | HIGH | Readiness reporting now reflects queue/DB health requirement from MVP guardrails. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | API request routes now use Postgres-first persistence/lookup (`RequestRow`/`ResultRow`) with explicit in-memory fallback when DB operations fail. | HIGH | Moves lifecycle toward persisted workflow without breaking local operation before queue/worker wiring is complete. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | API submit now enqueues jobs to Redis queue key `am_i_blocked:jobs`; worker main loop now dequeues Redis jobs and dispatches `run_diagnostic`. | HIGH | Core async API->queue->worker dispatch path now exists; remaining gap is durable worker result persistence. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | Worker `persist_and_report` now persists completion state to Postgres (`requests.status=complete`) and upserts `result` rows including `report_json` evidence bundle. | HIGH | API durable result reads can now resolve completed diagnostics from DB rather than memory-only state. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | API and worker runtime now operate DB-first without in-memory request/result fallback; persistence dependency failures are surfaced as explicit degraded (`503`) responses. | HIGH | DB-backed request/result state is now the operational single source of truth for the MVP flow. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | Failed request transitions now write reason metadata into `audit.params_json` (`action=request_failed`) and API/UI expose the latest reason as `failure_reason`. | HIGH | Failed states are now actionable without requiring immediate worker log access. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | Failed request transitions now persist structured audit metadata (`reason`, `stage`, `category`) and API/UI expose all three fields for triage (`failure_reason`, `failure_stage`, `failure_category`). | HIGH | Failed-state diagnosis is clearer and no longer depends on only free-form error text. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | Failure metadata now uses bounded enums (`FailureStage`, `FailureCategory`); worker tags failures with concrete pipeline step names (for example `validate_request`, `authoritative_correlation`), and API normalizes unknown values to `unknown`. | HIGH | Failure triage fields are now consistent and safe for downstream UI/automation filtering. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | UI failed-state rendering now maps normalized `failure_stage`/`failure_category` to compact first-hop triage actions, while API outputs remain raw normalized values. | HIGH | Operators get immediate triage guidance without changing API response contracts. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | LogScale | LogScale stub evidence is now explicitly marked `classification_role=enrichment_only_unverified` with `authoritative=false`; payload remains non-authoritative and does not provide deny-driving fields in stub mode. | HIGH | Reinforces MVP rule that LogScale is enrichment-only until verified query behavior is implemented. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | Source readiness step now has explicit unit coverage for LogScale configured and not-configured branches. | HIGH | Prevents regressions in readiness reporting for LogScale source availability. | YES (completed in this run) |
+| 2026-03-08T05:51:03Z | LogScale | Vendor KB now explicitly documents current repo LogScale behavior as `UNVERIFIED`: readiness is lightweight repository reachability and evidence output is enrichment-only normalized stub metadata. | HIGH | Reduces agent drift by aligning vendor-grounding docs with current code/test behavior without promoting LogScale to deny authority. | YES (docs only) |
+| 2026-03-08T00:00:00Z | repo | Classifier deny authority now requires authoritative sources (PAN-OS/SCM) for deny/decrypt-deny paths; LogScale enrichment fields, including malformed deny-like content, cannot independently produce `denied`. | HIGH | Protects MVP invariant: enrichment telemetry cannot override authoritative deny logic. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | LogScale | Classifier now emits explicit observed-fact entries for `enrichment_only_unverified` LogScale records, documenting they are excluded from deny authority decisions. | HIGH | Result bundles now communicate enrichment-vs-authoritative separation directly to operators. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | Result UI now renders observed-fact badges (`Authoritative signal` vs `Enrichment only`) based on observed-fact detail metadata (`classification_role`, `authoritative`). | HIGH | Operators can distinguish authoritative policy evidence from enrichment context at a glance. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | API docs now explicitly define observed-fact detail metadata keys consumed by UI labeling: `classification_role` and `authoritative`, including enrichment-only interpretation rules. | HIGH | Establishes a stable contract for UI/API consistency without changing verdict authority logic. | YES (completed in this run) |
+| 2026-03-08T00:00:00Z | repo | API docs now include `RequestDetail` failed-state examples with `failure_reason`, `failure_stage`, and `failure_category`, plus triage interpretation guidance. | HIGH | Makes failed-request troubleshooting fields explicit for integrators and operators. | YES (completed in this run) |
+| 2026-03-08T06:02:00Z | repo | API now exposes `GET /api/v1/requests/{request_id}/result/evidence-bundle` with attachment headers; result page download control now points to this endpoint for direct JSON evidence-bundle download. | HIGH | Makes operator evidence export explicit and consistent across browsers while preserving existing result authority semantics. | YES (completed in this run) |
+| 2026-03-08T06:23:18Z | repo | Worker pipeline removed remaining in-memory request/result hooks (`request_store`/`result_store`); step-7 persistence failure now raises and marks request failed instead of returning a non-persisted result. | HIGH | Enforces true API -> Redis -> worker -> Postgres lifecycle semantics and prevents false-positive completion when persistence is unavailable. | YES (completed in this run) |
 
 ## Open Verification Needs
 
-- **PAN-OS XML API job syntax** – no concrete example in repo. Status: `UNVERIFIED` (2026-03-07).
-- **SCM log query JSON schema** – assumed but not present. Status: `UNVERIFIED` (2026-03-07).
-- **SD-WAN controller auth & endpoints** – completely unspecified. Status: `NEEDS_CONFIRMATION` (2026-03-07).
-- **LogScale authoritative vs enrichment capability** – unverified whether it can supply denial evidence. Status: `UNVERIFIED` (2026-03-07).
-- **Torq webhook payload** – not defined; assumed optional. Status: `UNVERIFIED` (2026-03-07).
-
+- PAN-OS XML log-job request/response shapes for target firewall versions: `UNVERIFIED`.
+- PAN-OS XML query filter field names currently used by adapter (`addr.dst`, `port.dst`) are implementation placeholders pending environment validation: `UNVERIFIED`.
+- SCM/Prisma tenant-approved inbound query endpoints and schemas: `UNVERIFIED`.
+- SD-WAN API bootstrap/profile call requirements in this tenant: `NEEDS_CONFIRMATION`.
+- LogScale role in MVP deny authority (enrichment vs authoritative source): `UNVERIFIED`.
+- Torq trigger payload + status polling contract for this environment: `UNVERIFIED`.

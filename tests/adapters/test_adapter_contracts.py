@@ -46,7 +46,20 @@ class TestPANOSAdapter:
         assert result["available"] is False
 
     @pytest.mark.anyio
-    async def test_query_evidence_returns_stub(self):
+    @respx.mock
+    async def test_query_evidence_returns_list(self):
+        respx.get("https://10.0.0.1/api/").mock(
+            side_effect=[
+                httpx.Response(200, text="<response><result><job>11</job></result></response>"),
+                httpx.Response(
+                    200,
+                    text=(
+                        "<response><result><job><status>FIN</status></job>"
+                        "<log><logs count=\"0\"></logs></log></result></response>"
+                    ),
+                ),
+            ]
+        )
         records = await self.adapter.query_evidence(
             destination="api.example.com",
             port=443,
@@ -54,9 +67,7 @@ class TestPANOSAdapter:
             time_window_end=TIME_END,
             request_id=REQUEST_ID,
         )
-        assert len(records) == 1
-        assert records[0].normalized["stub"] is True
-        assert records[0].source.value == "panos"
+        assert isinstance(records, list)
 
 
 class TestLogScaleAdapter:
@@ -93,4 +104,6 @@ class TestLogScaleAdapter:
         )
         assert len(records) == 1
         assert records[0].normalized["stub"] is True
+        assert records[0].normalized["classification_role"] == "enrichment_only_unverified"
+        assert records[0].normalized["authoritative"] is False
         assert records[0].source.value == "logscale"

@@ -22,6 +22,11 @@ from am_i_blocked_core.models import (
 logger = get_logger(__name__)
 
 
+def _is_authoritative_for_deny(source: EvidenceSource) -> bool:
+    """Return whether source can contribute to deny-authoritative decisions."""
+    return source in (EvidenceSource.PANOS, EvidenceSource.SCM)
+
+
 class ClassificationResult:
     def __init__(
         self,
@@ -86,10 +91,29 @@ def run(
     has_any_deny = False
 
     for ev in evidence:
+        if ev.source == EvidenceSource.LOGSCALE and (
+            ev.normalized.get("classification_role") == "enrichment_only_unverified"
+            or ev.normalized.get("authoritative") is False
+        ):
+            observed.append(
+                ObservedFact(
+                    source=ev.source,
+                    summary=(
+                        "LogScale enrichment-only signal (UNVERIFIED) observed; "
+                        "excluded from deny authority decisions."
+                    ),
+                    detail={
+                        "classification_role": ev.normalized.get("classification_role"),
+                        "authoritative": ev.normalized.get("authoritative"),
+                        "repo": ev.normalized.get("repo"),
+                        "message": ev.normalized.get("message"),
+                    },
+                )
+            )
         if ev.normalized.get("stub"):
             continue
         action = ev.normalized.get("action", "").lower()
-        if action == "deny":
+        if action == "deny" and _is_authoritative_for_deny(ev.source):
             has_any_deny = True
             if ev.source == EvidenceSource.SCM:
                 has_cloud_deny = True
@@ -109,7 +133,11 @@ def run(
                         detail=ev.normalized,
                     )
                 )
-        if ev.kind == EvidenceKind.DECRYPT_LOG and ev.normalized.get("decrypt_error"):
+        if (
+            ev.kind == EvidenceKind.DECRYPT_LOG
+            and ev.normalized.get("decrypt_error")
+            and _is_authoritative_for_deny(ev.source)
+        ):
             has_decrypt_failure = True
             observed.append(
                 ObservedFact(

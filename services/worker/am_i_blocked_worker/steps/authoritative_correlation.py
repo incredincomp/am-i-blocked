@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from am_i_blocked_core.config import Settings
+from am_i_blocked_core.enums import EvidenceSource
 from am_i_blocked_core.logging_helpers import get_logger
 from am_i_blocked_core.models import EvidenceRecord
 
@@ -36,8 +37,14 @@ async def run(
                 time_window_end=time_window_end,
                 request_id=request_id,
             )
-            evidence.extend(records)
-            logger.info("evidence collected", source=source, count=len(records))
+            normalized_records = _normalize_authoritative_records(source=source, records=records)
+            evidence.extend(normalized_records)
+            logger.info(
+                "evidence collected",
+                source=source,
+                count=len(normalized_records),
+                raw_count=len(records),
+            )
         except Exception as exc:
             logger.warning("adapter query failed", source=source, error=str(exc))
 
@@ -71,3 +78,30 @@ def _build_adapter(source: str, settings: Settings):  # type: ignore[return]
         from am_i_blocked_adapters.sdwan import SDWANAdapter
         return SDWANAdapter(api_url=settings.sdwan_api_url, api_key=settings.sdwan_api_key)
     return None
+
+
+def _normalize_authoritative_records(
+    source: str,
+    records: list[EvidenceRecord],
+) -> list[EvidenceRecord]:
+    """Normalize source evidence to conservative authoritative semantics.
+
+    PAN-OS records are authoritative for deny only when they explicitly contain:
+    - `source == panos`
+    - `normalized.authoritative is True`
+    - `normalized.action == deny`
+    """
+    if source != EvidenceSource.PANOS.value:
+        return records
+
+    filtered: list[EvidenceRecord] = []
+    for record in records:
+        if not isinstance(record, EvidenceRecord):
+            continue
+        if record.source != EvidenceSource.PANOS:
+            continue
+        action = str(record.normalized.get("action", "")).strip().lower()
+        authoritative = record.normalized.get("authoritative")
+        if action == "deny" and authoritative is True:
+            filtered.append(record)
+    return filtered

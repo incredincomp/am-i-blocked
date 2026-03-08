@@ -22,10 +22,13 @@
     .meta-item label { font-size: 0.75rem; color: #999; font-weight: 600; text-transform: uppercase; display: block; }
     .meta-item span { font-size: 0.95rem; font-weight: 500; }
     .confidence-bar { height: 8px; border-radius: 4px; background: #eee; margin-top: 4px; }
-    .confidence-fill { height: 8px; border-radius: 4px; background: #3b6fd4; }
+    .confidence-fill { height: 8px; border-radius: 4px; background: #3b6fd4; width: 0; transition: width 0.3s ease; }
     .evidence-card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.9rem; margin-bottom: 0.6rem; }
     .evidence-card .ev-source { font-size: 0.75rem; font-weight: 700; color: #3b6fd4; text-transform: uppercase; }
     .evidence-card .ev-summary { font-size: 0.9rem; margin-top: 0.25rem; }
+    .fact-type { display: inline-block; margin-left: 0.5rem; padding: 0.12rem 0.45rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+    .fact-type-auth { background: #dcfce7; color: #166534; }
+    .fact-type-enrich { background: #fef3c7; color: #92400e; }
     .next-steps { list-style: disc; padding-left: 1.2rem; }
     .next-steps li { margin-bottom: 0.4rem; font-size: 0.9rem; }
     .download-btn { display: inline-block; margin-top: 1rem; background: #1b2a4a; color: #fff; border: none; border-radius: 4px; padding: 0.5rem 1.2rem; font-size: 0.85rem; cursor: pointer; text-decoration: none; }
@@ -74,7 +77,7 @@
           <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#666;">
             <span>{{ label }}</span><span>{{ (value * 100)|int }}%</span>
           </div>
-          <div class="confidence-bar"><div class="confidence-fill" style="width:{{ (value * 100)|int }}%;"></div></div>
+          <div class="confidence-bar"><div class="confidence-fill" data-width="{{ (value * 100)|int }}%;"></div></div>
         </div>
         {% endfor %}
       </div>
@@ -90,7 +93,15 @@
       <h3>Evidence</h3>
       {% for fact in result.observed_facts %}
       <div class="evidence-card">
-        <div class="ev-source">{{ fact.source }}</div>
+        <div class="ev-source">
+          {{ fact.source }}
+          {% set is_enrichment = fact.detail and (fact.detail.classification_role == "enrichment_only_unverified" or fact.detail.authoritative == false) %}
+          {% if is_enrichment %}
+          <span class="fact-type fact-type-enrich">Enrichment only</span>
+          {% else %}
+          <span class="fact-type fact-type-auth">Authoritative signal</span>
+          {% endif %}
+        </div>
         <div class="ev-summary">{{ fact.summary }}</div>
       </div>
       {% endfor %}
@@ -111,15 +122,36 @@
     <div class="section">
       <h3>Download evidence bundle</h3>
       <p style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;">Raw JSON evidence bundle for ticket or escalation use.</p>
-      <a class="download-btn" href="/api/v1/requests/{{ request_id }}/result" download="evidence-{{ request_id }}.json">
+      <a class="download-btn" href="/api/v1/requests/{{ request_id }}/result/evidence-bundle">
         Download JSON
       </a>
     </div>
     {% else %}
     <div class="section pending-notice">
+      {% if record.status == "failed" %}
+      <p style="font-size:1.1rem; margin-bottom:0.5rem;">Diagnostic failed</p>
+      {% else %}
       <p style="font-size:1.1rem; margin-bottom:0.5rem;">⏳ Diagnostic in progress…</p>
+      {% endif %}
       <p>Request ID: <code>{{ request_id }}</code></p>
       <p style="margin-top:0.5rem; font-size:0.85rem; color:#999;">Status: {{ record.status }}</p>
+      {% if record.status == "failed" and record.failure_reason %}
+      <p style="margin-top:0.5rem; font-size:0.9rem; color:#b42318;">Failure reason: {{ record.failure_reason }}</p>
+      {% endif %}
+      {% if record.status == "failed" and record.failure_stage %}
+      <p style="margin-top:0.35rem; font-size:0.85rem; color:#b42318;">Failure stage: {{ record.failure_stage }}</p>
+      {% endif %}
+      {% if record.status == "failed" and record.failure_category %}
+      <p style="margin-top:0.35rem; font-size:0.85rem; color:#b42318;">Failure category: {{ record.failure_category }}</p>
+      {% endif %}
+      {% if record.status == "failed" and triage_hint %}
+      <div style="margin-top:0.7rem; border:1px solid #fecaca; background:#fef2f2; border-radius:6px; padding:0.65rem; text-align:left;">
+        <p style="font-size:0.75rem; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">First-hop triage</p>
+        <p style="margin-top:0.2rem; font-size:0.85rem; color:#7f1d1d;">
+          Suggested action: {{ triage_hint.first_hop_action }}
+        </p>
+      </div>
+      {% endif %}
     </div>
     <script>
       // Auto-refresh while pending
@@ -128,5 +160,14 @@
     {% endif %}
   </main>
   <footer>Internal use only — not for external distribution</footer>
+  <script>
+    // apply dynamic widths from data-width attributes (avoids inline CSS in templates)
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.confidence-fill').forEach(function(el) {
+        var w = el.getAttribute('data-width');
+        if (w) el.style.width = w;
+      });
+    });
+  </script>
 </body>
 </html>

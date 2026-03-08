@@ -69,6 +69,53 @@ Retrieve the status and detail of a diagnostic request.
 }
 ```
 
+Failed-state example (`status=failed`):
+
+```json
+{
+  "request_id": "550e8400-...",
+  "status": "failed",
+  "destination_type": "fqdn",
+  "destination_value": "api.example.com",
+  "port": 443,
+  "time_window_start": "2026-01-01T00:00:00Z",
+  "time_window_end": "2026-01-01T00:15:00Z",
+  "requester": "alice",
+  "created_at": "2026-01-01T00:14:00Z",
+  "failure_reason": "redis unavailable",
+  "failure_stage": "queue_enqueue",
+  "failure_category": "dependency",
+  "result": null
+}
+```
+
+Another failed-state example (worker pipeline step failure):
+
+```json
+{
+  "request_id": "550e8400-...",
+  "status": "failed",
+  "destination_type": "fqdn",
+  "destination_value": "api.example.com",
+  "port": 443,
+  "time_window_start": "2026-01-01T00:00:00Z",
+  "time_window_end": "2026-01-01T00:15:00Z",
+  "requester": "alice",
+  "created_at": "2026-01-01T00:14:00Z",
+  "failure_reason": "adapter unavailable",
+  "failure_stage": "authoritative_correlation",
+  "failure_category": "dependency",
+  "result": null
+}
+```
+
+Failed-state triage interpretation:
+
+- `failure_reason`: raw diagnostic error text for first-hop context.
+- `failure_stage`: normalized pipeline location where failure was recorded (for example `queue_enqueue`, `validate_request`, `authoritative_correlation`, `persist_and_report`).
+- `failure_category`: normalized class used for routing (`dependency`, `validation`, `pipeline_step`, `persistence`, `internal`, `unknown`).
+- UI triage hints are derived from `failure_stage` + `failure_category`; these fields are operational metadata and do not change verdict authority rules.
+
 ---
 
 ### GET /api/v1/requests/{request_id}/result
@@ -107,6 +154,36 @@ Retrieve the diagnostic result for a completed request.
 ```
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
+
+---
+
+## Observed Fact Detail Contract
+
+`observed_facts[].detail` is an extensible metadata object. For UI fact-type labeling, these keys are reserved:
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `classification_role` | string | ❌ | Classification role hint. Current recognized enrichment value: `enrichment_only_unverified`. |
+| `authoritative` | boolean | ❌ | Whether this fact is authoritative for deny decisions. `false` means enrichment-only context. |
+
+Rules:
+- If `classification_role == "enrichment_only_unverified"` or `authoritative == false`, UI should label the fact as enrichment-only.
+- Absence of both keys implies no enrichment-only hint; UI may treat as authoritative signal by default.
+- These keys are presentation metadata and do not expand deny authority.
+
+Example enrichment-only observed fact:
+
+```json
+{
+  "source": "logscale",
+  "summary": "LogScale enrichment-only signal (UNVERIFIED) observed; excluded from deny authority decisions.",
+  "detail": {
+    "classification_role": "enrichment_only_unverified",
+    "authoritative": false,
+    "repo": "ng-siem"
+  }
+}
+```
 
 ---
 

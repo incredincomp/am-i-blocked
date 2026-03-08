@@ -153,4 +153,7 @@ class RequestDetail(BaseModel):
     time_window_end: datetime
     requester: str
     created_at: datetime
+    failure_reason: str | None = None
+    failure_stage: str | None = None
+    failure_category: str | None = None
     result: DiagnosticResult | None = None

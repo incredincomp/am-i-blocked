@@ -160,6 +160,83 @@ class TestEvidenceCompleteness:
         )
         assert result.evidence_completeness == 0.0
 
+
+class TestLogScaleAuthorityGuards:
+    def test_logscale_deny_like_field_does_not_produce_denied(self):
+        evidence = [
+            _ev(
+                EvidenceSource.LOGSCALE,
+                EvidenceKind.TRAFFIC_LOG,
+                {
+                    "action": "deny",
+                    "classification_role": "enrichment_only_unverified",
+                    "authoritative": False,
+                },
+            )
+        ]
+        result = run(
+            evidence=evidence,
+            probe_results={},
+            path_context=CONTEXT_UNKNOWN,
+            enforcement_plane=PLANE_UNKNOWN,
+            path_confidence=0.0,
+            available_sources=["logscale"],
+        )
+        assert result.verdict != Verdict.DENIED
+        assert result.verdict == Verdict.UNKNOWN
+
+    def test_logscale_decrypt_error_does_not_produce_denied(self):
+        evidence = [
+            _ev(
+                EvidenceSource.LOGSCALE,
+                EvidenceKind.DECRYPT_LOG,
+                {
+                    "decrypt_error": "cert_not_trusted",
+                    "classification_role": "enrichment_only_unverified",
+                    "authoritative": False,
+                },
+            )
+        ]
+        result = run(
+            evidence=evidence,
+            probe_results={},
+            path_context=CONTEXT_UNKNOWN,
+            enforcement_plane=PLANE_UNKNOWN,
+            path_confidence=0.0,
+            available_sources=["logscale"],
+        )
+        assert result.verdict != Verdict.DENIED
+        assert result.verdict == Verdict.UNKNOWN
+
+    def test_logscale_enrichment_only_is_labeled_in_observed_facts(self):
+        evidence = [
+            _ev(
+                EvidenceSource.LOGSCALE,
+                EvidenceKind.TRAFFIC_LOG,
+                {
+                    "stub": True,
+                    "classification_role": "enrichment_only_unverified",
+                    "authoritative": False,
+                    "repo": "ng-siem",
+                    "message": "UNVERIFIED enrichment sample",
+                },
+            )
+        ]
+        result = run(
+            evidence=evidence,
+            probe_results={},
+            path_context=CONTEXT_UNKNOWN,
+            enforcement_plane=PLANE_UNKNOWN,
+            path_confidence=0.0,
+            available_sources=["logscale"],
+        )
+        assert result.verdict == Verdict.UNKNOWN
+        assert any(
+            f.source == EvidenceSource.LOGSCALE
+            and "enrichment-only signal" in f.summary.lower()
+            for f in result.observed_facts
+        )
+
     def test_no_sources_gives_zero_completeness(self):
         result = run(
             evidence=[],

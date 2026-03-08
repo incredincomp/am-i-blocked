@@ -16,6 +16,25 @@ from am_i_blocked_core.models import EvidenceRecord
 from am_i_blocked_worker.pipeline import run_diagnostic
 
 
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def _mock_pipeline_db_persistence():
+    with patch(
+        "am_i_blocked_worker.steps.persist_and_report._update_request_status_db",
+        new_callable=AsyncMock,
+        return_value=True,
+    ), patch(
+        "am_i_blocked_worker.steps.persist_and_report._persist_result_db",
+        new_callable=AsyncMock,
+        return_value=True,
+    ):
+        yield
+
+
 def _mock_settings(**kwargs):
     from am_i_blocked_core.config import Settings
 
@@ -69,14 +88,6 @@ def _make_evidence(source, kind, normalized, request_id=None):
 async def test_cloud_deny_case():
     """Happy path: cloud deny evidence → verdict=denied, owner=SecOps."""
     req_id = str(uuid.uuid4())
-    request_store = {
-        req_id: {
-            "status": "pending",
-            "request_id": uuid.UUID(req_id),
-            "destination_value": "api.example.com",
-        }
-    }
-    result_store = {}
 
     cloud_deny_ev = _make_evidence(
         EvidenceSource.SCM,
@@ -106,24 +117,18 @@ async def test_cloud_deny_case():
             port=443,
             time_window="last_15m",
             requester="alice",
-            request_store=request_store,
-            result_store=result_store,
             settings=settings,
         )
 
     assert result.verdict == Verdict.DENIED
     assert result.routing_recommendation.owner_team == OwnerTeam.SECOPS
     assert str(result.request_id) == req_id
-    assert result_store[req_id].verdict == Verdict.DENIED
-    assert request_store[req_id]["status"] == "complete"
 
 
 @pytest.mark.anyio
 async def test_onprem_deny_case():
     """On-prem deny evidence → verdict=denied, owner=SecOps."""
     req_id = str(uuid.uuid4())
-    request_store = {req_id: {"status": "pending", "request_id": uuid.UUID(req_id)}}
-    result_store = {}
 
     onprem_deny_ev = _make_evidence(
         EvidenceSource.PANOS,
@@ -155,8 +160,6 @@ async def test_onprem_deny_case():
             port=22,
             time_window="last_15m",
             requester="bob",
-            request_store=request_store,
-            result_store=result_store,
             settings=settings,
         )
 
@@ -168,8 +171,6 @@ async def test_onprem_deny_case():
 async def test_sdwan_degraded_no_deny_case():
     """SD-WAN degradation without deny → verdict=unknown, owner=NetOps."""
     req_id = str(uuid.uuid4())
-    request_store = {req_id: {"status": "pending", "request_id": uuid.UUID(req_id)}}
-    result_store = {}
 
     sdwan_ev = _make_evidence(
         EvidenceSource.SDWAN,
@@ -199,8 +200,6 @@ async def test_sdwan_degraded_no_deny_case():
             port=None,
             time_window="last_60m",
             requester="charlie",
-            request_store=request_store,
-            result_store=result_store,
             settings=settings,
         )
 
@@ -212,8 +211,6 @@ async def test_sdwan_degraded_no_deny_case():
 async def test_incomplete_telemetry_unknown_case():
     """Stub evidence only → verdict=unknown, low confidence."""
     req_id = str(uuid.uuid4())
-    request_store = {req_id: {"status": "pending", "request_id": uuid.UUID(req_id)}}
-    result_store = {}
 
     stub_ev = _make_evidence(
         EvidenceSource.PANOS,
@@ -243,8 +240,6 @@ async def test_incomplete_telemetry_unknown_case():
             port=443,
             time_window="last_15m",
             requester="dave",
-            request_store=request_store,
-            result_store=result_store,
             settings=settings,
         )
 
@@ -256,8 +251,6 @@ async def test_incomplete_telemetry_unknown_case():
 async def test_probe_failures_degrade_to_unknown_not_crash():
     """Probe errors/timeouts without authoritative evidence must remain unknown."""
     req_id = str(uuid.uuid4())
-    request_store = {req_id: {"status": "pending", "request_id": uuid.UUID(req_id)}}
-    result_store = {}
 
     settings = _mock_settings(enable_bounded_probes=True)
     probe_report = MagicMock(
@@ -297,10 +290,7 @@ async def test_probe_failures_degrade_to_unknown_not_crash():
             port=None,
             time_window="last_15m",
             requester="eve",
-            request_store=request_store,
-            result_store=result_store,
             settings=settings,
         )
 
     assert result.verdict == Verdict.UNKNOWN
-    assert request_store[req_id]["status"] == "complete"

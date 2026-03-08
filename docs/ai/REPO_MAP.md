@@ -1,113 +1,116 @@
 # REPO_MAP.md
 
-**Purpose**
+## Purpose
 
-Provide an up‑to‑date map of the repository for an AI agent.  It describes directories, entrypoints, config, and known gaps.
+Living repository map for AI agents. Keep this aligned to real code paths, import names, and run commands.
 
-## Top-Level Layout
+## Top-Level Directories
 
-```
-/ (repo root)
-├── AGENTS.md
-├── IMPLEMENTATION_TRACKER.md
-├── README.md
-├── docs/               # developer docs & architecture
-│   ├── ai/             # agent‑focused docs (this folder)
-│   ├── architecture.md
-│   ├── api.md
-│   ├── developer-setup.md
-│   ├── operators-runbook.md
-│   ├── roadmap.md
-│   └── threat-model.md
-├── infra/              # deployment helper files
-│   ├── docker-compose.yml
-│   └── .env.example
-├── migrations/         # Alembic migration scripts
-├── packages/           # Python libraries (core + adapters)
-│   ├── core/           # shared models, config, logging
-│   └── adapters/       # vendor adapter interfaces & stubs
-├── services/           # runnable services
-│   ├── api/            # FastAPI application
-│   └── worker/         # async diagnostic pipeline
-├── tests/              # test suite
-├── Makefile
-├── pyproject.toml
-└── requirements-dev.txt
-```
+- `packages/core`: shared models, enums, config, DB models (`am_i_blocked_core` import package).
+- `packages/adapters`: adapter interfaces and vendor stubs (`am_i_blocked_adapters` import package).
+- `services/api`: FastAPI web/API service (`am_i_blocked_api` import package).
+- `services/worker`: async worker + diagnostic pipeline (`am_i_blocked_worker` import package).
+- `migrations`: Alembic environment + revisions.
+- `infra`: Docker Compose and `.env.example`.
+- `tests`: unit, routes, fixtures, adapter contract tests.
+- `docs` and `docs/ai`: architecture and agent-grounding docs.
 
-## Service / Package Map
+## Package Import Names
 
-| Path | Description |
-|------|-------------|
-| `packages/core/am_i_blocked_core` | shared enums (`EvidenceKind`, `Verdict`, etc.), Pydantic models, SQLAlchemy models, config (`Settings`), logging helpers |
-| `packages/adapters/am_i_blocked_adapters` | base adapter class and per‑vendor modules (`panos`, `scm`, `sdwan`, `logscale`, `torq`) |
-| `services/api/am_i_blocked_api` | FastAPI application and route definitions (`routes/api.py`, `routes/ui.py`), HTML templates under `templates/` |
-| `services/worker/am_i_blocked_worker` | pipeline orchestration (`pipeline.py`) and step modules under `steps/` |
+- `am_i_blocked_core`
+- `am_i_blocked_adapters`
+- `am_i_blocked_api`
+- `am_i_blocked_worker`
 
-## Entrypoints
+## App Entrypoints
 
-- `services/api/main.py` (invoked by `make run-api` or `uvicorn`): starts FastAPI web server.
-- `services/worker/main.py` (invoked by `make run-worker` or Python): runs an async loop pulling jobs from Redis and calling `pipeline.run_diagnostic`.
-- `Makefile` targets such as `run-api`, `run-worker`, `migrate`, `test`, `docker-up`.
+- API ASGI app: `am_i_blocked_api:app` defined in `services/api/am_i_blocked_api/__init__.py`.
+- Worker process: `python -m am_i_blocked_worker.main` (`services/worker/am_i_blocked_worker/main.py`).
+- Pipeline orchestrator: `services/worker/am_i_blocked_worker/pipeline.py` (`run_diagnostic`).
+- API routes: `services/api/am_i_blocked_api/routes/api.py` and `services/api/am_i_blocked_api/routes/ui.py`.
 
-## Config and Environment Loading
+## Queue / Job Flow (Current vs Target)
 
-Configuration is managed via Pydantic `Settings` in `am_i_blocked_core.config`.  Values are read from environment variables or `.env` file when running locally.
+- Current:
+- API persists requests to Postgres on submit and uses DB-backed lookup for request/result endpoints.
+- API returns explicit degraded (`503`) responses when persistence dependencies are unavailable.
+- API now enqueues submitted diagnostics to Redis (`am_i_blocked:jobs`).
+- API `/api/v1/readyz` now performs live DB (`SELECT 1`) and Redis (`PING`) checks.
+- Worker main loop now dequeues Redis jobs and dispatches `run_diagnostic`.
+- Worker startup now performs one DB/Redis readiness check and logs the result.
+- Pipeline step 7 writes `requests.status` and `result.report_json` to Postgres as the operational persistence path.
+- Pipeline no longer carries `request_store`/`result_store` in-memory request/result parameters; persistence failures now fail the job and are tracked via failed request status metadata.
+- Failed status transitions are written to `audit` with structured metadata (`reason`, `stage`, `category`) using bounded enums (`FailureStage`, `FailureCategory`) and read back by API/UI (`failure_reason`, `failure_stage`, `failure_category`).
+- UI request page maps normalized failure stage/category to compact first-hop triage hints while preserving raw failure values in the rendered metadata.
+- Result evidence cards now visually distinguish observed facts tagged as enrichment-only vs authoritative using observed-fact detail metadata.
+- Pipeline itself is implemented and exercised in tests via direct calls.
+- Target MVP:
+- API persists + enqueues.
+- Worker dequeues + runs `run_diagnostic`.
+- Persist step writes durable results.
 
-Key settings include:
-- `database_url` (Postgres connection string)
-- vendor credentials (`panos_fw_hosts`, `panos_api_key`, `scm_client_id`, etc.)
-- timeouts for bounded probes and job execution
-- Redis URL
-- log level and format
+## Migration Locations
 
-## Queue / Job Flow
+- Alembic config: `alembic.ini`
+- Alembic env: `migrations/env.py`
+- Revisions: `migrations/versions/*.py`
+- DB models: `packages/core/am_i_blocked_core/db_models.py`
 
-- API receives POST `/api/v1/am-i-blocked` and validates payload with Pydantic models.
-- API creates a `request_id`, stores a minimal record (in-memory or DB depending on config), enqueues a job to Redis.
-- Worker reads job, executes pipeline steps sequentially: validation, readiness, context resolution, bounded probes, authoritative correlation, classify, persist and report.
-- Worker writes results back to result store (in-memory dict for tests; later Postgres).
+## Config and Env Loading Paths
 
-## Database / Migrations
+- Settings class: `packages/core/am_i_blocked_core/config.py`
+- Loader: `am_i_blocked_core.config.get_settings()`
+- Source: environment variables and optional `.env` (via Pydantic settings config)
+- Example env: `infra/.env.example`
 
-- `migrations/` contains Alembic revision files (`0001_initial.py` etc.).
-- Models defined in `packages/core/am_i_blocked_core/db_models.py`.
-- Current state: schema ready, but production DB not yet wired (tests use in‑memory DB or mocks).
+## Test Layout
 
-## Tests
-
-- Unit tests in `tests/unit` for core logic (`test_validate_request.py`, `test_context_resolver.py`, `test_classify.py`).
-- Adapter contract tests in `tests/adapters/test_adapter_contracts.py` ensure readiness and evidence query signatures.
-- Route tests in `tests/routes/test_api_routes.py` exercise the FastAPI endpoints.
-- Fixture tests in `tests/fixtures/test_pipeline_fixtures.py` simulate end‑to‑end pipeline execution with mocks.
-
-Run tests with `make test` or `pytest -v`.  Coverage via `make test-cov`.
+- `tests/unit`: step and classifier unit tests.
+- `tests/routes`: FastAPI API/route tests.
+- `tests/fixtures`: pipeline integration-style tests with mocked adapters/readiness.
+- `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval coverage with controlled PAN-OS deny and no-authoritative-evidence outcomes.
+- `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
+- `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
+- `tests/unit/test_authoritative_correlation.py`: step-level PAN-OS authoritative gating tests (deny accepted, non-deny/malformed/timeout/no-match excluded).
+- `tests/unit/test_source_readiness_check.py`: readiness-step coverage including LogScale configured/unconfigured paths.
 
 ## Commands
 
-Common make targets:
+- `make install`
+- `make run-api`
+- `make run-worker`
+- `make migrate`
+- `make test`
+- `make test-cov`
+- `make lint`
+- `make docker-up`
 
-```
-make install         # install dependencies in editable mode
-make run-api         # start the API service
-make run-worker      # start the worker loop
-make migrate         # run alembic upgrade head
-make test            # run pytest
-make test-cov        # pytest with coverage
-make docker-up       # bring up full stack with Docker Compose
-```
+## Known Architectural Seams
 
-## Known Seams / Extension Points
+- Adapter abstraction in `packages/adapters/am_i_blocked_adapters/base.py`.
+- PAN-OS adapter now contains XML log-job submit/poll helpers and conservative deny/reset normalization in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
+- Worker step modules in `services/worker/am_i_blocked_worker/steps/`.
+- Authoritative-correlation now applies PAN-OS deny-authoritative gating before passing evidence to classification (`services/worker/am_i_blocked_worker/steps/authoritative_correlation.py`).
+- Classification logic isolated in `services/worker/am_i_blocked_worker/steps/classify.py`.
+- Classifier deny authority is constrained to authoritative sources (PAN-OS/SCM); enrichment sources like LogScale cannot independently produce `denied`.
+- Classifier now labels LogScale `enrichment_only_unverified` records as explicit observed facts so report bundles clearly separate enrichment from authority.
+- Persistence is isolated in `services/worker/am_i_blocked_worker/steps/persist_and_report.py`.
+- Lifecycle integration test uses real route/worker/persistence functions with controlled queue and adapter test doubles to validate persisted result retrieval behavior.
 
-- Adapter interface (`BaseAdapter`) allows new vendors to be added with minimal impact.
-- Pipeline steps are discrete modules under `services/worker/am_i_blocked_worker/steps`; new steps can be injected by editing `pipeline.py`.
-- Settings class centralises configuration; adding a new adapter requires adding new settings keys.
-- UI templates are simple Jinja2 files; additional pages can be introduced under `services/api/am_i_blocked_api/templates`.
-- Database models are defined in `db_models.py`; migrations add new tables.
+## Obsolete / Duplicate Paths
 
-## Observed Gaps or Unclear Areas
+- Root-level `AI_AGENT_VENDOR_KNOWLEDGE_BASE.md` is obsolete; canonical file is `docs/ai/AI_AGENT_VENDOR_KNOWLEDGE_BASE.md`.
+- There is no `services/api/main.py`; API entrypoint is package-level `am_i_blocked_api:app`.
 
-- Implementation of PostgreSQL persistence is incomplete; most code uses in-memory stores for testing.
-- Redis integration is currently a placeholder; worker loop may not actually connect to Redis.
-- No explicit health check endpoints for individual adapters beyond readiness stubs.
+## API Contract Notes
 
+- `docs/api.md` defines observed-fact detail metadata keys used by UI fact-type labeling:
+  - `classification_role` (recognized enrichment value: `enrichment_only_unverified`)
+  - `authoritative` (boolean; `false` indicates enrichment-only context)
+- `docs/api.md` now also includes `RequestDetail` failed-state response examples documenting:
+  - `failure_reason`
+  - `failure_stage`
+  - `failure_category`
+- Result evidence bundle download route for UI/operator workflows:
+  - `GET /api/v1/requests/{request_id}/result/evidence-bundle`
+  - returns JSON with `Content-Disposition: attachment; filename="evidence-{request_id}.json"`

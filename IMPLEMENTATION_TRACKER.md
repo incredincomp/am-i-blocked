@@ -1,104 +1,167 @@
 # IMPLEMENTATION_TRACKER.md
 
-This ledger tracks the current project state, objectives, workstreams, and task queue.  It is the authoritative source for planning and documentation during AI‑assisted development.
+This ledger summarizes current implementation state and next MVP work. It should align with direct user instructions, `AGENTS.md`, and current code/tests.
 
 ## Project
 
-**Am I Blocked?** – internal network self‑diagnosis and routing assistant.
+**Am I Blocked?** - internal network self-diagnosis and routing assistant.
 
 ## Current Objective
 
-Deliver a working MVP that accepts a single destination request and returns a verdict (`allowed`/`denied`/`unknown`) with evidence, path context, and owner team recommendations based on authoritative vendor telemetry.
+Deliver the MVP single-destination flow that returns `allowed | denied | unknown` with path context, confidence, and evidence-backed routing recommendations.
 
 ## Current Phase
 
-MVP single‑flow development.  All vendor adapters are stubs; API and worker pipelines are scaffolded and tested.
+MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS adapter XML log retrieval implemented, and authoritative-correlation now consuming PAN-OS deny evidence conservatively.
 
-## Source of Truth Order
-
-1. `IMPLEMENTATION_TRACKER.md`
-2. `AGENTS.md`
-3. `docs/ai/REPO_MAP.md`
-4. `docs/ai/AI_AGENT_VENDOR_KNOWLEDGE_BASE.md`
-5. `docs/ai/SOURCE_REFRESH.md`
-
-## MVP Scope Snapshot
-
-- Input: destination string, optional port, time window.
-- Output: `verdict`, `path_context`, `confidence`, `routing_recommendation`, `evidence_bundle` (downloadable JSON).
-- Only one destination/port pair per request.
-- Verdict `denied` only with authoritative evidence; `unknown` otherwise.
-- UI and API exist but are minimal and thin.
-- Bounded probes and classifier implemented; adapters return stubbed evidence.
+- API -> Redis -> worker -> Postgres lifecycle is implemented and tested.
+- API remains thin and worker-only vendor access is preserved.
+- PAN-OS adapter supports XML traffic-log job submission + polling with conservative deny/reset normalization.
+- Authoritative-correlation now enforces PAN-OS deny-authoritative gating (`source=panos`, `authoritative=true`, `action=deny`) before evidence enters classification.
 
 ## Architecture Snapshot
 
-- Monorepo with Python packages under `packages/` and services under `services/`.
-- FastAPI service (`services/api`) handles request validation, template rendering, and queueing to Redis.
-- Worker service (`services/worker`) executes pipeline steps sequentially.
-- Adapters implement `BaseAdapter` and are instantiated only in the worker.
-- Database models defined in core package; migrations present but DB currently in-memory for tests.
+- Monorepo packages under `packages/` and services under `services/`.
+- FastAPI API validates input, persists request records, enqueues jobs, and exposes result/evidence endpoints.
+- Worker dequeues Redis jobs and runs deterministic steps:
+  `validate -> readiness -> context -> bounded probes -> authoritative correlation -> classify -> persist/report`.
+- Postgres is operational source of truth for request/result/audit lifecycle.
+- Adapters are worker-only and remain required boundaries for PAN-OS, SCM, SD-WAN, LogScale, and Torq.
+- Classifier authority is constrained: only authoritative sources may drive `denied`; enrichment-only evidence cannot.
 
 ## Status Summary
 
-- ✅ API endpoints implemented and tested.
-- ✅ Worker pipeline steps scaffolded and pipeline fixture tests exist.
-- 🔧 Vendor adapters stubbed with TODO comments for each.
-- 🔧 DB schema/migrations present but not wired to production-level Postgres.
-- 🔧 Redis placeholder exists; not fully integrated.
-- 🟡 Unit tests cover request validation, context resolution, classification, and pipeline fixtures.
-
-## Stable Workstreams
-
-1. **Pipeline logic:** validation, context resolution, probes, correlation, classification, persistence.
-2. **Adapter completion:** PAN-OS, SCM/Prisma, SD‑WAN, LogScale, Torq.
-3. **API and UI fixes:** maintain thin interface, minimal templates.
-4. **Infrastructure:** Docker Compose, migration support.
-5. **Documentation & tracking:** keep control files current.
+- Completed:
+  - Thin API + async worker model is in place.
+  - DB-backed request/result persistence is operational and fail-closed.
+  - Redis enqueue/dequeue/dispatch lifecycle is operational.
+  - Failure taxonomy (`reason/stage/category`) is persisted and surfaced in API/UI.
+  - Evidence bundle download endpoint is implemented.
+  - LogScale is explicitly enforced as enrichment-only/non-authoritative in classification.
+  - PAN-OS adapter now performs XML traffic-log job submission + polling and emits authoritative evidence only for deny/reset actions.
+  - Authoritative-correlation now consumes PAN-OS adapter output with deny-only authoritative filtering and step-level test coverage for deny, non-deny, malformed, timeout, and no-match behavior.
+  - Integration-style lifecycle test now proves submit -> queue -> worker -> persist -> API result retrieval for both PAN-OS authoritative deny and no-authoritative-evidence paths.
+- Remaining MVP-critical work:
+  - PAN-OS rule metadata lookup for deny explainability is not implemented.
 
 ## Prioritized Task Queue
 
-1. **(Next Recommended Task)** Harden tests around bounded probes to ensure failure modes return `unknown` rather than crash.
-   - *Acceptance criteria:* new unit tests simulate probe timeouts/errors and assert `unknown` verdict.
-2. Implement minimal Postgres connection in worker and API so that `migrate` command works with real DB (not just in-memory).  Update tests accordingly.
-3. Add readiness check for LogScale adapter and normalize evidence sample.  Mark as `UNVERIFIED` in vendor KB.
-4. Populate `docs/ai/AI_AGENT_VENDOR_KNOWLEDGE_BASE.md` with any new vendor facts discovered while working on adapters.
-5. Add UI element to download JSON evidence bundle from results page.
-6. Review and expand security invariants in `docs/threat-model.md` based on current code.
-7. Stub Torq workflow trigger with a non‑blocking optional step in worker (evidence only, not used for classification).
-8. Implement `lookup_rule_metadata` for PAN-OS adapter with simple REST call (test against a dummy server or stub).
-9. Add SQLAlchemy models for evidence and audit tables (if not present) and ensure migrations cover them.
+1. **Implement PAN-OS XML traffic-log retrieval in adapter**
+   - Status: completed (2026-03-08)
+   - Priority: P0
+   - Why now: first real authoritative deny evidence path for MVP.
+   - Acceptance:
+     - submit XML traffic-log query job and poll job completion - done
+     - normalize matched log rows into evidence records used by pipeline/classifier - done (deny/reset only)
+     - explicit handling for timeout, no-match, and malformed response paths - done
+     - unit tests cover success/timeout/no-match/malformed paths - done
+
+2. **Wire authoritative correlation to consume PAN-OS deny evidence**
+   - Status: completed (2026-03-08)
+   - Priority: P0
+   - Depends on: task 1
+   - Acceptance:
+     - correlation step calls PAN-OS adapter path (worker-only boundary) - done
+     - deny/reset matches become authoritative evidence in report bundle - done (deny-authoritative gate)
+     - classifier can resolve `denied` from this evidence - done (existing classifier deny rule + step tests)
+     - persisted evidence includes source plane/timestamp/rule identifier when available - partially done (adapter provides when available; richer mapping remains unverified)
+
+3. **Add PAN-OS rule metadata lookup for explainability**
+   - Status: not started
+   - Priority: P1
+   - Depends on: tasks 1-2
+   - Acceptance:
+     - adapter exposes `lookup_rule_metadata(...)`
+     - metadata inclusion does not alter deny authority rules
+     - result bundle can include rule name and selected metadata fields
+
+4. **Add one realistic integrated lifecycle test**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Acceptance:
+     - test exercises submit -> queue -> worker -> persist -> result fetch - done
+     - no real vendor calls (controlled fake adapter/server fixture) - done
+
+5. **Docs alignment updates after authoritative PAN-OS path lands**
+   - Status: deferred until tasks 1-2 complete
+   - Priority: P2
+
+## ROI-Ranked TODO Backlog
+
+1. PAN-OS rule metadata enrichment for deny explainability.
+2. Confidence/readiness quality improvements (`unknown` clarity and evidence completeness signals).
+3. Documentation refresh after authoritative path is implemented.
+4. Later enrichment work (SCM deepening, SD-WAN deepening, LogScale deepening, Torq).
 
 ## Active Blockers / Open Questions
 
-- Adapter readiness semantics are lightly defined; should the worker halt if a source is unavailable or proceed with partial data?
-- DB integration – in tests most persistence is in in‑memory dicts; production-ready code may need redesign.
-- How will credentials and secrets be provisioned securely in Docker Compose? (ENV files currently used.)
-- Is Torq integration strictly evidence enrichment or might it ever influence verdicts?  TBD.
+- PAN-OS environment-specific XML details are still unverified in-repo:
+  - exact filter shape for destination/port/time-window mapping
+  - expected response variants across target PAN-OS versions
+  - Panorama involvement in query flow (if any)
+- PAN-OS authoritative gating currently depends on normalized fields (`action=deny`, `authoritative=true`); richer field mappings and variants remain intentionally unverified.
 
 ## Decision Log
 
-- 2026‑03‑07: Chose strictly separate API and worker tiers; vendors never called from API.
-- 2026‑03‑07: Defined `unknown` as preferred default verdict to avoid guessing.
+- 2026-03-07: API remains thin; vendor access is worker-only.
+- 2026-03-07: `unknown` is preferred over weak certainty.
+- 2026-03-08: Runtime lifecycle is DB/Redis operational path; in-memory request/result runtime fallback removed.
+- 2026-03-08: Failure metadata is bounded (`reason`, `stage`, `category`) and surfaced in API/UI for triage.
+- 2026-03-08: LogScale is treated as `UNVERIFIED` enrichment-only and cannot independently drive `denied`.
+- 2026-03-08: First authoritative MVP vendor path priority is PAN-OS XML traffic-log retrieval.
+- 2026-03-08: PAN-OS adapter deny authority remains conservative; only deny/reset actions are normalized to authoritative traffic-log evidence, and non-deny/malformed data yields no authoritative match.
+- 2026-03-08: Authoritative-correlation now drops PAN-OS records that are non-deny, non-authoritative, or malformed so absent authoritative evidence continues to bias toward `unknown`.
+- 2026-03-08: Integration-style lifecycle coverage now proves persisted deny and non-deny outcomes through API submit, queue handoff, worker dispatch, persistence, and API result retrieval using controlled PAN-OS adapter behavior.
 
 ## Test Log
 
-- Unit tests cover validation, context resolution, classification (`tests/unit`).
-- Adapter contract tests exist to guarantee interface.
-- Pipeline fixture tests simulate high‑level flows using mocks.
+- Latest full-suite state recorded in tracker history: `uv run pytest -q` pass (118 tests).
+- Latest lint slices in tracker history for touched runtime files: `uv run ruff check ...` pass.
+- `ruff format --check` previously failed due to pre-existing repo-wide formatting drift (not part of this task scope).
+- 2026-03-08: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py tests/adapters/test_adapter_contracts.py` (pass, 22 tests).
+- 2026-03-08: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/panos/__init__.py tests/adapters/test_panos_adapter.py tests/adapters/test_adapter_contracts.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/unit/test_authoritative_correlation.py tests/unit/test_pipeline.py` (pass, 14 tests).
+- 2026-03-08: Ran `uv run pytest -q tests/unit/test_authoritative_correlation.py` (pass, 8 tests).
+- 2026-03-08: Ran `uv run ruff check services/worker/am_i_blocked_worker/steps/authoritative_correlation.py tests/unit/test_authoritative_correlation.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 4 tests).
+- 2026-03-08: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 
 ## Iteration Journal
 
-- Initial repository scaffolding reviewed on 2026‑03‑07.  Control files created and hardened.
-- 2026-03-07 (active): Started queue item #1 to harden bounded-probe failure handling tests so probe timeouts/errors degrade to `unknown` rather than crash.
+- 2026-03-07: Repository scaffolding and control-file grounding completed.
+- 2026-03-08: Added bounded-probe failure hardening tests; probe failures degrade to `unknown` instead of crashing.
+- 2026-03-08: Added DB/Redis readiness checks and wired API `/readyz` plus worker startup readiness reporting.
+- 2026-03-08: Implemented API Postgres-first request/result handling, Redis enqueue, and worker dequeue/dispatch.
+- 2026-03-08: Implemented worker persistence to Postgres for completion/result lifecycle; removed in-memory request/result runtime path.
+- 2026-03-08: Added persisted failed-state metadata (`failure_reason`, `failure_stage`, `failure_category`) and UI triage hints.
+- 2026-03-08: Hardened classifier authority so enrichment-only evidence (LogScale) cannot produce `denied`.
+- 2026-03-08: Added observed-fact labeling/badges separating authoritative vs enrichment-only evidence.
+- 2026-03-08: Added evidence-bundle download endpoint and result page integration.
+- 2026-03-08: Re-prioritized queue to first authoritative PAN-OS deny path as the next MVP implementation target.
+- 2026-03-08: Implemented PAN-OS adapter XML traffic-log job submission and polling with tests for success, timeout, no-match, and malformed XML; normalization remains conservative (deny/reset-only authoritative output).
+- 2026-03-08: Wired authoritative-correlation PAN-OS consumption with deny-authoritative filtering and added step-level tests proving non-deny/malformed/timeout/no-match paths do not emit authoritative evidence.
+- 2026-03-08: Added integration-style lifecycle tests covering submit/enqueue, worker dequeue/dispatch, persistence, and API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths.
+
+## Historical / Superseded Checkpoints
+
+The previous checkpoint sequence B-R (2026-03-08) was compressed into the consolidated journal and decisions above. Their transitional blockers are resolved and should not be treated as active:
+
+- Superseded blockers:
+  - "worker does not dequeue Redis jobs" -> resolved
+  - "worker outputs not written to DB" -> resolved
+  - "API/worker still keep in-memory fallback stores" -> resolved
+  - "failed-job reason persistence is minimal" -> resolved
+  - "failure stage tagging not step-specific" -> resolved
+  - "UI lacks triage hint mapping" -> resolved
 
 ## Next Recommended Task
 
-Harden bounded‑probes tests to ensure the pipeline degrades safely when probes fail (see Prioritized Task Queue item #1).
+Implement PAN-OS `lookup_rule_metadata(...)` in the adapter with conservative, test-backed metadata retrieval that enriches deny explainability without changing deny authority semantics.
 
 ## Deferred / Later
 
-- Multi‑destination batching.
-- Automated owner routing beyond simple rule lookup.
-- Kubernetes or cloud deployment targets.
-- Graphical UI enhancements.
+- SCM/Prisma deepening after first authoritative PAN-OS path is complete.
+- SD-WAN deeper path-health enrichment after core deny authority path is live.
+- LogScale query-job implementation only after explicit verification and intentional scope expansion.
+- Torq outbound enrichment after core verdict path is stable.
+- Multi-destination flows, broad UI work, and platform expansion (out of MVP scope).

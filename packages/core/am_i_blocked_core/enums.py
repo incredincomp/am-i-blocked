@@ -38,6 +38,28 @@ class RequestStatus(StrEnum):
     FAILED = "failed"
 
 
+class FailureStage(StrEnum):
+    QUEUE_ENQUEUE = "queue_enqueue"
+    VALIDATE_REQUEST = "validate_request"
+    SOURCE_READINESS_CHECK = "source_readiness_check"
+    CONTEXT_RESOLVER = "context_resolver"
+    BOUNDED_PROBES = "bounded_probes"
+    AUTHORITATIVE_CORRELATION = "authoritative_correlation"
+    CLASSIFY = "classify"
+    PERSIST_AND_REPORT = "persist_and_report"
+    PIPELINE = "pipeline"
+    UNKNOWN = "unknown"
+
+
+class FailureCategory(StrEnum):
+    DEPENDENCY = "dependency"
+    VALIDATION = "validation"
+    PIPELINE_STEP = "pipeline_step"
+    PERSISTENCE = "persistence"
+    INTERNAL = "internal"
+    UNKNOWN = "unknown"
+
+
 class EvidenceSource(StrEnum):
     PANOS = "panos"
     SCM = "scm"
