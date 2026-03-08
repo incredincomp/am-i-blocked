@@ -1,0 +1,8 @@
+captured_at_utc=2026-03-08T21:00:00Z
+capture_label=deny-hit
+capture_provenance=template_seeded
+verification_scope=parser_shape_only
+panos_version_reported=11.0.2
+panos_version_source=unknown
+scenario=deny-hit
+notes=Template-seeded sanitized fixture set for selector/wiring tests only; not real-environment verification evidence.

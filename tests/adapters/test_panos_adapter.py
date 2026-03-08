@@ -11,6 +11,8 @@ import pytest
 import respx
 from am_i_blocked_adapters.panos import PANOSAdapter
 
+from tests.fixtures.panos_fixture_selector import load_capture_manifest, select_versioned_capture
+
 REQUEST_ID = str(uuid.uuid4())
 TIME_START = "2026-01-01T00:00:00+00:00"
 TIME_END = "2026-01-01T00:15:00+00:00"
@@ -293,7 +295,21 @@ class TestPANOSAdapterFixtureAlignment:
         assert (root.findtext(".//job") or "").strip()
 
     def test_fixture_poll_shape_parses_log_entries_with_current_extractor(self) -> None:
-        root = ET.fromstring((FIXTURE_ROOT / "traffic_log_poll_response.xml").read_text(encoding="utf-8"))
+        # Canonical pattern for versioned PAN-OS fixture tests:
+        # resolve one explicit version/scenario capture with explicit provenance gating,
+        # then read fixture files from that directory.
+        capture_dir = select_versioned_capture(
+            version="11.0.2",
+            scenario="deny-hit",
+            require_provenance="template_seeded",
+            minimum_verification_scope="parser_shape_only",
+        )
+        manifest = load_capture_manifest(capture_dir)
+        assert manifest.get("panos_version_reported") == "11.0.2"
+        assert manifest.get("scenario") == "deny-hit"
+        assert manifest.get("capture_provenance") == "template_seeded"
+
+        root = ET.fromstring((capture_dir / "traffic_log_poll_response.xml").read_text(encoding="utf-8"))
         status = (root.findtext(".//status") or "").strip().upper()
         assert status
         entries = self.adapter._extract_log_entries(root)

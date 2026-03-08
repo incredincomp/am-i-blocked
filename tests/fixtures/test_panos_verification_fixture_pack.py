@@ -5,6 +5,13 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from tests.fixtures.panos_fixture_selector import (
+    ALLOWED_CAPTURE_PROVENANCE,
+    ALLOWED_PANOS_VERSION_SOURCE,
+    ALLOWED_VERIFICATION_SCOPE,
+    load_capture_manifest,
+)
+
 FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "docs" / "fixtures" / "panos_verification"
 
 REQUIRED_XML_FILES = (
@@ -47,6 +54,15 @@ def test_panos_verification_fixture_pack_contains_minimum_expected_markers() -> 
 def test_panos_verification_fixture_pack_readme_contains_required_sanitization_contract() -> None:
     readme = (FIXTURE_ROOT / "README.md").read_text(encoding="utf-8").lower()
     required_terms = (
+        "versions/<panos_version>",
+        "capture_metadata.txt",
+        "capture_provenance",
+        "verification_scope",
+        "panos_version_source",
+        "versioned does not automatically mean verified",
+        "real_capture",
+        "template_seeded",
+        "synthetic",
         "ips",
         "usernames",
         "hostnames",
@@ -63,3 +79,15 @@ def test_panos_verification_fixture_pack_readme_contains_required_sanitization_c
     )
     for term in required_terms:
         assert term in readme
+
+
+def test_panos_verification_versioned_captures_have_valid_required_manifest_fields() -> None:
+    version_root = FIXTURE_ROOT / "versions"
+    if not version_root.exists():
+        return
+
+    for capture_dir in sorted(path for path in version_root.glob("*/*") if path.is_dir()):
+        manifest = load_capture_manifest(capture_dir)
+        assert manifest["capture_provenance"] in ALLOWED_CAPTURE_PROVENANCE
+        assert manifest["verification_scope"] in ALLOWED_VERIFICATION_SCOPE
+        assert manifest["panos_version_source"] in ALLOWED_PANOS_VERSION_SOURCE

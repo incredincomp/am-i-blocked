@@ -1,0 +1,18 @@
+<response status="success">
+  <result>
+    <job>
+      <status>FIN</status>
+    </job>
+    <log>
+      <logs count="1">
+        <entry>
+          <action>deny</action>
+          <rule>REPLACE_WITH_SANITIZED_RULE_NAME</rule>
+          <time_generated>REPLACE_WITH_SANITIZED_TIME</time_generated>
+          <dst>REPLACE_WITH_SANITIZED_DESTINATION</dst>
+          <dport>443</dport>
+        </entry>
+      </logs>
+    </log>
+  </result>
+</response>

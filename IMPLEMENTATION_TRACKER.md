@@ -12,7 +12,7 @@ Deliver the MVP single-destination flow that returns `allowed | denied | unknown
 
 ## Current Phase
 
-MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, minimal unknown-confidence explainability in place, and fixture-based PAN-OS parser-shape verification completed without adapter behavior changes.
+MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, minimal unknown-confidence explainability in place, and fixture-based PAN-OS parser-shape verification plus version-aware fixture-capture tooling completed without adapter behavior changes.
 
 - API -> Redis -> worker -> Postgres lifecycle is implemented and tested.
 - API remains thin and worker-only vendor access is preserved.
@@ -24,6 +24,9 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - API/UI now surfaces compact unknown-confidence explainability (`path_confidence`, `evidence_completeness`, and `unknown_reason_signals`) for `unknown` verdicts.
 - PAN-OS verification fixture pack scaffolding now exists (`docs/fixtures/panos_verification`) with required sample file templates and sanitization rules.
 - PAN-OS fixture validation now confirms current parser marker assumptions against fixture XML shapes (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`).
+- PAN-OS fixture gather helper now writes versioned capture sets (`versions/<panos_version>/<capture_label>_<timestamp>/`), capture metadata manifests, and canonical fixture mirrors for validation tests.
+- PAN-OS fixture tooling now includes a `version + scenario` selector helper for tests and optional keygen auth fallback (`--username`/`--password`) in the capture script.
+- Versioned fixture manifests and selectors are now provenance-aware (`real_capture` vs `template_seeded` vs `synthetic`) with explicit verification-scope gating and fail-closed selection semantics.
 - PAN-OS traffic-log filter fields and metadata XPath remain explicitly `UNVERIFIED` placeholders pending target-environment evidence capture.
 
 ## Architecture Snapshot
@@ -55,6 +58,10 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - Unknown-result confidence surfacing is now implemented: API returns `unknown_reason_signals`, and UI renders compact "Why unknown" signals tied to `path_confidence` and `evidence_completeness`.
   - PAN-OS fixture/documentation scaffolding now defines exact XML sample files required for verification and includes parser/structure checks in tests.
   - Fixture-based verification run completed: parser shape assumptions align with fixture XML; adapter runtime behavior remains unchanged because fixtures are still placeholder-level and not version-pinned production captures.
+  - PAN-OS fixture helper/README contract now supports repeatable multi-version capture workflows (versioned folders, labeled captures, capture metadata, and explicit capture matrix guidance) without changing runtime adapter logic.
+  - Fixture tests can now auto-select newest versioned capture by `version + scenario` via helper, reducing hardcoded fixture-path coupling.
+  - One existing PAN-OS adapter fixture-alignment test now uses the versioned selector path end-to-end (`11.0.2` + `deny-hit`) with manifest assertions.
+  - Selector/manifest hardening now prevents trust confusion between template/synthetic fixtures and real-capture evidence in verification workflows.
 - Remaining MVP-critical work:
   - Capture sanitized target PAN-OS XML samples/version data into the fixture pack and then verify or correct `addr.dst`/`port.dst` and metadata XPath placeholders.
 
@@ -156,19 +163,51 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
      - strengthen fixture sanitization contract wording with explicit redaction/tokenization rules - done
      - change adapter behavior only if fixture evidence disproves current assumptions - done (no runtime changes required)
 
+12. **Harden PAN-OS fixture collection for versioned evidence capture**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 10-11
+   - Acceptance:
+     - helper supports versioned output folders per PAN-OS version and capture label - done
+     - helper records capture metadata and request logs for traceability - done
+     - helper keeps canonical required fixture files updated for existing validation tests - done
+     - docs describe required versioned layout and capture matrix for future evidence collection - done
+
+13. **Add fixture selector helper + keygen auth fallback for capture script**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 10-12
+   - Acceptance:
+     - tests can select newest versioned capture by `version + scenario` without adapter changes - done
+     - capture helper can request API key via username/password when key is not pre-provided - done
+     - keygen request/response artifacts are sanitized and captured for traceability - done
+     - one existing PAN-OS fixture-alignment test is refactored to use selector + manifest pattern - done
+
+14. **Harden fixture provenance/scope trust contract**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 10-13
+   - Acceptance:
+     - `CAPTURE_METADATA.txt` has required provenance/scope/version-source fields with allowed-value validation - done
+     - selector supports explicit trust filters and fails closed on provenance/scope mismatch - done
+     - newest-match selection happens only among captures that pass trust filters - done
+     - fixture validation tests enforce stricter manifest contract - done
+     - no PAN-OS adapter runtime behavior changes - done
+
 ## ROI-Ranked TODO Backlog
 
-1. Populate PAN-OS fixture pack with sanitized real-environment XML captures and use them to validate/correct adapter query-field/XPath placeholders.  (helper script now available to automate extraction)
+1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
 2. Validate unknown-confidence explainability wording with operators and tighten thresholds/messages if needed (explainability only).
 3. Later enrichment work (SCM deepening, SD-WAN deepening, LogScale deepening, Torq).
 
 ## Active Blockers / Open Questions
 
 - PAN-OS environment-specific XML details are still unverified in-repo:
-  - target PAN-OS version/build for queried devices is not captured in repo config/docs
+  - target PAN-OS version/build for queried devices is not yet captured from real environments into the versioned fixture pack
   - exact filter shape for destination/port/time-window mapping
   - expected response variants across target PAN-OS versions
   - Panorama involvement in query flow (if any)
+- Template-seeded/synthetic versioned fixture packs are now explicitly non-promotable for environment verification; only `capture_provenance=real_capture` can be used for assumption promotion.
 - PAN-OS authoritative gating currently depends on normalized fields (`action=deny`, `authoritative=true`); richer field mappings and variants remain intentionally unverified.
 - PAN-OS rule metadata XPath shape and field completeness are environment/version dependent (`UNVERIFIED`); current implementation intentionally parses a minimal metadata subset.
 
@@ -190,6 +229,8 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Unknown-confidence surfacing is explainability-only (`unknown_reason_signals`), and confidence values do not influence verdict authority semantics.
 - 2026-03-08: PAN-OS verification fixture templates + parser checks are the required staging path before promoting any PAN-OS XML mapping assumption from `UNVERIFIED`.
 - 2026-03-08: Fixture-based parser-shape verification is distinct from environment/version verification; query-field and XPath placeholders remain `UNVERIFIED` until real sanitized captures validate them.
+- 2026-03-08: Fixture collection now uses versioned capture packs plus canonical file mirrors, so multi-version evidence can be stored without breaking existing fixture validation tests.
+- 2026-03-08: Versioned fixture trust policy is now explicit: `real_capture` may support environment verification; `template_seeded`/`synthetic` are limited to wiring/parser-shape coverage and cannot promote `UNVERIFIED` assumptions.
 
 ## Test Log
 
@@ -221,6 +262,18 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_verification_fixture_pack.py tests/adapters/test_panos_adapter.py -k "FixtureAlignment or verification_fixture_pack"` (pass, 7 selected).
 - 2026-03-08: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py` (pass, 21 tests).
 - 2026-03-08: Ran `uv run ruff check tests/adapters/test_panos_adapter.py tests/fixtures/test_panos_verification_fixture_pack.py docs/fixtures/panos_verification/README.md` (pass).
+- 2026-03-08: Ran `bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 4 tests).
+- 2026-03-08: Ran `uv run ruff check tests/fixtures/test_panos_verification_fixture_pack.py docs/fixtures/panos_verification/README.md docs/ai/REPO_MAP.md docs/ai/SOURCE_REFRESH.md IMPLEMENTATION_TRACKER.md` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 7 tests).
+- 2026-03-08: Ran `uv run ruff check tests/fixtures/panos_fixture_selector.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py -k "fixture_poll_shape_parses_log_entries_with_current_extractor"` (pass, 1 selected).
+- 2026-03-08: Ran `uv run ruff check tests/adapters/test_panos_adapter.py tests/fixtures/panos_fixture_selector.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass; import order auto-fixed in `test_panos_adapter.py`).
+- 2026-03-08: Ran `uv run ruff check tests/adapters/test_panos_adapter.py tests/fixtures/panos_fixture_selector.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass).
+- 2026-03-08: Ran `bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py -k "fixture_poll_shape_parses_log_entries_with_current_extractor" tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 1 selected / 33 deselected due to targeted `-k` filter).
+- 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 13 tests).
+- 2026-03-08: Ran `uv run ruff check tests/adapters/test_panos_adapter.py tests/fixtures/panos_fixture_selector.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass).
 
 ## Iteration Journal
 
@@ -244,6 +297,10 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Added minimal unknown-result confidence explainability in API/UI with derived `unknown_reason_signals` and loader-level confidence coercion for malformed/missing persisted values.
 - 2026-03-08: Added PAN-OS verification fixture-pack scaffolding (required XML sample templates, sanitization guidance, and parser/shape validation test) without changing adapter behavior.
 - 2026-03-08: Hardened PAN-OS fixture sanitization contract and added fixture-alignment tests; validation confirmed parser shape compatibility but did not justify query-field/XPath runtime changes.
+- 2026-03-08: Enhanced `scripts/gather_panos_fixtures.sh` and fixture docs to support versioned capture sets, capture metadata manifests, and canonical fixture mirrors for repeatable multi-version evidence collection.
+- 2026-03-08: Added `tests/fixtures/panos_fixture_selector.py` helper so tests can resolve versioned fixture captures by `version + scenario`, and extended capture script auth to support API-key generation from username/password when needed.
+- 2026-03-08: Wired one existing PAN-OS adapter fixture-alignment test to load fixtures through `select_versioned_capture(version, scenario)` and assert capture manifest metadata for explicit test provenance.
+- 2026-03-08: Hardened fixture-manifest trust schema and selector gating so provenance/scope filters are explicit, fail-closed, and cannot silently downgrade real-capture verification requirements.
 
 ## Historical / Superseded Checkpoints
 
@@ -259,7 +316,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Populate `docs/fixtures/panos_verification/` with sanitized target-environment PAN-OS XML captures (submit, poll, metadata config) and run mapping validation to confirm or correct current `UNVERIFIED` filter-field and XPath placeholders.
+Collect sanitized `capture_provenance=real_capture` PAN-OS XML sets for each accessible version/scenario (deny/no-match/metadata/malformed), then add verification tests that require `require_provenance="real_capture"` and appropriate `minimum_verification_scope` before promoting any mapping assumption from `UNVERIFIED`.
 
 ## Deferred / Later
 

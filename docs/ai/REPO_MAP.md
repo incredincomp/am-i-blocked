@@ -14,7 +14,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `infra`: Docker Compose and `.env.example`.
 - `tests`: unit, routes, fixtures, adapter contract tests.
 - `docs` and `docs/ai`: architecture and agent-grounding docs.
-- `docs/fixtures/panos_verification`: sanitized PAN-OS XML verification fixture pack templates for future environment evidence capture.
+- `docs/fixtures/panos_verification`: sanitized PAN-OS XML verification fixture pack templates plus versioned evidence-capture folders (`versions/<panos_version>/<capture_label>_<timestamp>/`).
 
 ## Package Import Names
 
@@ -75,10 +75,14 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/fixtures`: pipeline integration-style tests with mocked adapters/readiness.
 - `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval + UI render coverage with controlled PAN-OS deny/no-authoritative-evidence outcomes, including persisted PAN-OS metadata present/malformed lifecycle assertions.
 - `tests/fixtures/test_panos_verification_fixture_pack.py`: fixture-pack scaffolding validation (required PAN-OS XML sample files exist, parse, and contain minimum structural markers).
+- `tests/fixtures/panos_fixture_selector.py`: helper for selecting versioned PAN-OS captures by `version + scenario` with provenance/scope gating (`require_provenance`, `minimum_verification_scope`) and strict manifest validation.
+- `tests/fixtures/test_panos_fixture_selector.py`: unit coverage for version/scenario fixture selection and manifest parsing.
+- `scripts/gather_panos_fixtures.sh`: helper to capture sanitized PAN-OS XML samples, write versioned fixture packs, and mirror canonical required fixture files.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
 - `tests/adapters/test_panos_adapter.py`: also covers PAN-OS rule metadata lookup behavior (success, no-match, malformed response, timeout/failure) and graceful deny-path behavior when metadata lookup fails.
 - `tests/adapters/test_panos_adapter.py`: includes PAN-OS fixture-pack alignment checks proving current parser assumptions match fixture submit/poll/metadata XML shapes.
+- `tests/adapters/test_panos_adapter.py`: fixture poll-alignment test now uses `select_versioned_capture(version=\"11.0.2\", scenario=\"deny-hit\")` + manifest loading as canonical versioned-fixture pattern.
 - `tests/unit/test_authoritative_correlation.py`: step-level PAN-OS authoritative gating tests (deny accepted, non-deny/malformed/timeout/no-match excluded).
 - `tests/unit/test_source_readiness_check.py`: readiness-step coverage including LogScale configured/unconfigured paths.
 
@@ -99,6 +103,8 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - PAN-OS adapter now contains XML log-job submit/poll helpers, conservative deny/reset normalization, and optional XML config-based `lookup_rule_metadata(...)` enrichment in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
 - PAN-OS adapter query-field mapping (`addr.dst`, `port.dst`) and metadata XPath shape are explicitly documented in code as `UNVERIFIED` placeholders pending target-environment capture; no PAN-OS version pin/source file exists in repo config today.
 - PAN-OS fixture pack currently validates parser shape expectations (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`) but does not independently verify version-specific query-field/XPath correctness.
+- Fixture helper supports explicit capture labels, optional destination/port/time-window query generation, API-key or keygen-based auth (`--username`/`--password` fallback), and per-capture metadata manifests with required trust fields (`capture_provenance`, `verification_scope`, `panos_version_source`).
+- Versioned fixture selectors can now require `capture_provenance` and minimum `verification_scope`; newest-match selection is applied only after those trust filters pass.
 - Worker step modules in `services/worker/am_i_blocked_worker/steps/`.
 - Authoritative-correlation now applies PAN-OS deny-authoritative gating before passing evidence to classification (`services/worker/am_i_blocked_worker/steps/authoritative_correlation.py`).
 - Classification logic isolated in `services/worker/am_i_blocked_worker/steps/classify.py`.
