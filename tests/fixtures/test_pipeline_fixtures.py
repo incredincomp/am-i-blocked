@@ -250,3 +250,57 @@ async def test_incomplete_telemetry_unknown_case():
 
     assert result.verdict == Verdict.UNKNOWN
     assert result.result_confidence <= 0.2
+
+
+@pytest.mark.anyio
+async def test_probe_failures_degrade_to_unknown_not_crash():
+    """Probe errors/timeouts without authoritative evidence must remain unknown."""
+    req_id = str(uuid.uuid4())
+    request_store = {req_id: {"status": "pending", "request_id": uuid.UUID(req_id)}}
+    result_store = {}
+
+    settings = _mock_settings(enable_bounded_probes=True)
+    probe_report = MagicMock(
+        to_dict=lambda: {
+            "dns": {"success": False, "error": "timeout"},
+            "tcp": {"success": False, "error": "connection refused"},
+            "http": {"success": False, "error": "request error"},
+        }
+    )
+
+    with patch(
+        "am_i_blocked_worker.steps.source_readiness_check.run",
+        new_callable=AsyncMock,
+    ) as mock_readiness, patch(
+        "am_i_blocked_worker.steps.bounded_probes.run",
+        new_callable=AsyncMock,
+        return_value=probe_report,
+    ), patch(
+        "am_i_blocked_worker.steps.authoritative_correlation.run",
+        new_callable=AsyncMock,
+        return_value=[],
+    ):
+        mock_readiness.return_value = MagicMock(
+            to_dict=lambda: {
+                "panos": {"available": False},
+                "scm": {"available": False},
+                "logscale": {"available": False},
+                "sdwan": {"available": False},
+                "torq": {"available": False},
+            },
+            available_sources=[],
+        )
+
+        result = await run_diagnostic(
+            request_id=req_id,
+            destination="https://api.example.com",
+            port=None,
+            time_window="last_15m",
+            requester="eve",
+            request_store=request_store,
+            result_store=result_store,
+            settings=settings,
+        )
+
+    assert result.verdict == Verdict.UNKNOWN
+    assert request_store[req_id]["status"] == "complete"
