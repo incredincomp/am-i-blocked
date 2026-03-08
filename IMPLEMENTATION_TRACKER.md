@@ -12,7 +12,7 @@ Deliver the MVP single-destination flow that returns `allowed | denied | unknown
 
 ## Current Phase
 
-MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, and PAN-OS rule metadata now minimally surfaced in operator-facing result output as optional explainability enrichment.
+MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, minimal unknown-confidence explainability in place, and PAN-OS verification fixture-pack scaffolding ready for real-environment evidence capture.
 
 - API -> Redis -> worker -> Postgres lifecycle is implemented and tested.
 - API remains thin and worker-only vendor access is preserved.
@@ -20,6 +20,10 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - Authoritative-correlation now enforces PAN-OS deny-authoritative gating (`source=panos`, `authoritative=true`, `action=deny`) before evidence enters classification.
 - PAN-OS adapter now performs conservative optional rule metadata lookup and attaches metadata to deny evidence when available.
 - API/UI result rendering now surfaces persisted PAN-OS rule metadata (when present on authoritative PAN-OS deny observed facts) without changing verdict authority semantics.
+- Integration-style lifecycle coverage now proves PAN-OS metadata survives submit -> queue -> worker -> persist -> API result retrieval -> UI rendering via normal persisted retrieval paths.
+- API/UI now surfaces compact unknown-confidence explainability (`path_confidence`, `evidence_completeness`, and `unknown_reason_signals`) for `unknown` verdicts.
+- PAN-OS verification fixture pack scaffolding now exists (`docs/fixtures/panos_verification`) with required sample file templates and sanitization rules.
+- PAN-OS traffic-log filter fields and metadata XPath remain explicitly `UNVERIFIED` placeholders pending target-environment evidence capture.
 
 ## Architecture Snapshot
 
@@ -45,8 +49,12 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - Integration-style lifecycle test now proves submit -> queue -> worker -> persist -> API result retrieval for both PAN-OS authoritative deny and no-authoritative-evidence paths.
   - PAN-OS `lookup_rule_metadata(...)` is now implemented with conservative XML config lookup, graceful failure handling, and optional attachment to deny evidence.
   - Minimal operator-facing API/UI output now renders PAN-OS rule metadata from persisted observed-fact detail when present (`rule_name`, optional `action`, `description`, `disabled`, `tags`) and degrades gracefully when absent or malformed.
+  - Integration-style lifecycle tests now prove persisted PAN-OS deny metadata is retrievable via `GET /api/v1/requests/{id}/result` and rendered via `/requests/{id}` without route-loader patching, while malformed metadata still degrades gracefully.
+  - PAN-OS validation pass confirmed async XML job flow assumptions are supported by repo-level vendor grounding, but found no target-version XML evidence to promote current filter-field or XPath placeholders from `UNVERIFIED`.
+  - Unknown-result confidence surfacing is now implemented: API returns `unknown_reason_signals`, and UI renders compact "Why unknown" signals tied to `path_confidence` and `evidence_completeness`.
+  - PAN-OS fixture/documentation scaffolding now defines exact XML sample files required for verification and includes parser/structure checks in tests.
 - Remaining MVP-critical work:
-  - Add one persisted lifecycle integration assertion set proving PAN-OS metadata survives worker classify/persist -> API result retrieval -> result page rendering without patched route loaders.
+  - Capture sanitized target PAN-OS XML samples/version data into the fixture pack and then verify or correct `addr.dst`/`port.dst` and metadata XPath placeholders.
 
 ## Prioritized Task Queue
 
@@ -99,15 +107,53 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
    - Status: completed (2026-03-08)
    - Priority: P2
 
+7. **Prove persisted PAN-OS metadata lifecycle retrieval/render path**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 1-6
+   - Acceptance:
+     - integration test persists deny evidence containing PAN-OS metadata and retrieves it via normal API result endpoint - done
+     - integration test verifies metadata is rendered on result page via persisted path without route-loader patching - done
+     - malformed metadata still preserves deny path and does not break API/UI rendering - done
+
+8. **Validate PAN-OS XML filter/XPath assumptions against target-environment evidence**
+   - Status: completed (2026-03-08, evidence review only)
+   - Priority: P1
+   - Depends on: tasks 1-7
+   - Acceptance:
+     - inspect repo for target PAN-OS version/environment evidence - done
+     - promote placeholders only when evidence proves them - done (no promotions made; evidence absent)
+     - record verified vs unverified assumptions and exact evidence needed next - done
+
+9. **Add minimal unknown-confidence explainability surfacing**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 1-8
+   - Acceptance:
+     - expose `path_confidence` + `evidence_completeness` in compact operator-facing unknown explanation - done
+     - add short unknown rationale signals without influencing verdict logic - done (`unknown_reason_signals`)
+     - malformed/missing confidence values degrade gracefully in persisted-result load path and UI rendering - done
+
+10. **Create PAN-OS verification fixture pack and validation scaffolding**
+   - Status: completed (2026-03-08)
+   - Priority: P1
+   - Depends on: tasks 1-9
+   - Acceptance:
+     - add docs fixture location and exact required PAN-OS XML sample files - done
+     - document sanitization rules and expected structural fields - done
+     - add small validation test/helper that loads/parses required samples - done
+     - no adapter behavior changes - done
+
 ## ROI-Ranked TODO Backlog
 
-1. Add integration-style persistence test proving PAN-OS rule metadata survives full worker->persist->API/UI retrieval path (no mocked route result loader).
-2. Confidence/readiness quality improvements (`unknown` clarity and evidence completeness signals).
+1. Populate PAN-OS fixture pack with sanitized real-environment XML captures and use them to validate/correct adapter query-field/XPath placeholders.
+2. Validate unknown-confidence explainability wording with operators and tighten thresholds/messages if needed (explainability only).
 3. Later enrichment work (SCM deepening, SD-WAN deepening, LogScale deepening, Torq).
 
 ## Active Blockers / Open Questions
 
 - PAN-OS environment-specific XML details are still unverified in-repo:
+  - target PAN-OS version/build for queried devices is not captured in repo config/docs
   - exact filter shape for destination/port/time-window mapping
   - expected response variants across target PAN-OS versions
   - Panorama involvement in query flow (if any)
@@ -127,6 +173,10 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Integration-style lifecycle coverage now proves persisted deny and non-deny outcomes through API submit, queue handoff, worker dispatch, persistence, and API result retrieval using controlled PAN-OS adapter behavior.
 - 2026-03-08: PAN-OS rule metadata lookup is optional explainability enrichment only; metadata lookup failures never create or remove deny authority.
 - 2026-03-08: Operator-facing PAN-OS metadata output is sourced only from persisted observed-fact detail on authoritative PAN-OS deny facts and remains optional explainability data (not authority input).
+- 2026-03-08: Persisted lifecycle coverage now explicitly includes PAN-OS metadata retrieval/render assertions using normal API/UI DB-backed paths (no route-level loader patching shortcuts).
+- 2026-03-08: PAN-OS validation policy remains conservative: no query-field/XPath mapping changes without target-environment versioned XML evidence.
+- 2026-03-08: Unknown-confidence surfacing is explainability-only (`unknown_reason_signals`), and confidence values do not influence verdict authority semantics.
+- 2026-03-08: PAN-OS verification fixture templates + parser checks are the required staging path before promoting any PAN-OS XML mapping assumption from `UNVERIFIED`.
 
 ## Test Log
 
@@ -145,6 +195,16 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "panos_rule_metadata or labels_enrichment_and_authoritative_facts or evidence_bundle_download_returns_attachment or result_returns_persisted_result_when_available"` (pass, 7 selected).
 - 2026-03-08: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 34 tests).
 - 2026-03-08: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 6 tests).
+- 2026-03-08: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "panos_rule_metadata"` (pass, 4 selected).
+- 2026-03-08: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py tests/fixtures/test_lifecycle_integration.py` (pass, 24 tests).
+- 2026-03-08: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/panos/__init__.py tests/adapters/test_panos_adapter.py tests/fixtures/test_lifecycle_integration.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "unknown_includes_confidence_reason_signals or unknown_renders_confidence_signals or unknown_without_reason_signals_uses_fallback_message or load_result_record_unknown"` (pass, 7 selected).
+- 2026-03-08: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 41 tests).
+- 2026-03-08: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py packages/core/am_i_blocked_core/models.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 3 tests).
+- 2026-03-08: Ran `uv run ruff check tests/fixtures/test_panos_verification_fixture_pack.py` (pass).
 
 ## Iteration Journal
 
@@ -163,6 +223,10 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Added integration-style lifecycle tests covering submit/enqueue, worker dequeue/dispatch, persistence, and API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths.
 - 2026-03-08: Implemented PAN-OS adapter rule metadata lookup with tests for success/no-match/malformed/timeout and optional attachment to deny evidence without changing deny authority semantics.
 - 2026-03-08: Added minimal result-page PAN-OS metadata rendering from observed-fact detail (`rule_name` + optional action/description/disabled/tags) with route tests for present, absent, and malformed metadata behavior.
+- 2026-03-08: Extended lifecycle integration coverage so persisted PAN-OS deny metadata is asserted through worker execution, API result retrieval, and UI rendering; also confirmed malformed metadata preserves deny and skips metadata panel rendering.
+- 2026-03-08: Ran PAN-OS validation review against repo docs/config/tests; no target-environment XML/version artifacts were found, so `addr.dst`/`port.dst` filter fields and metadata XPath remain documented as `UNVERIFIED` placeholders.
+- 2026-03-08: Added minimal unknown-result confidence explainability in API/UI with derived `unknown_reason_signals` and loader-level confidence coercion for malformed/missing persisted values.
+- 2026-03-08: Added PAN-OS verification fixture-pack scaffolding (required XML sample templates, sanitization guidance, and parser/shape validation test) without changing adapter behavior.
 
 ## Historical / Superseded Checkpoints
 
@@ -178,7 +242,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one integration-style test that persists a PAN-OS deny result containing rule metadata through worker execution and asserts metadata is returned by `GET /api/v1/requests/{id}/result` and shown on `/requests/{id}` without route-level result-loader patching.
+Populate `docs/fixtures/panos_verification/` with sanitized target-environment PAN-OS XML captures (submit, poll, metadata config) and run mapping validation to confirm or correct current `UNVERIFIED` filter-field and XPath placeholders.
 
 ## Deferred / Later
 

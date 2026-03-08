@@ -1,0 +1,12 @@
+<response status="success">
+  <result>
+    <entry name="REPLACE_WITH_SANITIZED_RULE_NAME">
+      <action>deny</action>
+      <description>REPLACE_WITH_SANITIZED_DESCRIPTION</description>
+      <disabled>no</disabled>
+      <tag>
+        <member>REPLACE_WITH_SANITIZED_TAG</member>
+      </tag>
+    </entry>
+  </result>
+</response>

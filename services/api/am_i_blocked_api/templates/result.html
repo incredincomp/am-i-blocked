@@ -34,6 +34,8 @@
     .fact-type-enrich { background: #fef3c7; color: #92400e; }
     .next-steps { list-style: disc; padding-left: 1.2rem; }
     .next-steps li { margin-bottom: 0.4rem; font-size: 0.9rem; }
+    .unknown-reasons { list-style: disc; padding-left: 1.2rem; }
+    .unknown-reasons li { margin-bottom: 0.35rem; font-size: 0.88rem; }
     .download-btn { display: inline-block; margin-top: 1rem; background: #1b2a4a; color: #fff; border: none; border-radius: 4px; padding: 0.5rem 1.2rem; font-size: 0.85rem; cursor: pointer; text-decoration: none; }
     .pending-notice { text-align: center; padding: 2rem; color: #777; }
     footer { text-align: center; font-size: 0.75rem; color: #aaa; padding: 1rem; }
@@ -90,6 +92,22 @@
       <h3>Summary</h3>
       <p>{{ result.summary }}</p>
     </div>
+    {% if result.verdict == "unknown" %}
+    <div class="section">
+      <h3>Why unknown</h3>
+      <p style="font-size:0.88rem; color:#475569; margin-bottom:0.55rem;">
+        Path confidence: <strong>{{ (result.path_confidence * 100)|int }}%</strong>
+        | Evidence completeness: <strong>{{ (result.evidence_completeness * 100)|int }}%</strong>
+      </p>
+      <ul class="unknown-reasons">
+        {% for reason in result.unknown_reason_signals %}
+        <li>{{ reason }}</li>
+        {% else %}
+        <li>No additional unknown-confidence signals available.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
 
     {% if result.observed_facts %}
     <div class="section">

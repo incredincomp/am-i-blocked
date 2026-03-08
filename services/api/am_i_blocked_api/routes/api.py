@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from am_i_blocked_core.config import get_settings
 from am_i_blocked_core.db_models import AuditRow, RequestRow, ResultRow
@@ -39,6 +40,44 @@ _sessions: dict[str, async_sessionmaker] = {}
 
 class DependencyUnavailableError(RuntimeError):
     """Raised when Postgres/Redis dependencies are unavailable for a request."""
+
+
+def _coerce_confidence(value: object, default: float = 0.0) -> float:
+    try:
+        coerced = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+    return max(0.0, min(1.0, coerced))
+
+
+def _derive_unknown_reason_signals(
+    report: dict[str, Any],
+    path_confidence: float,
+    evidence_completeness: float,
+) -> list[str]:
+    signals: list[str] = []
+    summary = report.get("summary")
+    if isinstance(summary, str):
+        lowered = summary.lower()
+        if "insufficient evidence" in lowered or "no policy deny" in lowered:
+            signals.append("no authoritative deny evidence found")
+
+    readiness = report.get("source_readiness")
+    if isinstance(readiness, dict):
+        readiness_incomplete = False
+        for value in readiness.values():
+            if isinstance(value, dict) and value.get("available") is False:
+                readiness_incomplete = True
+                break
+        if readiness_incomplete:
+            signals.append("source readiness incomplete")
+
+    if path_confidence < 0.5:
+        signals.append("path context confidence low")
+    if evidence_completeness < 0.6:
+        signals.append("evidence incomplete")
+
+    return list(dict.fromkeys(signals))
 
 
 def _get_session_factory(database_url: str) -> async_sessionmaker:
@@ -268,15 +307,38 @@ async def _load_result_record(request_id: uuid.UUID) -> DiagnosticResult | None:
         if row is None:
             return None
         report = row.report_json or {}
+        path_confidence = _coerce_confidence(report.get("path_confidence"), default=0.0)
+        result_confidence = _coerce_confidence(row.result_confidence, default=0.0)
+        evidence_completeness = _coerce_confidence(row.evidence_completeness, default=0.0)
+        verdict = str(row.verdict)
+        unknown_reason_signals: list[str] = []
+        if verdict == "unknown":
+            report_unknown_signals = report.get("unknown_reason_signals")
+            if isinstance(report_unknown_signals, list):
+                unknown_reason_signals = [
+                    item.strip()
+                    for item in report_unknown_signals
+                    if isinstance(item, str) and item.strip()
+                ]
+            if not unknown_reason_signals:
+                report_with_summary = dict(report)
+                if "summary" not in report_with_summary:
+                    report_with_summary["summary"] = row.summary
+                unknown_reason_signals = _derive_unknown_reason_signals(
+                    report=report_with_summary,
+                    path_confidence=path_confidence,
+                    evidence_completeness=evidence_completeness,
+                )
         payload = {
             "request_id": str(request_id),
-            "verdict": row.verdict,
+            "verdict": verdict,
             "enforcement_plane": report.get("enforcement_plane", "unknown"),
             "path_context": report.get("path_context", "unknown"),
-            "path_confidence": report.get("path_confidence", 0.0),
-            "result_confidence": row.result_confidence,
-            "evidence_completeness": row.evidence_completeness,
+            "path_confidence": path_confidence,
+            "result_confidence": result_confidence,
+            "evidence_completeness": evidence_completeness,
             "summary": row.summary,
+            "unknown_reason_signals": unknown_reason_signals,
             "observed_facts": report.get("observed_facts", []),
             "routing_recommendation": report.get(
                 "routing_recommendation",

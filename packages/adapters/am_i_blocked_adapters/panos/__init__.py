@@ -17,14 +17,16 @@ from ..base import BaseAdapter
 class PANOSAdapter(BaseAdapter):
     """Adapter for PAN-OS on-prem firewall management planes.
 
-    Uses a hybrid strategy:
-    - XML API for log retrieval (job-based async polling)
-    - REST API for some metadata / config retrieval
+    Uses PAN-OS XML API for:
+    - traffic-log retrieval (job-based async polling)
+    - optional rule metadata config lookup
 
     Concurrency against the management plane is intentionally conservative.
 
-    TODO: Implement actual XML API job submission and polling.
-    TODO: Implement REST API token refresh.
+    UNVERIFIED environment details:
+    - XML traffic query field mapping (for example, destination/port fields)
+    - XML config XPath shape for rule metadata across PAN-OS versions
+
     TODO: Handle multi-vsys environments.
     """
 

@@ -70,26 +70,38 @@ def _fake_session_factory(db: _FakeDb):
 
 
 class _FakePanosAdapter:
-    def __init__(self, deny: bool, request_id: str) -> None:
+    def __init__(self, deny: bool, request_id: str, metadata_mode: str = "none") -> None:
         self._deny = deny
         self._request_id = request_id
+        self._metadata_mode = metadata_mode
 
     async def query_evidence(self, **kwargs) -> list[EvidenceRecord]:  # type: ignore[no-untyped-def]
         req_id = kwargs.get("request_id", self._request_id)
         request_uuid = uuid.UUID(req_id)
         if self._deny:
+            normalized = {
+                "action": "deny",
+                "action_raw": "reset-client",
+                "authoritative": True,
+                "rule_name": "block-ext",
+                "event_ts": "2026-01-01T00:10:00Z",
+            }
+            if self._metadata_mode == "present":
+                normalized["rule_metadata"] = {
+                    "rule_name": "block-ext",
+                    "action": "deny",
+                    "description": "Block external traffic",
+                    "disabled": False,
+                    "tags": ["internet", "critical"],
+                }
+            elif self._metadata_mode == "malformed":
+                normalized["rule_metadata"] = "not-a-dict"
             return [
                 EvidenceRecord(
                     request_id=request_uuid,
                     source=EvidenceSource.PANOS,
                     kind=EvidenceKind.TRAFFIC_LOG,
-                    normalized={
-                        "action": "deny",
-                        "action_raw": "reset-client",
-                        "authoritative": True,
-                        "rule_name": "block-ext",
-                        "event_ts": "2026-01-01T00:10:00Z",
-                    },
+                    normalized=normalized,
                 )
             ]
 
@@ -146,7 +158,11 @@ def _readiness_report() -> ReadinessReport:
     return report
 
 
-async def _run_lifecycle_case(deny: bool) -> tuple[dict, _FakeDb]:
+async def _run_lifecycle_case(
+    deny: bool,
+    *,
+    metadata_mode: str = "none",
+) -> tuple[dict, str, _FakeDb]:
     db = _FakeDb()
     queue: list[dict] = []
     settings = _settings(
@@ -189,7 +205,11 @@ async def _run_lifecycle_case(deny: bool) -> tuple[dict, _FakeDb]:
         side_effect=_dequeue_job,
     ), patch(
         "am_i_blocked_worker.steps.authoritative_correlation._build_adapter",
-        return_value=_FakePanosAdapter(deny=deny, request_id=str(uuid.uuid4())),
+        return_value=_FakePanosAdapter(
+            deny=deny,
+            request_id=str(uuid.uuid4()),
+            metadata_mode=metadata_mode,
+        ),
     ):
         submit = client.post(
             "/api/v1/am-i-blocked",
@@ -213,13 +233,15 @@ async def _run_lifecycle_case(deny: bool) -> tuple[dict, _FakeDb]:
         # Result retrieval via API (persisted state).
         result_resp = client.get(f"/api/v1/requests/{request_id}/result")
         assert result_resp.status_code == 200
+        ui_resp = client.get(f"/requests/{request_id}")
+        assert ui_resp.status_code == 200
 
-    return result_resp.json(), db
+    return result_resp.json(), ui_resp.text, db
 
 
 @pytest.mark.anyio
-async def test_lifecycle_deny_path_persists_and_retrieves_authoritative_panos_evidence() -> None:
-    result, db = await _run_lifecycle_case(deny=True)
+async def test_lifecycle_deny_path_persists_and_retrieves_panos_metadata_in_api_and_ui() -> None:
+    result, ui_html, db = await _run_lifecycle_case(deny=True, metadata_mode="present")
     request_id = uuid.UUID(result["request_id"])
 
     # Persisted lifecycle state.
@@ -238,11 +260,47 @@ async def test_lifecycle_deny_path_persists_and_retrieves_authoritative_panos_ev
         and ev.get("normalized", {}).get("authoritative") is True
     ]
     assert panos_deny
+    assert panos_deny[0]["normalized"]["rule_metadata"]["rule_name"] == "block-ext"
+    assert panos_deny[0]["normalized"]["rule_metadata"]["description"] == "Block external traffic"
+    panos_fact_detail = next(f["detail"] for f in result["observed_facts"] if f["source"] == "panos")
+    assert panos_fact_detail["rule_metadata"]["rule_name"] == "block-ext"
+    assert panos_fact_detail["rule_metadata"]["tags"] == ["internet", "critical"]
+    assert "PAN-OS rule metadata" in ui_html
+    assert "<strong>Rule</strong>: block-ext" in ui_html
+    assert "<strong>Action</strong>: deny" in ui_html
+
+
+@pytest.mark.anyio
+async def test_lifecycle_deny_path_with_malformed_metadata_still_persists_and_renders() -> None:
+    result, ui_html, db = await _run_lifecycle_case(deny=True, metadata_mode="malformed")
+    request_id = uuid.UUID(result["request_id"])
+
+    # Persisted lifecycle state.
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    # Deny authority remains from PAN-OS deny evidence even when metadata is malformed.
+    assert result["verdict"] == "denied"
+    evidence_records = db.results[request_id].report_json.get("evidence_records", [])
+    panos_deny = [
+        ev
+        for ev in evidence_records
+        if ev.get("source") == "panos"
+        and ev.get("normalized", {}).get("action") == "deny"
+        and ev.get("normalized", {}).get("authoritative") is True
+    ]
+    assert panos_deny
+    assert panos_deny[0]["normalized"]["rule_metadata"] == "not-a-dict"
+    panos_fact_detail = next(f["detail"] for f in result["observed_facts"] if f["source"] == "panos")
+    assert panos_fact_detail["rule_metadata"] == "not-a-dict"
+    assert "PAN-OS rule metadata" not in ui_html
+    assert "On-prem PAN deny: rule=block-ext" in ui_html
 
 
 @pytest.mark.anyio
 async def test_lifecycle_no_authoritative_evidence_does_not_produce_denied() -> None:
-    result, db = await _run_lifecycle_case(deny=False)
+    result, _ui_html, db = await _run_lifecycle_case(deny=False)
     request_id = uuid.UUID(result["request_id"])
 
     # Persisted lifecycle state.

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -10,6 +12,8 @@ from am_i_blocked_api.routes import api as api_routes
 from am_i_blocked_core.enums import DestinationType, RequestStatus
 from am_i_blocked_core.models import DiagnosticResult
 from fastapi.testclient import TestClient
+
+_ORIG_LOAD_RESULT_RECORD = api_routes._load_result_record
 
 
 @pytest.fixture
@@ -442,6 +446,59 @@ class TestGetResult:
         assert detail["rule_metadata"]["rule_name"] == "block-ext"
         assert detail["rule_metadata"]["description"] == "Block external traffic"
 
+    def test_result_unknown_includes_confidence_reason_signals(self, client):
+        request_id = "21212121-2121-2121-2121-212121212121"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.3,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": [
+                    "no authoritative deny evidence found",
+                    "source readiness incomplete",
+                    "path context confidence low",
+                    "evidence incomplete",
+                ],
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        assert resp.json()["unknown_reason_signals"] == [
+            "no authoritative deny evidence found",
+            "source readiness incomplete",
+            "path context confidence low",
+            "evidence incomplete",
+        ]
+
 
 class TestUIRoutes:
     def test_index_returns_html(self, client):
@@ -626,6 +683,100 @@ class TestUIRoutes:
         assert resp.status_code == 200
         assert f"/api/v1/requests/{request_id}/result/evidence-bundle" in resp.text
 
+    def test_request_page_unknown_renders_confidence_signals(self, client):
+        request_id = "91919191-9191-9191-9191-919191919191"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.3,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": [
+                    "no authoritative deny evidence found",
+                    "path context confidence low",
+                ],
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Why unknown" in resp.text
+        assert "Path confidence: <strong>20%</strong>" in resp.text
+        assert "Evidence completeness: <strong>30%</strong>" in resp.text
+        assert "<li>no authoritative deny evidence found</li>" in resp.text
+        assert "<li>path context confidence low</li>" in resp.text
+
+    def test_request_page_unknown_without_reason_signals_uses_fallback_message(self, client):
+        request_id = "92929292-9292-9292-9292-929292929292"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.6,
+                "result_confidence": 0.3,
+                "evidence_completeness": 0.7,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": [],
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Why unknown" in resp.text
+        assert "No additional unknown-confidence signals available." in resp.text
+
     def test_request_page_renders_panos_rule_metadata_when_present(self, client):
         request_id = "98989898-9898-9898-9898-989898989898"
         with patch(
@@ -792,3 +943,121 @@ class TestUIRoutes:
         assert resp.status_code == 200
         assert "On-prem PAN deny: rule=block-ext" in resp.text
         assert "PAN-OS rule metadata" not in resp.text
+
+
+class _FakeResultSession:
+    def __init__(self, row):
+        self._row = row
+
+    async def get(self, model, key):  # type: ignore[no-untyped-def]
+        if model.__name__ == "ResultRow":
+            return self._row
+        return None
+
+
+class _FakeResultSessionContext:
+    def __init__(self, row):
+        self._session = _FakeResultSession(row)
+
+    async def __aenter__(self):
+        return self._session
+
+    async def __aexit__(self, exc_type, exc, tb):  # type: ignore[no-untyped-def]
+        return None
+
+
+def _fake_result_session_factory(row):
+    def _factory():
+        return _FakeResultSessionContext(row)
+
+    return _factory
+
+
+class TestLoadResultRecordConfidenceFallback:
+    @pytest.mark.anyio
+    async def test_load_result_record_unknown_derives_reasons_from_confidence_and_readiness(self):
+        request_id = uuid.UUID("31313131-3131-3131-3131-313131313131")
+        row = api_routes.ResultRow(
+            request_id=request_id,
+            verdict="unknown",
+            owner_team="Unknown",
+            result_confidence=0.2,
+            evidence_completeness=0.2,
+            summary="Insufficient evidence to determine verdict.",
+            next_steps_json=[],
+            report_json={
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "source_readiness": {
+                    "panos": {"available": False, "reason": "not configured"},
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "generated_at": "2026-03-08T00:00:00Z",
+            },
+        )
+
+        with patch(
+            "am_i_blocked_api.routes.api.get_settings",
+            return_value=SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        ), patch(
+            "am_i_blocked_api.routes.api._get_session_factory",
+            return_value=_fake_result_session_factory(row),
+        ):
+            result = await _ORIG_LOAD_RESULT_RECORD(request_id)
+
+        assert result is not None
+        assert result.unknown_reason_signals == [
+            "no authoritative deny evidence found",
+            "source readiness incomplete",
+            "path context confidence low",
+            "evidence incomplete",
+        ]
+
+    @pytest.mark.anyio
+    async def test_load_result_record_unknown_handles_missing_or_malformed_confidence_values(self):
+        request_id = uuid.UUID("32323232-3232-3232-3232-323232323232")
+        row = api_routes.ResultRow(
+            request_id=request_id,
+            verdict="unknown",
+            owner_team="Unknown",
+            result_confidence=0.2,
+            evidence_completeness=0.2,
+            summary="Insufficient evidence.",
+            next_steps_json=[],
+            report_json={
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": "not-a-number",
+                "unknown_reason_signals": ["custom reason"],
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "generated_at": "2026-03-08T00:00:00Z",
+            },
+        )
+        row.evidence_completeness = None  # type: ignore[assignment]
+        row.result_confidence = "bad"  # type: ignore[assignment]
+
+        with patch(
+            "am_i_blocked_api.routes.api.get_settings",
+            return_value=SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        ), patch(
+            "am_i_blocked_api.routes.api._get_session_factory",
+            return_value=_fake_result_session_factory(row),
+        ):
+            result = await _ORIG_LOAD_RESULT_RECORD(request_id)
+
+        assert result is not None
+        assert result.path_confidence == 0.0
+        assert result.evidence_completeness == 0.0
+        assert result.result_confidence == 0.0
+        assert result.unknown_reason_signals == ["custom reason"]

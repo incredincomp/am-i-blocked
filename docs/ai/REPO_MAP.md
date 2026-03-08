@@ -14,6 +14,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `infra`: Docker Compose and `.env.example`.
 - `tests`: unit, routes, fixtures, adapter contract tests.
 - `docs` and `docs/ai`: architecture and agent-grounding docs.
+- `docs/fixtures/panos_verification`: sanitized PAN-OS XML verification fixture pack templates for future environment evidence capture.
 
 ## Package Import Names
 
@@ -44,6 +45,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - UI request page maps normalized failure stage/category to compact first-hop triage hints while preserving raw failure values in the rendered metadata.
 - Result evidence cards now visually distinguish observed facts tagged as enrichment-only vs authoritative using observed-fact detail metadata.
 - Result evidence cards now also render minimal PAN-OS metadata from persisted observed-fact detail when authoritative PAN-OS deny facts include `detail.rule_metadata`.
+- Unknown verdicts now render compact confidence explainability (`path_confidence`, `evidence_completeness`, `unknown_reason_signals`) in the result page "Why unknown" section.
 - Pipeline itself is implemented and exercised in tests via direct calls.
 - Target MVP:
 - API persists + enqueues.
@@ -69,8 +71,10 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/unit`: step and classifier unit tests.
 - `tests/routes`: FastAPI API/route tests.
 - `tests/routes/test_api_routes.py`: includes route/UI checks for PAN-OS metadata render behavior (present, absent, malformed).
+- `tests/routes/test_api_routes.py`: also covers unknown-confidence explainability rendering and persisted-result fallback handling for missing/malformed confidence values.
 - `tests/fixtures`: pipeline integration-style tests with mocked adapters/readiness.
-- `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval coverage with controlled PAN-OS deny and no-authoritative-evidence outcomes.
+- `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval + UI render coverage with controlled PAN-OS deny/no-authoritative-evidence outcomes, including persisted PAN-OS metadata present/malformed lifecycle assertions.
+- `tests/fixtures/test_panos_verification_fixture_pack.py`: fixture-pack scaffolding validation (required PAN-OS XML sample files exist, parse, and contain minimum structural markers).
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
 - `tests/adapters/test_panos_adapter.py`: also covers PAN-OS rule metadata lookup behavior (success, no-match, malformed response, timeout/failure) and graceful deny-path behavior when metadata lookup fails.
@@ -92,13 +96,14 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 
 - Adapter abstraction in `packages/adapters/am_i_blocked_adapters/base.py`.
 - PAN-OS adapter now contains XML log-job submit/poll helpers, conservative deny/reset normalization, and optional XML config-based `lookup_rule_metadata(...)` enrichment in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
+- PAN-OS adapter query-field mapping (`addr.dst`, `port.dst`) and metadata XPath shape are explicitly documented in code as `UNVERIFIED` placeholders pending target-environment capture; no PAN-OS version pin/source file exists in repo config today.
 - Worker step modules in `services/worker/am_i_blocked_worker/steps/`.
 - Authoritative-correlation now applies PAN-OS deny-authoritative gating before passing evidence to classification (`services/worker/am_i_blocked_worker/steps/authoritative_correlation.py`).
 - Classification logic isolated in `services/worker/am_i_blocked_worker/steps/classify.py`.
 - Classifier deny authority is constrained to authoritative sources (PAN-OS/SCM); enrichment sources like LogScale cannot independently produce `denied`.
 - Classifier now labels LogScale `enrichment_only_unverified` records as explicit observed facts so report bundles clearly separate enrichment from authority.
 - Persistence is isolated in `services/worker/am_i_blocked_worker/steps/persist_and_report.py`.
-- Lifecycle integration test uses real route/worker/persistence functions with controlled queue and adapter test doubles to validate persisted result retrieval behavior.
+- Lifecycle integration test uses real route/worker/persistence functions with controlled queue and adapter test doubles to validate persisted result retrieval and UI metadata rendering behavior without route-loader patching.
 
 ## Obsolete / Duplicate Paths
 
@@ -111,6 +116,8 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
   - `classification_role` (recognized enrichment value: `enrichment_only_unverified`)
   - `authoritative` (boolean; `false` indicates enrichment-only context)
 - PAN-OS rule metadata is currently surfaced through existing observed-fact detail payload (`observed_facts[].detail.rule_metadata`) without introducing new top-level API fields.
+- Diagnostic result now includes a minimal additive explainability field:
+  - `unknown_reason_signals` (list of short strings; populated for unknown verdicts when available)
 - `docs/api.md` now also includes `RequestDetail` failed-state response examples documenting:
   - `failure_reason`
   - `failure_stage`

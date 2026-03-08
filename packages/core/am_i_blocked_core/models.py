@@ -119,6 +119,7 @@ class DiagnosticResult(BaseModel):
     result_confidence: float = Field(ge=0.0, le=1.0)
     evidence_completeness: float = Field(ge=0.0, le=1.0)
     summary: str
+    unknown_reason_signals: list[str] = Field(default_factory=list)
     observed_facts: list[ObservedFact] = Field(default_factory=list)
     routing_recommendation: RoutingRecommendation
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
