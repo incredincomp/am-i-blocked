@@ -219,6 +219,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - exact filter shape for destination/port/time-window mapping
   - expected response variants across target PAN-OS versions
   - Panorama involvement in query flow (if any)
+- Local-firewall live collection blocker: configured PAN-OS host resolves in this environment but TCP/443 connectivity times out, so read-only harness collection cannot currently reach the device.
 - Template-seeded/synthetic versioned fixture packs are now explicitly non-promotable for environment verification; only `capture_provenance=real_capture` can be used for assumption promotion.
 - PAN-OS authoritative gating currently depends on normalized fields (`action=deny`, `authoritative=true`); richer field mappings and variants remain intentionally unverified.
 - PAN-OS rule metadata XPath shape and field completeness are environment/version dependent (`UNVERIFIED`); current implementation intentionally parses a minimal metadata subset.
@@ -290,6 +291,8 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
 - 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_collection_harness.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py tests/adapters/test_panos_adapter.py -k "fixture_poll_shape_parses_log_entries_with_current_extractor or panos_collection_harness or panos_fixture_selector or verification_fixture_pack"` (pass, 17 tests; 20 deselected).
 - 2026-03-08: Ran `uv run ruff check tests/fixtures/test_panos_collection_harness.py tests/fixtures/panos_fixture_selector.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py tests/adapters/test_panos_adapter.py` (pass).
+- 2026-03-08: Attempted live harness run using `.env` credentials for `query-shape` real capture (`scripts/gather_panos_fixtures.sh ... --capture-label query-shape ...`) -> failed: `curl (7)` unable to connect to PAN-OS host on `443`.
+- 2026-03-08: Verified host resolution (`getent hosts`) succeeds and TCP connectivity check (`nc -zv <host> 443`) times out; no real-capture fixtures collected in this run.
 
 ## Iteration Journal
 
@@ -318,6 +321,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Wired one existing PAN-OS adapter fixture-alignment test to load fixtures through `select_versioned_capture(version, scenario)` and assert capture manifest metadata for explicit test provenance.
 - 2026-03-08: Hardened fixture-manifest trust schema and selector gating so provenance/scope filters are explicit, fail-closed, and cannot silently downgrade real-capture verification requirements.
 - 2026-03-08: Added a repo-owned read-only PAN-OS request guard and wired fixture collection through it; added harness tests with fake-curl execution to verify disallowed-action rejection and sanitized real-capture manifest output.
+- 2026-03-08: Live real-capture collection attempt was blocked by network reachability to configured PAN-OS host (`443` timeout); assumptions remain `UNVERIFIED` pending reachable read-only harness execution.
 
 ## Historical / Superseded Checkpoints
 
@@ -333,7 +337,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Run the hardened read-only local-firewall harness against target devices (using `.env` PAN-OS credentials) to collect sanitized `capture_provenance=real_capture` versioned scenario packs (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`), then add verification tests that require `require_provenance=\"real_capture\"` before promoting any `UNVERIFIED` mapping assumption.
+Restore reachable TCP/443 access from this environment to the configured PAN-OS management host, then re-run the hardened read-only local-firewall harness (using `.env` credentials) to collect `capture_provenance=real_capture` scenario packs (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`) before promoting any `UNVERIFIED` mapping assumption.
 
 ## Deferred / Later
 
