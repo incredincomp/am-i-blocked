@@ -1,0 +1,14 @@
+captured_at_utc=2026-03-10T17:31:18Z
+capture_label=query-shape
+capture_provenance=real_capture
+verification_scope=query_shape_partial
+panos_version_reported=11.0.6-h1
+panos_version_source=auto_detected
+scenario=query-shape
+firewall_host_input=SANITIZED_IPv4
+rule_xpath_input=/config/devices/entry/vsys/entry/rulebase/security/rules
+log_query_expr=(addr.dst eq example.com) and (port.dst eq 443) and (receive_time geq '2026/03/10 16:31:18')
+max_polls=10
+poll_interval_secs=1
+notes=Real capture for query-shape check; submit returned API error 17 and no poll artifact, so fixture is intentionally incomplete for promotion gating tests.
+api_key_source=keygen

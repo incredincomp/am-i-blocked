@@ -1,0 +1,1 @@
+POST https://SANITIZED_IPv4/api/?type=keygen (form-urlencoded user,password)

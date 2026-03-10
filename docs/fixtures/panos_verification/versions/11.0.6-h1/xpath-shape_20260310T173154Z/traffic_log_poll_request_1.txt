@@ -1,0 +1,1 @@
+GET https://SANITIZED_IPv4/api/?type=log&action=get&job-id=215&key=REDACTED_API_KEY

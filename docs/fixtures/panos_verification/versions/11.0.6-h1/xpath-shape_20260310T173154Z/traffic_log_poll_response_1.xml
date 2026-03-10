@@ -1,0 +1,12 @@
+<response status="success"><result>
+  <job>
+    <tenq>10:27:59</tenq>
+    <tdeq>10:27:59</tdeq>
+    <tlast>10:27:59</tlast>
+    <status>FIN</status>
+    <id>215</id>
+  </job>
+  <log>
+    <logs count="0" progress="100"/>
+  </log>
+</result></response>

@@ -1,0 +1,14 @@
+captured_at_utc=2026-03-10T18:23:07Z
+capture_label=deny-hit
+capture_provenance=real_capture
+verification_scope=real_env_partial
+panos_version_reported=11.0.6-h1
+panos_version_source=auto_detected
+scenario=deny-hit
+firewall_host_input=SANITIZED_IPv4
+rule_xpath_input=/config/devices/entry/vsys/entry/rulebase/security/rules
+log_query_expr=(action neq allow) and (receive_time geq '2026/03/10 17:23:02')
+max_polls=10
+poll_interval_secs=1
+notes=Bounded deny-focused query ((action neq allow) + 1h window) produced valid submit/job/poll FIN but zero log entries; no deny/reset entry evidence captured.
+api_key_source=keygen

@@ -37,6 +37,11 @@ The helper script writes both:
 Current seeded example for selector wiring/tests:
 - `versions/11.0.2/deny-hit_20260308T210000Z/`
 
+Current real-capture examples (version-scoped evidence, mixed completeness):
+- `versions/11.0.6-h1/no-match_20260310T173006Z/`
+- `versions/11.0.6-h1/metadata-hit_20260310T173041Z/`
+- `versions/11.0.6-h1/xpath-shape_20260310T173154Z/`
+
 ## Manifest Contract (Required)
 
 Every versioned capture directory must include `CAPTURE_METADATA.txt` with at least:
@@ -83,6 +88,8 @@ Required trust filters must fail closed:
 - no silent fallback from `real_capture` to template or synthetic packs.
 - no implicit trust escalation from version naming alone.
 - newest-match behavior is applied only after provenance/scope gating.
+- if a real-capture scenario is incomplete (for example, submit error with no poll file),
+  selector-based promotion tests must fail closed rather than downgrading requirements.
 
 ## PAN-OS Protocol Distinction (Required)
 
@@ -140,6 +147,7 @@ If an API key is not available, the script can request one first:
 Script behavior:
 - captures PAN-OS system info and uses `sw-version` for version foldering (unless overridden),
 - optionally requests an API key via XML `type=keygen` when `--api-key` is omitted and username/password are provided,
+- URL-encodes dynamic `query=` and `xpath=` values for live XML API calls to avoid malformed URL failures on bounded filters,
 - captures async traffic-log submit and poll responses,
 - captures rule metadata config responses (`show` and `complete`),
 - writes request logs and a capture manifest for traceability,
@@ -179,6 +187,29 @@ Disallowed live actions include:
 - `set`, `edit`, `delete`, `move`, `rename`, `clone`, `override`
 - `multi-config`, `commit`, `commit-all`
 - any request type/action outside the allowlist
+
+### Authentication Preflight and `403 Invalid Credential`
+
+For key bootstrap mode (`--username` + `--password`), the harness now uses documented
+form-urlencoded POST keygen first (`POST /api/` with `type=keygen`).
+
+If keygen returns PAN-OS XML API `403 Invalid Credential`, the harness fails fast and stops.
+It treats this as an auth/authorization blocker, not a connectivity blocker.
+It does not run repeated invalid-credential retry loops.
+If keygen returns a non-auth XML error (or any response without `<key>`), the harness also fails fast
+with a generic keygen/API blocker and still does not proceed to live capture steps.
+
+Operator prerequisites before re-running live capture:
+- preferred: provide a known-good API key (`--api-key`) to bypass keygen uncertainty
+- ensure the account role has PAN-OS XML API access enabled
+- ensure XML API role permissions include read access needed here:
+  - traffic log retrieval (`type=log` submit/get)
+  - config read (`type=config` action=`get|show|complete`)
+- if using external auth, confirm username format matches backend expectations
+- do not retry capture until valid API credentials/API key are confirmed
+
+If external troubleshooting has already confirmed both keygen forms (`GET` and documented `POST`)
+return `403 Invalid Credential`, do not continue live capture attempts until auth prerequisites are fixed.
 
 ### Template or Synthetic Seeding (Manual)
 
@@ -273,6 +304,11 @@ For each PAN-OS version you support, capture at least:
 2. no-match sample (valid poll response with no relevant deny entry)
 3. rule metadata sample for a known deny rule
 4. malformed/partial sample (manually sanitized to preserve malformed structure for parser hardening tests)
+
+If a live scenario yields a valid real-capture submit error (for example query-shape/API error)
+but does not produce all required XML artifacts, keep it as real evidence with an appropriate
+partial `verification_scope`, and do not use it to promote assumptions that require complete
+submit+poll+metadata proof.
 
 Keep each sample set in a separate labeled versioned folder so future tests can select
 fixtures by version and condition.

@@ -330,3 +330,28 @@ class TestPANOSAdapterFixtureAlignment:
             host="10.0.0.1",
         )
         assert metadata.get("rule_name") == rule_name
+
+    def test_real_capture_query_shape_selection_fails_closed_when_capture_incomplete(self) -> None:
+        # Query-shape capture currently contains a real submit error sample but no poll file,
+        # so selector must fail closed rather than silently downgrading trust requirements.
+        with pytest.raises(FileNotFoundError, match="missing required files"):
+            select_versioned_capture(
+                version="11.0.6-h1",
+                scenario="query-shape",
+                require_provenance="real_capture",
+                minimum_verification_scope="query_shape_partial",
+            )
+
+    def test_real_capture_xpath_shape_selection_is_provenance_gated(self) -> None:
+        capture_dir = select_versioned_capture(
+            version="11.0.6-h1",
+            scenario="xpath-shape",
+            require_provenance="real_capture",
+            minimum_verification_scope="xpath_shape_partial",
+        )
+        manifest = load_capture_manifest(capture_dir)
+        assert manifest.get("capture_provenance") == "real_capture"
+        assert manifest.get("scenario") == "xpath-shape"
+
+        root = ET.fromstring((capture_dir / "rule_metadata_config_response.xml").read_text(encoding="utf-8"))
+        assert root.find(".//rules/entry") is not None

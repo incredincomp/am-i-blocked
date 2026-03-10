@@ -1,0 +1,30 @@
+<response status="success"><result><system><hostname>SANITIZED_HOST</hostname><ip-address>SANITIZED_IPv4</ip-address><public-ip-address>unknown</public-ip-address><netmask>SANITIZED_IPv4</netmask><default-gateway>SANITIZED_IPv4</default-gateway><is-dhcp>no</is-dhcp><ipv6-address>unknown</ipv6-address><ipv6-link-local-address>unknown</ipv6-link-local-address><mac-address>8c:36:7a:01:f4:65</mac-address><time>Tue Mar 10 11:44:51 2026
+</time>
+<uptime>21 days, 2:16:06</uptime>
+<devicename>SANITIZED_HOST</devicename>
+<family>400</family><model>PA-460</model><serial>SANITIZED_SERIAL</serial><base_mac>64:7c:e8:b4:0d:00</base_mac>
+<mac_count>254</mac_count>
+<cloud-mode>non-cloud</cloud-mode>
+<sw-version>11.0.6-h1</sw-version>
+<global-protect-client-package-version>0.0.0</global-protect-client-package-version>
+<device-dictionary-version>1-211</device-dictionary-version>
+<app-version>9035-9736</app-version>
+<app-release-date>2025/10/29 17:23:43 PDT</app-release-date>
+<av-version>0</av-version>
+<threat-version>0</threat-version>
+<threat-release-date>2025/10/29 17:23:43 PDT</threat-release-date>
+<wf-private-version>0</wf-private-version>
+<wf-private-release-date>unknown</wf-private-release-date>
+<url-db>paloaltonetworks</url-db>
+<wildfire-version>0</wildfire-version>
+<wildfire-rt>Disabled</wildfire-rt>
+<url-filtering-version>0000.00.00.000</url-filtering-version>
+<global-protect-datafile-version>unknown</global-protect-datafile-version>
+<global-protect-datafile-release-date>unknown</global-protect-datafile-release-date><global-protect-clientless-vpn-version>0</global-protect-clientless-vpn-version>
+<logdb-version>11.0.0</logdb-version>
+<plugin_versions><entry name='dlp' version='4.0.2'><pkginfo>dlp-4.0.2</pkginfo></entry></plugin_versions><platform-family>400</platform-family>
+<vpn-disable-mode>off</vpn-disable-mode>
+<multi-vsys>off</multi-vsys>
+<ZTP>Disabled</ZTP><operational-mode>normal</operational-mode>
+<advanced-routing>off</advanced-routing>
+<device-certificate-status>None</device-certificate-status></system></result></response>

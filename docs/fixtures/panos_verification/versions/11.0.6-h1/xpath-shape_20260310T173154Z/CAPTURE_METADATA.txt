@@ -1,0 +1,14 @@
+captured_at_utc=2026-03-10T17:31:55Z
+capture_label=xpath-shape
+capture_provenance=real_capture
+verification_scope=xpath_shape_partial
+panos_version_reported=11.0.6-h1
+panos_version_source=auto_detected
+scenario=xpath-shape
+firewall_host_input=SANITIZED_IPv4
+rule_xpath_input=/config/devices/entry/vsys/entry/rulebase/security/rules
+log_query_expr=(receive_time geq '2026/03/10 16:31:54')
+max_polls=10
+poll_interval_secs=1
+notes=Real capture for XPath/config response shape; config rulebase entries returned and poll finished with zero log entries.
+api_key_source=keygen

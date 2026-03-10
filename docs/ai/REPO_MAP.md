@@ -85,6 +85,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/adapters/test_panos_adapter.py`: also covers PAN-OS rule metadata lookup behavior (success, no-match, malformed response, timeout/failure) and graceful deny-path behavior when metadata lookup fails.
 - `tests/adapters/test_panos_adapter.py`: includes PAN-OS fixture-pack alignment checks proving current parser assumptions match fixture submit/poll/metadata XML shapes.
 - `tests/adapters/test_panos_adapter.py`: fixture poll-alignment test now uses `select_versioned_capture(version=\"11.0.2\", scenario=\"deny-hit\")` + manifest loading as canonical versioned-fixture pattern.
+- `tests/adapters/test_panos_adapter.py`: now also includes real-capture trust-gated checks for `11.0.6-h1` (`require_provenance=\"real_capture\"`) proving fail-closed behavior on incomplete `query-shape` capture and partial XPath-shape evidence selection.
 - `tests/unit/test_authoritative_correlation.py`: step-level PAN-OS authoritative gating tests (deny accepted, non-deny/malformed/timeout/no-match excluded).
 - `tests/unit/test_source_readiness_check.py`: readiness-step coverage including LogScale configured/unconfigured paths.
 
@@ -106,6 +107,9 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - PAN-OS adapter query-field mapping (`addr.dst`, `port.dst`) and metadata XPath shape are explicitly documented in code as `UNVERIFIED` placeholders pending target-environment capture; no PAN-OS version pin/source file exists in repo config today.
 - PAN-OS fixture pack currently validates parser shape expectations (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`) but does not independently verify version-specific query-field/XPath correctness.
 - Fixture helper supports explicit capture labels, optional destination/port/time-window query generation, API-key or keygen-based auth (`--username`/`--password` fallback), and per-capture metadata manifests with required trust fields (`capture_provenance`, `verification_scope`, `panos_version_source`).
+- Fixture helper now URL-encodes dynamic XML API query/xpath values via curl `--data-urlencode` for live collection safety (prevents malformed URL failures on bounded query strings) while preserving read-only guardrails.
+- Keygen bootstrap preflight is fail-fast on explicit PAN-OS XML API auth rejection signatures (`403 Invalid Credential`) with operator guidance for API-key mode and XML-API-role prerequisites; non-auth XML keygen errors fail fast with generic keygen/API error messaging, and no invalid-credential retry loop is used.
+- Current local-firewall run state: keygen preflight succeeds with current `.env` credentials, and real-capture versioned scenarios now exist for PAN-OS `11.0.6-h1` (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`) with mixed completeness by scenario; latest bounded deny-focused run (`deny-hit_20260310T182306Z`) produced submit+poll `FIN` but zero log entries.
 - Versioned fixture selectors can now require `capture_provenance` and minimum `verification_scope`; newest-match selection is applied only after those trust filters pass.
 - Live fixture collection is constrained to read-only PAN-OS classes/actions by guard helper: `op(show_system_info)`, `log(submit/get)`, `config(get/show/complete)`, and `keygen` bootstrap only.
 - Worker step modules in `services/worker/am_i_blocked_worker/steps/`.

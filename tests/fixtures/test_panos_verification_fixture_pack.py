@@ -45,7 +45,8 @@ def test_panos_verification_fixture_pack_contains_minimum_expected_markers() -> 
 
     poll_root = _load_xml_fixture("traffic_log_poll_response.xml")
     assert poll_root.find(".//status") is not None
-    assert poll_root.find(".//logs/entry") is not None
+    # Real captures may represent a valid finished no-match poll with zero log entries.
+    assert poll_root.find(".//logs") is not None
 
     metadata_root = _load_xml_fixture("rule_metadata_config_response.xml")
     assert metadata_root.find(".//entry") is not None

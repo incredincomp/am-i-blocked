@@ -167,3 +167,15 @@ def test_load_capture_manifest_rejects_missing_required_fields(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="missing required fields"):
         load_capture_manifest(capture_dir)
+
+
+def test_select_versioned_capture_real_capture_repo_fixture_for_no_match() -> None:
+    selected = select_versioned_capture(
+        version="11.0.6-h1",
+        scenario="no-match",
+        require_provenance="real_capture",
+        minimum_verification_scope="real_env_partial",
+    )
+    manifest = load_capture_manifest(selected)
+    assert manifest["capture_provenance"] == "real_capture"
+    assert manifest["scenario"] == "no-match"

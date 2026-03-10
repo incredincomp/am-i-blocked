@@ -28,6 +28,8 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - PAN-OS fixture tooling now includes a `version + scenario` selector helper for tests and optional keygen auth fallback (`--username`/`--password`) in the capture script.
 - Versioned fixture manifests and selectors are now provenance-aware (`real_capture` vs `template_seeded` vs `synthetic`) with explicit verification-scope gating and fail-closed selection semantics.
 - Local fixture collection now enforces a repo-owned read-only PAN-OS request allowlist guard before each live call (`op/show system info`, `log submit/get`, `config get/show/complete`, keygen bootstrap only).
+- Local keygen bootstrap now fails fast on explicit XML API auth rejection signatures (`403 Invalid Credential`) with explicit operator preflight guidance, no invalid-credential retry loop, and separate generic handling for non-auth XML keygen errors.
+- Real-capture versioned fixture packs now exist for PAN-OS `11.0.6-h1` scenarios (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`) collected through the hardened local harness with read-only guard enforcement.
 - PAN-OS traffic-log filter fields and metadata XPath remain explicitly `UNVERIFIED` placeholders pending target-environment evidence capture.
 
 ## Architecture Snapshot
@@ -62,8 +64,11 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - PAN-OS fixture helper/README contract now supports repeatable multi-version capture workflows (versioned folders, labeled captures, capture metadata, and explicit capture matrix guidance) without changing runtime adapter logic.
   - Fixture tests can now auto-select newest versioned capture by `version + scenario` via helper, reducing hardcoded fixture-path coupling.
   - One existing PAN-OS adapter fixture-alignment test now uses the versioned selector path end-to-end (`11.0.2` + `deny-hit`) with manifest assertions.
-  - Selector/manifest hardening now prevents trust confusion between template/synthetic fixtures and real-capture evidence in verification workflows.
-  - Local-firewall collection harness is now constrained by explicit read-only request allowlist checks and test-backed fake-curl harness validation.
+- Selector/manifest hardening now prevents trust confusion between template/synthetic fixtures and real-capture evidence in verification workflows.
+- Local-firewall collection harness is now constrained by explicit read-only request allowlist checks and test-backed fake-curl harness validation.
+- Keygen/auth preflight remains fail-fast with explicit credential blocker guidance and no invalid-credential retry loops.
+- Harness now URL-encodes dynamic `query`/`xpath` parameters and sanitizes additional rule/object-like values (`entry` names, `uuid`, `member`) in saved artifacts.
+- Real-capture evidence now proves version-scoped partial XPath/config shape for `11.0.6-h1`; query-token correctness remains unverified.
 - Remaining MVP-critical work:
   - Capture sanitized target PAN-OS XML samples/version data into the fixture pack and then verify or correct `addr.dst`/`port.dst` and metadata XPath placeholders.
 
@@ -206,6 +211,48 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
      - local collection harness tests prove guard rejection and real-capture manifest/sanitization behavior - done
      - no classifier/API/UI/PAN-OS adapter runtime changes - done
 
+16. **Harden PAN-OS keygen auth preflight/operator guidance**
+   - Status: completed (2026-03-09)
+   - Priority: P1
+   - Depends on: tasks 10-15
+   - Acceptance:
+     - keygen `403 Invalid Credential` fails clearly as auth/authorization blocker - done
+     - script avoids repeated invalid-credential retries - done
+     - operator prerequisites documented for API-key mode and XML-API-role requirements - done
+     - no adapter/classifier/API/UI behavior changes - done
+
+17. **Tighten keygen auth-failure classification precision**
+   - Status: completed (2026-03-09)
+   - Priority: P1
+   - Depends on: tasks 10-16
+   - Acceptance:
+     - keygen auth guidance triggers only for explicit PAN-OS auth rejection signatures (`403 Invalid Credential` class) - done
+     - non-auth XML API keygen errors remain fail-fast but are reported as generic keygen/API errors - done
+     - harness tests cover both invalid-credential and non-auth XML error responses - done
+     - no PAN-OS adapter/classifier/API/UI behavior changes - done
+
+18. **Collect real-capture PAN-OS fixture scenarios from reachable local firewall**
+   - Status: completed (2026-03-10, blocked in auth preflight)
+   - Priority: P1
+   - Depends on: tasks 10-17
+   - Acceptance:
+     - run hardened read-only harness using current credential path (`--api-key` preferred, else keygen) - done (keygen path)
+     - collect bounded scenario packs where available (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`) with `capture_provenance=real_capture` - blocked (preflight auth/keygen response)
+     - stop immediately and record blocker if auth fails (`403 Invalid Credential` / auth rejection) - done (stopped after first failed preflight)
+     - promote PAN-OS assumptions from `UNVERIFIED` only when real-capture evidence clearly proves them and scope claims by version/scenario - done (no promotions made; evidence absent)
+     - update docs/tests/tracker/source-refresh with collected evidence and remaining gaps - done
+
+19. **Retry real-capture collection + strict real-provenance verification wiring**
+   - Status: completed (2026-03-10)
+   - Priority: P1
+   - Depends on: tasks 10-18
+   - Acceptance:
+     - rerun hardened read-only harness against current local credentials and stop immediately on auth preflight blocker - done
+     - collect bounded `real_capture` scenarios only if auth succeeds - done (`11.0.6-h1` packs collected; mixed completeness)
+     - verification tests that claim assumption-promotion path explicitly require `require_provenance=\"real_capture\"` - done
+     - no PAN-OS assumption promotion without collected real-capture evidence - done
+     - docs/tracker/source-refresh reconciled with this retry outcome - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -219,7 +266,10 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - exact filter shape for destination/port/time-window mapping
   - expected response variants across target PAN-OS versions
   - Panorama involvement in query flow (if any)
-- Local-firewall live collection blocker: configured PAN-OS host resolves in this environment but TCP/443 connectivity times out, so read-only harness collection cannot currently reach the device.
+- Local-firewall auth/bootstrap is now working for bounded collection with current `.env` credentials, but scenario completeness is mixed:
+  - no real deny-hit traffic-log evidence captured yet (`deny-hit`/`query-shape` submit returned API error 17, no job-id)
+  - successful poll scenarios currently show `FIN` with zero log entries (`no-match`, `metadata-hit`, `xpath-shape`)
+- Query-token assumptions (`addr.dst`/`port.dst` literal destination behavior) remain unverified for deny/no-match correctness in this environment.
 - Template-seeded/synthetic versioned fixture packs are now explicitly non-promotable for environment verification; only `capture_provenance=real_capture` can be used for assumption promotion.
 - PAN-OS authoritative gating currently depends on normalized fields (`action=deny`, `authoritative=true`); richer field mappings and variants remain intentionally unverified.
 - PAN-OS rule metadata XPath shape and field completeness are environment/version dependent (`UNVERIFIED`); current implementation intentionally parses a minimal metadata subset.
@@ -245,6 +295,11 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Fixture collection now uses versioned capture packs plus canonical file mirrors, so multi-version evidence can be stored without breaking existing fixture validation tests.
 - 2026-03-08: Versioned fixture trust policy is now explicit: `real_capture` may support environment verification; `template_seeded`/`synthetic` are limited to wiring/parser-shape coverage and cannot promote `UNVERIFIED` assumptions.
 - 2026-03-08: Local PAN-OS fixture collection is restricted to repo-owned read-only allowlist guard checks; arbitrary request classes/actions are disallowed by default.
+- 2026-03-09: Local PAN-OS keygen preflight policy is fail-fast on credential/authz rejection with operator guidance; auth failure is treated separately from network reachability.
+- 2026-03-09: Keygen auth guidance is emitted only for explicit `403 Invalid Credential`-class responses; other XML API keygen errors stay fail-fast but are reported as generic keygen/API failures.
+- 2026-03-10: Live capture policy remains fail-fast: when keygen preflight does not return an API key, scenario collection is aborted immediately and no additional live capture scenarios are attempted.
+- 2026-03-10: Dynamic log-query and config-xpath parameters in the collection harness are URL-encoded during live calls to avoid malformed URL failures while preserving read-only request guardrails.
+- 2026-03-10: Real-capture `11.0.6-h1` evidence now supports partial promotion of base config XPath shape (`.../rulebase/security/rules` -> `<rules><entry ...>`), while query-token behavior remains unverified for deny/no-match claims.
 
 ## Test Log
 
@@ -291,8 +346,32 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
 - 2026-03-08: Ran `uv run pytest -q tests/fixtures/test_panos_collection_harness.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py tests/adapters/test_panos_adapter.py -k "fixture_poll_shape_parses_log_entries_with_current_extractor or panos_collection_harness or panos_fixture_selector or verification_fixture_pack"` (pass, 17 tests; 20 deselected).
 - 2026-03-08: Ran `uv run ruff check tests/fixtures/test_panos_collection_harness.py tests/fixtures/panos_fixture_selector.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py tests/adapters/test_panos_adapter.py` (pass).
-- 2026-03-08: Attempted live harness run using `.env` credentials for `query-shape` real capture (`scripts/gather_panos_fixtures.sh ... --capture-label query-shape ...`) -> failed: `curl (7)` unable to connect to PAN-OS host on `443`.
-- 2026-03-08: Verified host resolution (`getent hosts`) succeeds and TCP connectivity check (`nc -zv <host> 443`) times out; no real-capture fixtures collected in this run.
+- 2026-03-08: Attempted live harness run using `.env` credentials for `query-shape` real capture (`scripts/gather_panos_fixtures.sh ... --capture-label query-shape ...`) -> failed: PAN-OS XML API keygen returned `403 Invalid Credential`.
+- 2026-03-08: Verified host resolution and TCP/443 connectivity now succeed for configured host; blocking condition is API authentication, not network reachability. No real-capture fixtures collected in this run.
+- 2026-03-09: Ran `bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-09: Ran `uv run pytest -q tests/fixtures/test_panos_collection_harness.py` (initial run failed: 1 assertion mismatch after explicit error-text hardening; then pass after test update, 6 tests).
+- 2026-03-09: Ran `uv run ruff check scripts/gather_panos_fixtures.sh tests/fixtures/test_panos_collection_harness.py docs/fixtures/panos_verification/README.md docs/ai/REPO_MAP.md docs/ai/SOURCE_REFRESH.md IMPLEMENTATION_TRACKER.md` (fails: ruff parses shell script as Python; command retired for this scope).
+- 2026-03-09: Ran `uv run ruff check tests/fixtures/test_panos_collection_harness.py docs/fixtures/panos_verification/README.md docs/ai/REPO_MAP.md docs/ai/SOURCE_REFRESH.md IMPLEMENTATION_TRACKER.md` (pass).
+- 2026-03-09: Ran `bash -n scripts/gather_panos_fixtures.sh && echo "bash -n OK"` (pass).
+- 2026-03-10: Ran live harness preflight attempt using current `.env` credentials: `./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit" --dst "example.com" --dport "443" --hours "1"` -> fail-fast before capture (`ERROR: keygen response did not contain <key>; cannot continue.`).
+- 2026-03-10: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-10: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 13 tests).
+- 2026-03-10: Ran `uv run pytest -q tests/fixtures/test_panos_collection_harness.py` (pass, 6 tests).
+- 2026-03-10: Ran live harness with current `.env` credentials after URL-encoding fix for bounded scenarios:
+  - `deny-hit` (`--dst example.com --dport 443`) -> submit API error 17, no job-id/poll artifact
+  - `no-match` (`--hours 1`) -> submit success, poll `FIN`, zero entries
+  - `metadata-hit` (`--hours 1`) -> submit success, poll `FIN`, zero entries, config show/complete captured
+  - `query-shape` (`--dst example.com --dport 443`) -> submit API error 17, no job-id/poll artifact
+  - `xpath-shape` (`--hours 1`) -> submit success, poll `FIN`, zero entries, config show/complete captured
+- 2026-03-10: Ran `uv run pytest -q tests/fixtures/test_panos_verification_fixture_pack.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_collection_harness.py` (initial fail: canonical poll fixture had zero entries and one partial capture dir lacked manifest; resolved by fixture-test marker update and partial-dir cleanup; final pass 20 tests).
+- 2026-03-10: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py -k "real_capture_query_shape_selection_fails_closed_when_capture_incomplete or real_capture_xpath_shape_selection_is_provenance_gated or fixture_poll_shape_parses_log_entries_with_current_extractor"` (pass, 3 selected).
+- 2026-03-10: Ran `uv run pytest -q tests/fixtures/test_panos_verification_fixture_pack.py tests/fixtures/test_panos_fixture_selector.py tests/adapters/test_panos_adapter.py -k "real_capture or verification_fixture_pack"` (pass, 9 selected).
+- 2026-03-10: Ran one bounded deny-focused live harness scenario with current `.env` credentials:
+  - `set -a; source ./.env; set +a; ts=$(date -u -d '-1 hour' '+%Y/%m/%d %H:%M:%S'); q="(action neq allow) and (receive_time geq '$ts')"; ./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit" --verification-scope "real_env_partial" --query "$q" --max-polls 10 --poll-interval 1`
+  - outcome: keygen bootstrap succeeded, submit returned job `216`, poll #1 returned `FIN`, poll payload had `logs count="0"` (no deny/reset entries), so no query-token promotions were made.
+- 2026-03-10: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-10: Ran `uv run pytest -q tests/fixtures/test_panos_collection_harness.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 20 tests).
+- 2026-03-10: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py` (pass, 23 tests).
 
 ## Iteration Journal
 
@@ -321,7 +400,12 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-08: Wired one existing PAN-OS adapter fixture-alignment test to load fixtures through `select_versioned_capture(version, scenario)` and assert capture manifest metadata for explicit test provenance.
 - 2026-03-08: Hardened fixture-manifest trust schema and selector gating so provenance/scope filters are explicit, fail-closed, and cannot silently downgrade real-capture verification requirements.
 - 2026-03-08: Added a repo-owned read-only PAN-OS request guard and wired fixture collection through it; added harness tests with fake-curl execution to verify disallowed-action rejection and sanitized real-capture manifest output.
-- 2026-03-08: Live real-capture collection attempt was blocked by network reachability to configured PAN-OS host (`443` timeout); assumptions remain `UNVERIFIED` pending reachable read-only harness execution.
+- 2026-03-08: Live real-capture collection attempt is currently blocked by PAN-OS API auth failure (`403 Invalid Credential` on keygen); assumptions remain `UNVERIFIED` pending valid API-auth-capable credentials or API key.
+- 2026-03-09: Hardened keygen preflight failure handling so auth rejection is explicit, fail-fast, and accompanied by bounded operator guidance (API key preferred path + XML API role prerequisites).
+- 2026-03-09: Tightened keygen auth-failure precision so only explicit `403 Invalid Credential` responses trigger auth guidance; added harness coverage for non-auth XML keygen errors to keep failure classification clear and fail-fast.
+- 2026-03-10: Executed bounded live harness run with current credentials; keygen preflight returned no API key and capture stopped immediately. No real-capture scenario packs were generated and no PAN-OS assumptions were promoted.
+- 2026-03-10: Fixed collection-harness malformed URL failure by URL-encoding dynamic query/xpath parameters; collected real-capture `11.0.6-h1` scenario packs and added strict real-provenance verification tests for assumption-promotion gating.
+- 2026-03-10: Executed one bounded deny-focused real-capture scenario for `11.0.6-h1` (`action neq allow` + 1h window); capture path was healthy (keygen + job + poll `FIN`) but returned zero poll entries, so `addr.dst`/`port.dst` remain `UNVERIFIED`.
 
 ## Historical / Superseded Checkpoints
 
@@ -337,7 +421,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Restore reachable TCP/443 access from this environment to the configured PAN-OS management host, then re-run the hardened read-only local-firewall harness (using `.env` credentials) to collect `capture_provenance=real_capture` scenario packs (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`) before promoting any `UNVERIFIED` mapping assumption.
+Collect one additional bounded real-capture deny scenario for PAN-OS `11.0.6-h1` using an operator-confirmed known denied destination/port pair (or denied category target), and only then attempt version-scoped promotion/correction of `addr.dst` / `port.dst` under strict `require_provenance="real_capture"` gating.
 
 ## Deferred / Later
 

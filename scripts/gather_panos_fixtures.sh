@@ -104,6 +104,9 @@ sanitize_text() {
         -e 's#<key>[^<]+</key>#<key>REDACTED_API_KEY</key>#gI' \
         -e 's#<(serial|serial-number)>[^<]+</(serial|serial-number)>#<\1>SANITIZED_SERIAL</\2>#gI' \
         -e 's#<(hostname|host|device-name|devicename)>[^<]+</(hostname|host|device-name|devicename)>#<\1>SANITIZED_HOST</\2>#gI' \
+        -e 's#(<entry[^>]* name=")[^"]+("[^>]*>)#\1SANITIZED_ENTRY\2#gI' \
+        -e 's#(uuid=")[^"]+(")#\1SANITIZED_UUID\2#gI' \
+        -e 's#<member>[^<]+</member>#<member>SANITIZED_MEMBER</member>#gI' \
         -e 's#<(username|user)>[^<]+</(username|user)>#<\1>SANITIZED_USER</\2>#gI' \
         -e 's#<(ticket|ticket-id|case-id|reference-id)>[^<]+</(ticket|ticket-id|case-id|reference-id)>#<\1>SANITIZED_REF</\2>#gI'
 }
@@ -232,6 +235,10 @@ curl_opts=(--silent --show-error --fail)
 if [[ "$INSECURE_TLS" == "1" ]]; then
     curl_opts+=(--insecure)
 fi
+curl_opts_no_fail=(--silent --show-error)
+if [[ "$INSECURE_TLS" == "1" ]]; then
+    curl_opts_no_fail+=(--insecure)
+fi
 
 request_get() {
     local url=$1
@@ -242,17 +249,58 @@ request_get() {
     curl "${curl_opts[@]}" "$url" > "$raw_out"
 }
 
+request_get_with_encoded_param() {
+    local base_url=$1
+    local encoded_param=$2
+    local raw_out=$3
+    local req_out=$4
+
+    printf 'GET %s&%s\n' "$base_url" "$encoded_param" | sanitize_text > "$req_out"
+    curl "${curl_opts[@]}" --get "$base_url" --data-urlencode "$encoded_param" > "$raw_out"
+}
+
 request_keygen() {
     local raw_out=$1
     local req_out=$2
     panos_guard_allowed_request "keygen" ""
-    printf 'GET https://%s/api/?type=keygen&user=%s&password=%s\n' \
-        "$FW_HOST" "$USERNAME" "$PASSWORD" | sanitize_text > "$req_out"
-    curl "${curl_opts[@]}" --get \
-        --data-urlencode "type=keygen" \
+    {
+        printf 'POST https://%s/api/?type=keygen (form-urlencoded user,password)\n' "$FW_HOST"
+    } | sanitize_text > "$req_out"
+    curl "${curl_opts_no_fail[@]}" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -X POST \
+        "https://${FW_HOST}/api/?type=keygen" \
         --data-urlencode "user=${USERNAME}" \
         --data-urlencode "password=${PASSWORD}" \
-        "https://${FW_HOST}/api/" > "$raw_out"
+        > "$raw_out" || return 1
+
+    if grep -Eqi 'Invalid Credential(s)?' "$raw_out" && grep -Eqi 'code="403"|status="error"' "$raw_out"; then
+        return 3
+    fi
+    return 0
+}
+
+print_auth_failure_guidance() {
+    cat >&2 <<'EOF'
+ERROR: PAN-OS XML API keygen returned 403 Invalid Credential.
+The XML API endpoint is reachable, but credentials/API access were rejected.
+Keygen in this harness uses documented form-urlencoded POST /api/ with type=keygen.
+
+Operator preflight checklist:
+  1. Preferred unblock: provide a known-good API key via --api-key.
+  2. Ensure the admin role for this account has XML API access enabled.
+  3. Ensure XML API permissions include required read scopes for this workflow:
+     - log retrieval (type=log submit/get)
+     - configuration read (type=config action=get|show|complete)
+  4. If using external auth, verify username format matches backend expectations.
+  5. Do not retry live capture until valid API key or API-enabled account is confirmed.
+EOF
+}
+
+response_has_invalid_credential() {
+    local file_path=$1
+    [[ -f "$file_path" ]] || return 1
+    grep -Eqi 'Invalid Credential(s)?' "$file_path" && grep -Eqi 'code="403"|status="error"' "$file_path"
 }
 
 API_KEY_SOURCE="provided"
@@ -265,10 +313,29 @@ if [[ -z "$API_KEY" ]]; then
     API_KEY_SOURCE="keygen"
     KEYGEN_RAW="$TMP_DIR/keygen.raw.xml"
     KEYGEN_REQ="$TMP_DIR/keygen.request.txt"
-    request_keygen "$KEYGEN_RAW" "$KEYGEN_REQ"
+    if ! request_keygen "$KEYGEN_RAW" "$KEYGEN_REQ"; then
+        if [[ -f "$KEYGEN_RAW" ]]; then
+            sanitize_text < "$KEYGEN_RAW" > "$TMP_DIR/keygen.sanitized.xml"
+        fi
+        if response_has_invalid_credential "$TMP_DIR/keygen.sanitized.xml"; then
+            print_auth_failure_guidance
+            echo "Keygen response summary (sanitized):" >&2
+            head -n 5 "$TMP_DIR/keygen.sanitized.xml" >&2
+            exit 1
+        fi
+        echo "ERROR: keygen request failed before API key retrieval. Check host reachability/TLS and account/API role permissions." >&2
+        exit 1
+    fi
     API_KEY=$(xml_get './/key' "$KEYGEN_RAW")
     if [[ -z "$API_KEY" ]]; then
-        echo "ERROR: keygen response did not contain <key>; cannot continue." >&2
+        if [[ -f "$KEYGEN_RAW" ]]; then
+            sanitize_text < "$KEYGEN_RAW" > "$TMP_DIR/keygen.sanitized.xml"
+        fi
+        if response_has_invalid_credential "$TMP_DIR/keygen.sanitized.xml"; then
+            print_auth_failure_guidance
+        else
+            echo "ERROR: keygen response did not contain <key>; cannot continue." >&2
+        fi
         exit 1
     fi
 fi
@@ -318,14 +385,14 @@ LOG_QUERY_EXPR=$(build_log_query_expr)
 
 # PAN-OS XML log query shape intentionally follows current adapter assumptions; do not treat
 # fields as universally verified across PAN-OS versions without validated fixture evidence.
-SUBMIT_URL="https://${FW_HOST}/api/?type=log&log-type=traffic&query=${LOG_QUERY_EXPR}&key=${API_KEY}"
+SUBMIT_URL_BASE="https://${FW_HOST}/api/?type=log&log-type=traffic&key=${API_KEY}"
 SUBMIT_RAW="$TMP_DIR/traffic_submit.raw.xml"
 SUBMIT_REQ="$VERSION_DIR/traffic_log_submit_request.txt"
 SUBMIT_SAN="$VERSION_DIR/traffic_log_submit_response.xml"
 
 echo "[2/4] submitting traffic-log query job..."
 panos_guard_allowed_request "log" ""
-request_get "$SUBMIT_URL" "$SUBMIT_RAW" "$SUBMIT_REQ"
+request_get_with_encoded_param "$SUBMIT_URL_BASE" "query=${LOG_QUERY_EXPR}" "$SUBMIT_RAW" "$SUBMIT_REQ"
 sanitize_text < "$SUBMIT_RAW" > "$SUBMIT_SAN"
 
 JOB_ID=$(xml_get './/job' "$SUBMIT_RAW")
@@ -366,8 +433,9 @@ RULE_CFG_RAW="$TMP_DIR/rule_config.raw.xml"
 RULE_CFG_REQ="$VERSION_DIR/rule_metadata_config_request.txt"
 RULE_CFG_SAN="$VERSION_DIR/rule_metadata_config_response.xml"
 panos_guard_allowed_request "config" "show"
-request_get \
-    "https://${FW_HOST}/api/?type=config&action=show&xpath=${RULE_XPATH}&key=${API_KEY}" \
+request_get_with_encoded_param \
+    "https://${FW_HOST}/api/?type=config&action=show&key=${API_KEY}" \
+    "xpath=${RULE_XPATH}" \
     "$RULE_CFG_RAW" \
     "$RULE_CFG_REQ"
 sanitize_text < "$RULE_CFG_RAW" > "$RULE_CFG_SAN"
@@ -377,8 +445,9 @@ RULE_COMPLETE_RAW="$TMP_DIR/rule_complete.raw.xml"
 RULE_COMPLETE_REQ="$VERSION_DIR/rule_metadata_config_complete_request.txt"
 RULE_COMPLETE_SAN="$VERSION_DIR/rule_metadata_config_complete_response.xml"
 panos_guard_allowed_request "config" "complete"
-request_get \
-    "https://${FW_HOST}/api/?type=config&action=complete&xpath=${RULE_PARENT}&key=${API_KEY}" \
+request_get_with_encoded_param \
+    "https://${FW_HOST}/api/?type=config&action=complete&key=${API_KEY}" \
+    "xpath=${RULE_PARENT}" \
     "$RULE_COMPLETE_RAW" \
     "$RULE_COMPLETE_REQ"
 sanitize_text < "$RULE_COMPLETE_RAW" > "$RULE_COMPLETE_SAN"

@@ -1,0 +1,1 @@
+GET https://SANITIZED_IPv4/api/?type=log&log-type=traffic&key=REDACTED_API_KEY&query=(action neq allow) and (receive_time geq '2026/03/10 17:23:02')
