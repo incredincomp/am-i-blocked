@@ -121,6 +121,56 @@ class _FakePanosAdapter:
         ]
 
 
+class _FakeSCMAdapter:
+    def __init__(self, mode: str, request_id: str) -> None:
+        self._mode = mode
+        self._request_id = request_id
+
+    async def query_evidence(self, **kwargs) -> list[EvidenceRecord]:  # type: ignore[no-untyped-def]
+        req_id = kwargs.get("request_id", self._request_id)
+        request_uuid = uuid.UUID(req_id)
+        if self._mode == "deny":
+            return [
+                EvidenceRecord(
+                    request_id=request_uuid,
+                    source=EvidenceSource.SCM,
+                    kind=EvidenceKind.TRAFFIC_LOG,
+                    normalized={
+                        "authoritative": True,
+                        "action": "deny",
+                        "decision": "deny",
+                        "source_system": "strata_cloud_manager",
+                        "destination": "api.example.com",
+                        "port": 443,
+                        "event_ts": "2026-01-01T00:10:00Z",
+                        "rule_name": "cloud-block",
+                        "rule_id": "policy-123",
+                        "reason": "Cloud policy deny",
+                    },
+                )
+            ]
+        if self._mode == "decrypt_deny":
+            return [
+                EvidenceRecord(
+                    request_id=request_uuid,
+                    source=EvidenceSource.SCM,
+                    kind=EvidenceKind.DECRYPT_LOG,
+                    normalized={
+                        "authoritative": True,
+                        "action": "decrypt_deny",
+                        "decision": "decrypt-deny",
+                        "source_system": "prisma_access",
+                        "destination": "api.example.com",
+                        "port": 443,
+                        "event_ts": "2026-01-01T00:10:00Z",
+                        "decrypt_error": "Certificate inspection blocked by policy",
+                        "reason": "Decryption policy deny",
+                    },
+                )
+            ]
+        return []
+
+
 def _settings(database_url: str, redis_url: str):
     return SimpleNamespace(
         app_identity_header="X-Forwarded-User",
@@ -152,9 +202,9 @@ def _settings(database_url: str, redis_url: str):
     )
 
 
-def _readiness_report() -> ReadinessReport:
+def _readiness_report(source: str = "panos") -> ReadinessReport:
     report = ReadinessReport()
-    report.record("panos", {"available": True, "reason": "test", "latency_ms": 1})
+    report.record(source, {"available": True, "reason": "test", "latency_ms": 1})
     return report
 
 
@@ -162,6 +212,8 @@ async def _run_lifecycle_case(
     deny: bool,
     *,
     metadata_mode: str = "none",
+    source: str = "panos",
+    scm_mode: str = "deny",
 ) -> tuple[dict, str, _FakeDb]:
     db = _FakeDb()
     queue: list[dict] = []
@@ -179,6 +231,14 @@ async def _run_lifecycle_case(
         return None
 
     app = create_app()
+    if source == "scm":
+        fake_adapter = _FakeSCMAdapter(mode=scm_mode, request_id=str(uuid.uuid4()))
+    else:
+        fake_adapter = _FakePanosAdapter(
+            deny=deny,
+            request_id=str(uuid.uuid4()),
+            metadata_mode=metadata_mode,
+        )
     with TestClient(app) as client, patch(
         "am_i_blocked_api.routes.api.get_settings",
         return_value=settings,
@@ -199,17 +259,13 @@ async def _run_lifecycle_case(
         return_value=settings,
     ), patch(
         "am_i_blocked_worker.steps.source_readiness_check.run",
-        return_value=_readiness_report(),
+        return_value=_readiness_report(source=source),
     ), patch(
         "am_i_blocked_worker.main.dequeue_job",
         side_effect=_dequeue_job,
     ), patch(
         "am_i_blocked_worker.steps.authoritative_correlation._build_adapter",
-        return_value=_FakePanosAdapter(
-            deny=deny,
-            request_id=str(uuid.uuid4()),
-            metadata_mode=metadata_mode,
-        ),
+        return_value=fake_adapter,
     ):
         submit = client.post(
             "/api/v1/am-i-blocked",
@@ -319,3 +375,59 @@ async def test_lifecycle_no_authoritative_evidence_does_not_produce_denied() -> 
         and ev.get("normalized", {}).get("authoritative") is True
     ]
     assert panos_deny == []
+
+
+@pytest.mark.anyio
+async def test_lifecycle_scm_authoritative_deny_survives_persist_and_result_api() -> None:
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=True,
+        source="scm",
+        scm_mode="deny",
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+    assert result["verdict"] == "denied"
+    assert result["enforcement_plane"] == "strata_cloud"
+
+    evidence_records = db.results[request_id].report_json.get("evidence_records", [])
+    scm_deny = [
+        ev
+        for ev in evidence_records
+        if ev.get("source") == "scm"
+        and ev.get("normalized", {}).get("authoritative") is True
+        and ev.get("normalized", {}).get("action") == "deny"
+    ]
+    assert len(scm_deny) == 1
+    assert scm_deny[0]["normalized"]["source_system"] == "strata_cloud_manager"
+    assert scm_deny[0]["normalized"]["rule_name"] == "cloud-block"
+
+
+@pytest.mark.anyio
+async def test_lifecycle_scm_authoritative_decrypt_deny_survives_persist_and_result_api() -> None:
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=True,
+        source="scm",
+        scm_mode="decrypt_deny",
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+    assert result["verdict"] == "denied"
+
+    evidence_records = db.results[request_id].report_json.get("evidence_records", [])
+    scm_decrypt_deny = [
+        ev
+        for ev in evidence_records
+        if ev.get("source") == "scm"
+        and ev.get("kind") == "decrypt_log"
+        and ev.get("normalized", {}).get("authoritative") is True
+        and ev.get("normalized", {}).get("action") == "decrypt_deny"
+    ]
+    assert len(scm_decrypt_deny) == 1
+    assert "decrypt_error" in scm_decrypt_deny[0]["normalized"]
+    assert scm_decrypt_deny[0]["normalized"]["source_system"] == "prisma_access"

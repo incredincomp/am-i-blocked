@@ -688,6 +688,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added SCM adapter tests for authoritative deny, authoritative decrypt-deny, non-authoritative/non-deny exclusion, malformed response exclusion, and auth/transport fail-closed behavior.
 - 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py tests/unit/test_authoritative_correlation.py` (pass, 36 tests).
 - 2026-03-12: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/scm/__init__.py tests/adapters/test_scm_adapter.py services/worker/am_i_blocked_worker/steps/authoritative_correlation.py tests/unit/test_authoritative_correlation.py` (pass).
+- 2026-03-12: Added integration-style lifecycle proofs for authoritative SCM deny and authoritative SCM decrypt-deny records through submit -> queue -> worker -> persist -> API result retrieval using mock-only SCM adapter injection.
+- 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/unit/test_authoritative_correlation.py` (pass, 12 tests).
+- 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -752,7 +756,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded integration-style lifecycle test proving SCM authoritative deny/decrypt records can traverse submit -> queue -> worker -> persist -> API result retrieval without broad SCM orchestration changes.
+Add one bounded negative lifecycle case proving malformed/non-authoritative SCM records do not survive authoritative correlation and do not produce denied verdicts through persisted API retrieval.
 
 ## Deferred / Later
 

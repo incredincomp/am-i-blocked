@@ -76,7 +76,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/routes/test_api_routes.py`: includes route/UI checks for PAN-OS metadata render behavior (present, absent, malformed).
 - `tests/routes/test_api_routes.py`: also covers unknown-confidence explainability rendering, `source_readiness_summary` surfacing in API/UI results, and persisted-result fallback handling for missing/malformed confidence values.
 - `tests/fixtures`: pipeline integration-style tests with mocked adapters/readiness.
-- `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval + UI render coverage with controlled PAN-OS deny/no-authoritative-evidence outcomes, including persisted PAN-OS metadata present/malformed lifecycle assertions.
+- `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval + UI render coverage with controlled PAN-OS deny/no-authoritative-evidence outcomes plus SCM authoritative deny/decrypt lifecycle survival assertions.
 - `tests/fixtures/test_panos_verification_fixture_pack.py`: fixture-pack scaffolding validation (required PAN-OS XML sample files exist, parse, and contain minimum structural markers).
 - `tests/fixtures/panos_fixture_selector.py`: helper for selecting versioned PAN-OS captures by `version + scenario` with provenance/scope gating (`require_provenance`, `minimum_verification_scope`) and strict manifest validation.
 - `tests/fixtures/test_panos_fixture_selector.py`: unit coverage for version/scenario fixture selection and manifest parsing.
