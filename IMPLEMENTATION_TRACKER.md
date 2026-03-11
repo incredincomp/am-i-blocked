@@ -12,7 +12,9 @@ Deliver the MVP single-destination flow that returns `allowed | denied | unknown
 
 ## Current Phase
 
-MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, minimal unknown-confidence explainability in place, and fixture-based PAN-OS parser-shape verification plus version-aware fixture-capture tooling completed without adapter behavior changes.
+MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, minimal unknown-confidence explainability in place, and fixture-based PAN-OS parser-shape verification plus version-aware fixture-capture tooling completed with minimal query-token reconciliation aligned to real-capture evidence.
+
+Current PAN-OS evidence focus: **observability-gated token validation** for `11.0.6-h1` with one completed fresh-row-coupled Stage 1/Stage 2 success pair (`deny-hit-udp-obsgate-stage1_20260311T052621Z`, `deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z`).
 
 - API -> Redis -> worker -> Postgres lifecycle is implemented and tested.
 - API remains thin and worker-only vendor access is preserved.
@@ -26,11 +28,12 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - PAN-OS fixture validation now confirms current parser marker assumptions against fixture XML shapes (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`).
 - PAN-OS fixture gather helper now writes versioned capture sets (`versions/<panos_version>/<capture_label>_<timestamp>/`), capture metadata manifests, and canonical fixture mirrors for validation tests.
 - PAN-OS fixture tooling now includes a `version + scenario` selector helper for tests and optional keygen auth fallback (`--username`/`--password`) in the capture script.
+- PAN-OS bounded one-shot observe-and-validate orchestration helper now exists (`scripts/panos_observe_and_validate.py`) to automate traffic generation, broad Stage 1 observability sweep, freshest-row selection, and conditional Stage 2 token subqueries with machine-readable summary output.
 - Versioned fixture manifests and selectors are now provenance-aware (`real_capture` vs `template_seeded` vs `synthetic`) with explicit verification-scope gating and fail-closed selection semantics.
 - Local fixture collection now enforces a repo-owned read-only PAN-OS request allowlist guard before each live call (`op/show system info`, `log submit/get`, `config get/show/complete`, keygen bootstrap only).
 - Local keygen bootstrap now fails fast on explicit XML API auth rejection signatures (`403 Invalid Credential`) with explicit operator preflight guidance, no invalid-credential retry loop, and separate generic handling for non-auth XML keygen errors.
 - Real-capture versioned fixture packs now exist for PAN-OS `11.0.6-h1` scenarios (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`) collected through the hardened local harness with read-only guard enforcement.
-- PAN-OS traffic-log filter fields and metadata XPath remain explicitly `UNVERIFIED` placeholders pending target-environment evidence capture.
+- PAN-OS verification remains observability-gated for new token-validation attempts; latest real-capture evidence now proves scenario-scoped `addr.dst` + `dport` query behavior for `11.0.6-h1` UDP deny signature, while broader/cross-scenario behavior remains `UNVERIFIED`.
 
 ## Architecture Snapshot
 
@@ -70,7 +73,7 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - Harness now URL-encodes dynamic `query`/`xpath` parameters and sanitizes additional rule/object-like values (`entry` names, `uuid`, `member`) in saved artifacts.
 - Real-capture evidence now proves version-scoped partial XPath/config shape for `11.0.6-h1`; query-token correctness remains unverified.
 - Remaining MVP-critical work:
-  - Capture sanitized target PAN-OS XML samples/version data into the fixture pack and then verify or correct `addr.dst`/`port.dst` and metadata XPath placeholders.
+  - Continue bounded PAN-OS token verification only through observability-gated, scenario-scoped real-capture runs; avoid broad token generalization and keep config/XPath validation as a separate track.
 
 ## Prioritized Task Queue
 
@@ -266,10 +269,13 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
   - exact filter shape for destination/port/time-window mapping
   - expected response variants across target PAN-OS versions
   - Panorama involvement in query flow (if any)
-- Local-firewall auth/bootstrap is now working for bounded collection with current `.env` credentials, but scenario completeness is mixed:
-  - no real deny-hit traffic-log evidence captured yet (`deny-hit`/`query-shape` submit returned API error 17, no job-id)
-  - successful poll scenarios currently show `FIN` with zero log entries (`no-match`, `metadata-hit`, `xpath-shape`)
-- Query-token assumptions (`addr.dst`/`port.dst` literal destination behavior) remain unverified for deny/no-match correctness in this environment.
+- Local-firewall auth/bootstrap is now working for bounded collection with current `.env` credentials, and real-capture scenario completeness is mixed:
+  - deny-hit real-capture evidence now exists for observability-coupled UDP signature (`deny-hit-udp-obsgate-stage1_20260311T052621Z`, `deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z`)
+  - some prior scenarios still show submit errors or zero-entry polls (`deny-hit`/`query-shape` API error 17; `no-match`/`metadata-hit`/`xpath-shape` zero-entry polls)
+- Query-token assumptions now split between proven scenario scope and broader open scope:
+  - scenario-scoped proven (`11.0.6-h1`, UDP deny signature): `addr.dst` and `dport` matched in Stage 2 after Stage 1 qualifying deny capture
+  - still `UNVERIFIED`: cross-scenario and cross-version destination-token behavior
+  - canonical PAN-OS traffic-log port names for guidance: `sport`, `dport`, `natsport`, `natdport`
 - Template-seeded/synthetic versioned fixture packs are now explicitly non-promotable for environment verification; only `capture_provenance=real_capture` can be used for assumption promotion.
 - PAN-OS authoritative gating currently depends on normalized fields (`action=deny`, `authoritative=true`); richer field mappings and variants remain intentionally unverified.
 - PAN-OS rule metadata XPath shape and field completeness are environment/version dependent (`UNVERIFIED`); current implementation intentionally parses a minimal metadata subset.
@@ -300,6 +306,37 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-10: Live capture policy remains fail-fast: when keygen preflight does not return an API key, scenario collection is aborted immediately and no additional live capture scenarios are attempted.
 - 2026-03-10: Dynamic log-query and config-xpath parameters in the collection harness are URL-encoded during live calls to avoid malformed URL failures while preserving read-only request guardrails.
 - 2026-03-10: Real-capture `11.0.6-h1` evidence now supports partial promotion of base config XPath shape (`.../rulebase/security/rules` -> `<rules><entry ...>`), while query-token behavior remains unverified for deny/no-match claims.
+- 2026-03-10: Additional bounded deny-focused `real_capture` run (`deny-hit_20260310T184847Z`) succeeded through keygen + submit job `217` + poll `FIN`, but poll returned `logs count="0"`; no deny/reset entry was captured, so query-token assumptions remain `UNVERIFIED`.
+- 2026-03-10: One bounded operator-confirmed ICMP deny-target `real_capture` run (`deny-hit-icmp-management-servers_20260310T221249Z`) succeeded through keygen + submit job `278` + poll `FIN`, but poll returned `logs count="0"`; no qualifying deny/drop/policy-deny entry was captured, so query-token assumptions remain `UNVERIFIED`.
+- 2026-03-10: Two-stage reproduction-coupled ICMP deny verification run attempted (`deny-hit-icmp-stage1-src-only_20260310T231306Z`): Stage 1 submit job `280` reached poll `FIN` with `logs count="0"`, so Stage 2 (`addr.dst` validation) was not run per fail-closed rule; `addr.dst`/`port.dst` remain `UNVERIFIED`.
+- 2026-03-11: Two-stage reproduction-coupled ICMP deny verification run with exact log-signature filters attempted (`deny-hit-icmp-stage1-signature_20260311T010608Z`): Stage 1 submit job `281` reached poll `FIN` with `logs count="0"`, so Stage 2 (`addr.dst` validation) was not run per fail-closed rule; `addr.dst`/`port.dst` remain `UNVERIFIED`.
+- 2026-03-11: Two-stage reproduction-coupled UDP deny verification run with exact deny-signature filters attempted (`deny-hit-udp-stage1-signature_20260311T012658Z`): Stage 1 submit job `390` reached poll `FIN` with `logs count="0"`, so Stage 2 (`addr.dst` + `port.dst` validation) was not run per fail-closed rule; `addr.dst`/`port.dst` remain `UNVERIFIED`.
+- 2026-03-11: Self-contained UDP verification precondition failed for direct traffic generation: non-interactive SSH access to source host `10.1.99.10` was unavailable from this shell (`Permission denied` on tested users), so no additional Stage 1/Stage 2 capture was executed and assumptions remained unchanged.
+- 2026-03-11: Operator-delegated bounded UDP generation run coupled with Stage 1 verification (`deny-hit-udp-stage1-signature-livegen_20260311T014031Z`) still returned poll `FIN` with `logs count="0"`; Stage 2 destination-token validation did not run and assumptions remained unchanged.
+- 2026-03-11: Final bounded UDP verification with exact 60-second generation and two-pass Stage 1 confirmation (`deny-hit-udp-stage1a-live60_20260311T015054Z`, `deny-hit-udp-stage1b-post60_20260311T015148Z`) captured no qualifying deny entries in either Stage 1 pass; Stage 2 destination-token validation did not run and assumptions remained unchanged.
+- 2026-03-11: Observability-first phase is now explicit: no further token-promotion attempts run until a completed fresh deny-row record exists for the current reproduction window; repeated zero-entry runs reframed the blocker from token mismatch to observability.
+- 2026-03-11: Port-token guidance corrected in contract docs: PAN-OS traffic-log port fields are `sport`, `dport`, `natsport`, `natdport`; `port.src`/`port.dst` are not default candidates.
+- 2026-03-11: Fresh live deny-row observability record captured for `11.0.6-h1` UDP path (`src=10.1.99.10`, `dst=10.1.20.20`, `dport=30053`, `rule=interzone-default`, `action=deny`, `session_end_reason=policy-deny`, `type=drop`, zones `management -> servers`) and stored in the observability template as the basis for the next bounded XML verification attempt.
+- 2026-03-11: Executed one bounded observability-gated verification pair from the completed fresh deny-row record:
+  - Stage 1 (`deny-hit-udp-obsgate-stage1_20260311T052621Z`) captured qualifying deny entries (job `444`, poll `FIN`, `logs count=\"20\"`) using row-derived signature without destination tokens.
+  - Stage 2 (`deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z`) captured the same deny signature (job `445`, poll `FIN`, `logs count=\"20\"`) with `addr.dst eq 10.1.20.20` and `dport eq 30053`.
+  - Scenario-scoped promotion justified for `11.0.6-h1`: `addr.dst` and `dport` are now evidenced for this UDP deny signature under `capture_provenance=real_capture`; no cross-version/generalized promotion was made.
+- 2026-03-11: Executed one additional bounded distinct-signature Stage 1 run from observability template (`src=10.1.99.3`, `dst=10.1.20.21`, `dport=30053`, `app=not-applicable`, `rule=interzone-default`, `action=deny`, `session_end_reason=policy-deny`, zones `management->servers`) with 15-minute receive-time bound and no destination-token clauses:
+  - Stage 1 fixture: `deny-hit-udp-distinct-stage1_20260311T063652Z`
+  - Stage 1 outcome: submit job `465`, poll `FIN`, `logs count=\"0\"`
+  - Stage 2 execution: not run (required Stage 1 qualifying deny capture absent)
+  - impact: no new token promotion; `addr.dst`/`dport` proof remains limited to the original obsgate UDP scenario pair.
+- 2026-03-11: Re-ran one bounded distinct-signature Stage 1 from a freshly updated observability row (`src=10.1.99.3`, `dst=10.1.20.21`, `dport=30053`, `app=not-applicable`, `rule=interzone-default`, `action=deny`, `session_end_reason=policy-deny`, zones `management->servers`, type `drop`) with 15-minute receive-time bound and no destination-token clauses:
+  - Stage 1 fixture: `deny-hit-tcp-distinct-stage1_20260311T064433Z`
+  - Stage 1 outcome: submit job `472`, poll `FIN`, `logs count=\"0\"`
+  - Stage 2 execution: not run (required Stage 1 qualifying deny capture absent)
+  - impact: no extension beyond current scenario-scoped `addr.dst`/`dport` proof.
+- 2026-03-11: Added bounded orchestration workflow entrypoint `scripts/panos_observe_and_validate.py`:
+  - generates bounded source traffic over SSH (or fails closed with one exact operator command if SSH unavailable),
+  - runs Stage 1 broad deny observability sweep while traffic is active,
+  - parses returned entries and selects freshest qualifying deny row,
+  - runs independent Stage 2 token subqueries (`addr.dst`, `dport`) only after Stage 1 hit,
+  - writes machine-readable `VALIDATION_RESULT.json` into the Stage 1 capture directory.
 
 ## Test Log
 
@@ -369,9 +406,67 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-10: Ran one bounded deny-focused live harness scenario with current `.env` credentials:
   - `set -a; source ./.env; set +a; ts=$(date -u -d '-1 hour' '+%Y/%m/%d %H:%M:%S'); q="(action neq allow) and (receive_time geq '$ts')"; ./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit" --verification-scope "real_env_partial" --query "$q" --max-polls 10 --poll-interval 1`
   - outcome: keygen bootstrap succeeded, submit returned job `216`, poll #1 returned `FIN`, poll payload had `logs count="0"` (no deny/reset entries), so no query-token promotions were made.
+- 2026-03-10: Ran one additional bounded deny-focused live harness scenario with current `.env` credentials:
+  - `set -a; source ./.env; set +a; ts=$(date -u -d '-6 hour' '+%Y/%m/%d %H:%M:%S'); q="(action neq allow) and (receive_time geq '$ts')"; ./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit" --verification-scope "real_env_partial" --query "$q" --max-polls 10 --poll-interval 1`
+  - outcome: keygen bootstrap succeeded, submit returned job `217`, poll #1 returned `FIN`, poll payload had `logs count="0"` (no deny/reset entries), so no query-token promotions were made.
+- 2026-03-10: Ran exactly one bounded operator-confirmed ICMP deny-target live harness scenario with current `.env` credentials:
+  - `set -a; source ./.env; set +a; ts=$(date -u -d '-15 minutes' '+%Y/%m/%d %H:%M:%S'); q="(addr.src eq 10.1.99.3) and (addr.dst eq 10.1.20.180) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '$ts')"; ./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-icmp-management-servers" --verification-scope "real_env_partial" --query "$q" --max-polls 10 --poll-interval 1`
+  - outcome: keygen bootstrap succeeded, submit returned job `278`, poll #1 returned `FIN`, poll payload had `logs count="0"` (no entries), so deny/drop/policy-deny for the target was not observed and no query-token promotions were made.
+- 2026-03-10: Ran two-stage reproduction-coupled ICMP deny verification (Stage 1 only; Stage 2 blocked by decision rule):
+  - Stage 1 query used: `set -a; source ./.env; set +a; ts=$(date -u -d '-5 minutes' '+%Y/%m/%d %H:%M:%S'); q1="(addr.src eq 10.1.99.3) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '$ts')"; ./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-icmp-stage1-src-only" --verification-scope "real_env_partial" --query "$q1" --max-polls 10 --poll-interval 1`
+  - Stage 1 outcome: keygen bootstrap succeeded, submit returned job `280`, poll #1 returned `FIN`, poll payload had `logs count="0"` (no entries).
+  - Stage 2 execution: not run (required Stage 1 qualifying deny entry was absent).
+- 2026-03-11: Ran two-stage reproduction-coupled ICMP deny verification with exact signature constraints (Stage 1 only; Stage 2 blocked by decision rule):
+  - Stage 1 query used: `set -a; source ./.env; set +a; ts=$(date -u -d '-5 minutes' '+%Y/%m/%d %H:%M:%S'); q1="(addr.src eq 10.1.99.3) and (app eq icmp) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '$ts')"; ./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-icmp-stage1-signature" --verification-scope "real_env_partial" --query "$q1" --max-polls 10 --poll-interval 1`
+  - Stage 1 outcome: keygen bootstrap succeeded, submit returned job `281`, poll #1 returned `FIN`, poll payload had `logs count="0"` (no entries).
+  - Stage 2 execution: not run (required Stage 1 qualifying deny entry was absent).
+- 2026-03-11: Ran two-stage reproduction-coupled UDP deny verification with signature constraints (Stage 1 only; Stage 2 blocked by decision rule):
+  - Stage 1 query used: `set -a; source ./.env; set +a; ts=$(date -u -d '-5 minutes' '+%Y/%m/%d %H:%M:%S'); q1="(addr.src eq 10.1.99.10) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '$ts')"; ./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-udp-stage1-signature" --verification-scope "real_env_partial" --query "$q1" --max-polls 10 --poll-interval 1`
+  - Stage 1 outcome: keygen bootstrap succeeded, submit returned job `390`, poll #1 returned `FIN`, poll payload had `logs count="0"` (no entries).
+  - Stage 2 execution: not run (required Stage 1 qualifying deny entry was absent).
+- 2026-03-11: Attempted self-contained UDP traffic generation precondition for source host `10.1.99.10` before capture:
+  - command: `for u in "$USER" root admin ubuntu; do ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$u@10.1.99.10" 'echo SSH_OK'; done`
+  - outcome: all tested users returned `Permission denied (publickey,password)`; per run rule, no blind PAN-OS Stage 1/Stage 2 retry was performed.
+- 2026-03-11: Ran two-stage UDP deny verification during operator-executed bounded traffic generation (Stage 1 only; Stage 2 blocked by decision rule):
+  - operator traffic command in progress during capture: `python3 - <<'PY' ... send UDP datagrams to 10.1.20.20:30053 for ~25s ... PY`
+  - Stage 1 query used: `set -a; source ./.env; set +a; ts=$(date -u -d '-5 minutes' '+%Y/%m/%d %H:%M:%S'); q1="(addr.src eq 10.1.99.10) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '$ts')"; ./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-udp-stage1-signature-livegen" --verification-scope "real_env_partial" --query "$q1" --max-polls 10 --poll-interval 1`
+  - Stage 1 outcome: keygen bootstrap succeeded, submit returned job `401`, poll #1 returned `FIN`, poll payload had `logs count="0"` (no entries).
+  - Stage 2 execution: not run (required Stage 1 qualifying deny entry was absent).
+- 2026-03-11: Ran final bounded UDP verification with exact 60-second traffic generation and two-pass Stage 1:
+  - traffic generation command used exactly: `python3 - <<'PY' ... dst=(\"10.1.20.20\", 30053) ... end=time.time()+60 ... sock.sendto(...) ... PY`
+  - Stage 1A query (during active generation): `set -a; source ./.env; set +a; ts=$(date -u -d '-5 minutes' '+%Y/%m/%d %H:%M:%S'); q1=\"(addr.src eq 10.1.99.10) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '$ts')\"`
+  - Stage 1A outcome: submit job `415`, poll `FIN`, `logs count=\"0\"` (`deny-hit-udp-stage1a-live60_20260311T015054Z`)
+  - Stage 1B query (immediately post-generation, widened lookback): `set -a; source ./.env; set +a; ts=$(date -u -d '-15 minutes' '+%Y/%m/%d %H:%M:%S'); q1b=\"(addr.src eq 10.1.99.10) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '$ts')\"`
+  - Stage 1B outcome: submit job `416`, poll `FIN`, `logs count=\"0\"` (`deny-hit-udp-stage1b-post60_20260311T015148Z`)
+  - Stage 2 execution: not run (neither Stage 1A nor Stage 1B captured a qualifying deny entry).
 - 2026-03-10: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
 - 2026-03-10: Ran `uv run pytest -q tests/fixtures/test_panos_collection_harness.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 20 tests).
 - 2026-03-10: Ran `uv run pytest -q tests/adapters/test_panos_adapter.py` (pass, 23 tests).
+- 2026-03-11: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 14 tests).
+- 2026-03-11: Ran bounded Stage 1 live capture from completed observability record:
+  - `q1="(addr.src eq 10.1.99.10) and (app eq not-applicable) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '2026/03/10 21:43:27')"`
+  - `./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-udp-obsgate-stage1" --verification-scope "real_env_partial" --query "$q1" --max-polls 10 --poll-interval 1`
+  - outcome: keygen path, submit job `444`, poll `FIN`, `logs count="20"` (qualifying deny entries captured).
+- 2026-03-11: Ran bounded Stage 2 live capture after Stage 1 success:
+  - `q2="(addr.src eq 10.1.99.10) and (app eq not-applicable) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '2026/03/10 21:43:27') and (addr.dst eq 10.1.20.20) and (dport eq 30053)"`
+  - `./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-udp-obsgate-stage2-addrdst-dport" --verification-scope "real_env_partial" --query "$q2" --max-polls 10 --poll-interval 1`
+  - outcome: keygen path, submit job `445`, poll `FIN`, `logs count="20"` (same deny signature captured with destination tokens).
+- 2026-03-11: Ran one additional bounded distinct-signature Stage 1 capture (15m lookback, no destination tokens):
+  - `q_distinct_stage1="(addr.src eq 10.1.99.3) and (from eq management) and (to eq servers) and (app eq not-applicable) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '2026/03/11 06:21:49')"`
+  - `./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-udp-distinct-stage1" --verification-scope "real_env_partial" --query "$q_distinct_stage1" --max-polls 10 --poll-interval 1`
+  - outcome: keygen path, submit job `465`, poll `FIN`, `logs count="0"`; Stage 2 not run per fail-closed rule.
+- 2026-03-11: Re-ran bounded distinct-signature Stage 1 capture from refreshed observability row (15m lookback, no destination tokens):
+  - `q_distinct_stage1_fresh="(addr.src eq 10.1.99.3) and (from eq management) and (to eq servers) and (app eq not-applicable) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '2026/03/11 06:29:30')"`
+  - `./scripts/gather_panos_fixtures.sh --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-tcp-distinct-stage1" --verification-scope "real_env_partial" --query "$q_distinct_stage1_fresh" --max-polls 10 --poll-interval 1`
+  - outcome: keygen path, submit job `472`, poll `FIN`, `logs count="0"`; Stage 2 not run per fail-closed rule.
+- 2026-03-11: Added orchestration logic/unit coverage:
+  - `uv run pytest -q tests/fixtures/test_panos_observe_and_validate.py` (pass)
+  - covers freshest deny-row selection, SSH-unavailable fail-closed path, no-observability-hit fail-closed path, token-validation result handling, and summary file writing.
+- 2026-03-11: Ran orchestration + fixture validation slice after adding one-shot workflow:
+  - `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass)
+  - `uv run pytest -q tests/fixtures/test_panos_observe_and_validate.py tests/unit/test_panos_fixture_script.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 20 tests)
+  - `uv run ruff check scripts/panos_observe_and_validate.py tests/fixtures/test_panos_observe_and_validate.py tests/unit/test_panos_fixture_script.py` (pass)
 
 ## Iteration Journal
 
@@ -406,6 +501,17 @@ MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny
 - 2026-03-10: Executed bounded live harness run with current credentials; keygen preflight returned no API key and capture stopped immediately. No real-capture scenario packs were generated and no PAN-OS assumptions were promoted.
 - 2026-03-10: Fixed collection-harness malformed URL failure by URL-encoding dynamic query/xpath parameters; collected real-capture `11.0.6-h1` scenario packs and added strict real-provenance verification tests for assumption-promotion gating.
 - 2026-03-10: Executed one bounded deny-focused real-capture scenario for `11.0.6-h1` (`action neq allow` + 1h window); capture path was healthy (keygen + job + poll `FIN`) but returned zero poll entries, so `addr.dst`/`port.dst` remain `UNVERIFIED`.
+- 2026-03-10: Executed one additional bounded deny-focused real-capture scenario for `11.0.6-h1` (`action neq allow` + 6h window); capture path was healthy (keygen + job + poll `FIN`) but returned zero poll entries, so `addr.dst`/`port.dst` remain `UNVERIFIED`.
+- 2026-03-10: Executed exactly one bounded real-capture attempt for operator-confirmed denied ICMP path (`src=10.1.99.3`, `dst=10.1.20.180`, `action=deny`, `session_end_reason=policy-deny`, 15m window); capture path was healthy (keygen + job + poll `FIN`) but returned zero poll entries, so `addr.dst`/`port.dst` remain `UNVERIFIED`.
+- 2026-03-10: Executed reproduction-coupled two-stage ICMP deny verification policy for `11.0.6-h1`; Stage 1 (5m, source+deny+policy-deny) returned zero entries, so Stage 2 (`addr.dst`) was intentionally not run and no assumption promotions were made.
+- 2026-03-11: Executed reproduction-coupled two-stage ICMP deny verification policy with exact signature filters (`app=icmp`, `rule=interzone-default`, `action=deny`, `session_end_reason=policy-deny`); Stage 1 returned zero entries, so Stage 2 (`addr.dst`) was intentionally not run and no assumption promotions were made.
+- 2026-03-11: Executed reproduction-coupled two-stage UDP deny verification policy with exact signature filters (`rule=interzone-default`, `action=deny`, `session_end_reason=policy-deny`, source bound); Stage 1 returned zero entries, so Stage 2 (`addr.dst` + `port.dst`) was intentionally not run and no assumption promotions were made.
+- 2026-03-11: Self-contained run policy decision: when direct non-interactive source-host execution is unavailable, fail closed and return one exact operator traffic-generation command instead of running blind capture attempts.
+- 2026-03-11: Even with bounded operator-generated UDP traffic in flight, Stage 1 deny-signature query still returned zero entries in the 5-minute window; destination-token promotion remains blocked until Stage 1 can capture at least one qualifying deny event.
+- 2026-03-11: Final bounded run used exact 60-second UDP generation plus Stage 1A/1B confirmation windows; both Stage 1 passes returned zero entries, so Stage 2 remained blocked and destination-token assumptions were not promoted.
+- 2026-03-11: Final 60-second generation + Stage 1A/1B confirmation still returned zero qualifying deny entries, which currently points to deny-event observability/log visibility in XML results as the blocker rather than destination-token validation behavior.
+- 2026-03-11: Added observability-first checklist template (`docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`) requiring fresh live deny-row evidence capture before any further bounded XML destination-token validation attempt.
+- 2026-03-11: Minimal runtime/query-token reconciliation completed: PAN-OS adapter `_build_traffic_query(...)` now uses `dport` (not `port.dst`) for destination-port filtering, aligned to scenario-scoped `11.0.6-h1` UDP deny real-capture evidence.
 
 ## Historical / Superseded Checkpoints
 
@@ -421,7 +527,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Collect one additional bounded real-capture deny scenario for PAN-OS `11.0.6-h1` using an operator-confirmed known denied destination/port pair (or denied category target), and only then attempt version-scoped promotion/correction of `addr.dst` / `port.dst` under strict `require_provenance="real_capture"` gating.
+Execute one live run of `scripts/panos_observe_and_validate.py` against a fresh distinct deny signature and review `VALIDATION_RESULT.json` plus generated fixture pack to confirm end-to-end orchestration behavior under real capture.
 
 ## Deferred / Later
 

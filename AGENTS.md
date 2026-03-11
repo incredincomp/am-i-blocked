@@ -80,6 +80,26 @@ The codebase currently contains a thin FastAPI API, a worker pipeline, and stubb
 - When adding vendor logic, update `docs/ai/AI_AGENT_VENDOR_KNOWLEDGE_BASE.md` and `SOURCE_REFRESH.md` accordingly.
 - Keep third‑party dependencies minimal and pinned in `pyproject.toml`/`requirements-dev.txt`.
 
+## PAN-OS Verification Discipline
+
+- Current PAN-OS token-validation phase is **observability-gated**.
+- Do not run another PAN-OS Stage 1/Stage 2 token-validation attempt until a completed fresh deny-row record exists in `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md` for the current reproduction window.
+- Do not perform blind repeated deny-hit XML retries when no fresh observability record exists.
+- Stage 1/Stage 2 query construction must come from the completed fresh observability record, not stale screenshots or prior memory.
+- Promotion of PAN-OS query-token assumptions from `UNVERIFIED` requires version-scoped, provenance-scoped evidence from `capture_provenance=real_capture` only.
+- Template-seeded and synthetic fixtures are valid for parser-shape/selector/malformed-shape tests only; they are non-promotable for environment/version token or XPath behavior.
+- Keep PAN-OS traffic-log and config workflows separate:
+  - traffic-log retrieval: XML API `type=log` with Monitor-style `query=...` and `action=get` polling
+  - config/rule metadata retrieval: XML API `type=config` with `action=get|show|complete` and `xpath=...`
+- Do not use config/XPath evidence to promote traffic-log query tokens, and do not use traffic-log evidence to claim config/XPath correctness.
+- Prefer using `scripts/panos_observe_and_validate.py` for bounded PAN-OS verification runs so observability sweep, freshest-row capture, and token subqueries stay coupled in one guarded workflow.
+- PAN-OS traffic-log port field guidance for this repo:
+  - canonical fields: `sport`, `dport`, `natsport`, `natdport`
+  - default destination-port candidate for future validation: `dport` (scenario-scoped evidence exists for `11.0.6-h1` UDP deny signature only; broader behavior remains `UNVERIFIED`)
+  - default source-port candidate if needed later: `sport`
+  - `port.dst` and `port.src` must not be used as default candidates
+- Destination-address token behavior remains environment/version-specific; `addr.dst` is evidenced only for the `11.0.6-h1` UDP deny signature proven by real capture and remains `UNVERIFIED` outside that scope.
+
 ## Evidence and Classification Rules
 
 - Evidence records are normalized by adapters and contain `source`, `kind`, and sanitized `normalized` data.

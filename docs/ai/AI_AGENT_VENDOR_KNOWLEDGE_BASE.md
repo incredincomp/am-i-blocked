@@ -151,20 +151,37 @@ Only durable, implementation-relevant facts belong here.
 - Traffic logs, threat logs, system logs, GlobalProtect logs, URL logs, and other types are available under XML log retrieval.
 - API authentication commonly uses an API key; do not hardcode it.
 - Palo Alto documents XML/CLI/web-debug approaches to discover exact XML syntax and XPath for environment-specific calls.
+- PAN-OS traffic-log port field names are `sport`, `dport`, `natsport`, and `natdport`.
 
 #### Implementation guidance
 - For MVP, treat PAN-OS as the strongest first authoritative path for `denied`.
+- Keep PAN-OS traffic-log and config/XPath verification as separate tracks:
+  - traffic-log token verification uses XML `type=log` and Monitor-style `query=...`
+  - config/rule metadata verification uses XML `type=config` with `action=get|show|complete` and `xpath=...`
+  - do not promote traffic-log tokens from config/XPath evidence
+  - do not claim config/XPath correctness from traffic-log evidence
 - Prefer an adapter abstraction that can use:
   - XML API for logs
   - REST or XML for rule/config metadata, depending on actual need and version support
 - Keep concurrency conservative to avoid impacting the management plane.
 - Build polling/retry behavior into the worker, never the request thread.
+- For current repo state (`11.0.6-h1`): token-promotion attempts are observability-gated; complete a fresh live deny-row observability record first, then run bounded Stage 1/Stage 2 verification.
+- For bounded local verification loops, prefer repo-owned one-shot orchestration (`scripts/panos_observe_and_validate.py`) so traffic generation, Stage 1 observability, freshest-row selection, and Stage 2 token checks remain coupled and fail-closed.
+- Promotion from `UNVERIFIED` requires `capture_provenance=real_capture` only and must remain version-scoped/scenario-scoped.
+- Use `dport` as the primary destination-port candidate in future PAN-OS traffic-log validation runs; `sport` is the source-port candidate if needed later.
 
 #### Do not assume
 - exact REST endpoint versions without checking the target PAN-OS release
 - that every rule metadata lookup should use REST
 - that XML query shapes are identical across all examples and versions
 - that more concurrency is always safe
+- that `port.dst` / `port.src` are preferred PAN-OS traffic-log field names
+- that destination-address token behavior is portable across PAN-OS versions/environments without real-capture proof
+
+#### Current repo verification state (version/scenario-scoped)
+- `addr.dst` is evidenced for PAN-OS `11.0.6-h1` only in the proven UDP deny signature scenario captured by `deny-hit-udp-obsgate-stage1_20260311T052621Z` and `deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z`; behavior outside that scope remains `UNVERIFIED`.
+- `dport` is evidenced for that same PAN-OS `11.0.6-h1` UDP deny signature scenario only; broader/cross-scenario and cross-version behavior remains `UNVERIFIED`.
+- `sport`, `natsport`, and `natdport` are the correct PAN-OS traffic-log field names to retain in guidance; environment-specific query validation in this repo remains incomplete outside the proven scenario above.
 
 #### MVP-safe role
 - authoritative deny evidence source
