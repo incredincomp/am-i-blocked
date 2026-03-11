@@ -168,6 +168,26 @@ class _FakeSCMAdapter:
                     },
                 )
             ]
+        if self._mode == "non_authoritative_deny":
+            # Intentionally deny-like shape that should fail authority gate because authoritative=false.
+            return [
+                EvidenceRecord(
+                    request_id=request_uuid,
+                    source=EvidenceSource.SCM,
+                    kind=EvidenceKind.TRAFFIC_LOG,
+                    normalized={
+                        "authoritative": False,
+                        "action": "deny",
+                        "decision": "deny",
+                        "source_system": "strata_cloud_manager",
+                        "destination": "api.example.com",
+                        "port": 443,
+                        "event_ts": "2026-01-01T00:10:00Z",
+                        "rule_name": "cloud-block-should-drop",
+                        "reason": "Non-authoritative deny-like signal",
+                    },
+                )
+            ]
         return []
 
 
@@ -431,3 +451,30 @@ async def test_lifecycle_scm_authoritative_decrypt_deny_survives_persist_and_res
     assert len(scm_decrypt_deny) == 1
     assert "decrypt_error" in scm_decrypt_deny[0]["normalized"]
     assert scm_decrypt_deny[0]["normalized"]["source_system"] == "prisma_access"
+
+
+@pytest.mark.anyio
+async def test_lifecycle_scm_non_authoritative_deny_fails_closed_and_not_denied() -> None:
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=True,
+        source="scm",
+        scm_mode="non_authoritative_deny",
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    # Deny-like SCM record is present at adapter output but must be dropped before authority.
+    assert result["verdict"] != "denied"
+
+    evidence_records = db.results[request_id].report_json.get("evidence_records", [])
+    scm_authoritative_deny = [
+        ev
+        for ev in evidence_records
+        if ev.get("source") == "scm"
+        and ev.get("normalized", {}).get("action") == "deny"
+        and ev.get("normalized", {}).get("authoritative") is True
+    ]
+    assert scm_authoritative_deny == []
