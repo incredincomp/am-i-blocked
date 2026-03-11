@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source_samples_file": "docs/review/UNKNOWN_EXPLAINABILITY_SAMPLES.json",
+  "sample_index": [
+    {
+      "sample_id": "sample_1",
+      "scenario_label": "Unknown with low confidence and explicit readiness degradation",
+      "source_reference": "tests/routes/test_api_routes.py:1262"
+    },
+    {
+      "sample_id": "sample_2",
+      "scenario_label": "Unknown with malformed persisted confidence values and explicit custom reason",
+      "source_reference": "tests/routes/test_api_routes.py:1312"
+    },
+    {
+      "sample_id": "sample_3",
+      "scenario_label": "Unknown with mixed readiness entry quality and incomplete evidence context",
+      "source_reference": "tests/routes/test_api_routes.py:1357"
+    }
+  ],
+  "feedback_entries": []
+}
