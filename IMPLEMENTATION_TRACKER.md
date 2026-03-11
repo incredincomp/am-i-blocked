@@ -29,11 +29,13 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - PAN-OS fixture gather helper now writes versioned capture sets (`versions/<panos_version>/<capture_label>_<timestamp>/`), capture metadata manifests, and canonical fixture mirrors for validation tests.
 - PAN-OS fixture tooling now includes a `version + scenario` selector helper for tests and optional keygen auth fallback (`--username`/`--password`) in the capture script.
 - PAN-OS bounded one-shot observe-and-validate orchestration helper now exists (`scripts/panos_observe_and_validate.py`) to automate traffic generation, broad Stage 1 observability sweep, freshest-row selection, and conditional Stage 2 token subqueries with machine-readable summary output.
+- PAN-OS orchestration now writes `OBSERVABILITY_RECORD.json` on every run outcome and uses attempt-signature loop-breaker gating to block repeated materially identical no-hit retries unless correlation input improves.
 - Versioned fixture manifests and selectors are now provenance-aware (`real_capture` vs `template_seeded` vs `synthetic`) with explicit verification-scope gating and fail-closed selection semantics.
 - Local fixture collection now enforces a repo-owned read-only PAN-OS request allowlist guard before each live call (`op/show system info`, `log submit/get`, `config get/show/complete`, keygen bootstrap only).
 - Local keygen bootstrap now fails fast on explicit XML API auth rejection signatures (`403 Invalid Credential`) with explicit operator preflight guidance, no invalid-credential retry loop, and separate generic handling for non-auth XML keygen errors.
 - Real-capture versioned fixture packs now exist for PAN-OS `11.0.6-h1` scenarios (`deny-hit`, `no-match`, `metadata-hit`, `query-shape`, `xpath-shape`) collected through the hardened local harness with read-only guard enforcement.
 - PAN-OS verification remains observability-gated for new token-validation attempts; latest real-capture evidence now proves scenario-scoped `addr.dst` + `dport` query behavior for `11.0.6-h1` UDP deny signature, while broader/cross-scenario behavior remains `UNVERIFIED`.
+- `LIVE_DENY_OBSERVABILITY_TEMPLATE.md` is now optional/manual supplemental evidence; orchestrator-generated `OBSERVABILITY_RECORD.json` is the default run-state source of truth.
 
 ## Architecture Snapshot
 
@@ -343,6 +345,11 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
   - parses returned entries and selects freshest qualifying deny row,
   - runs independent Stage 2 token subqueries (`addr.dst`, `dport`) only after Stage 1 hit,
   - writes machine-readable `VALIDATION_RESULT.json` into the Stage 1 capture directory.
+- 2026-03-11: Hardened orchestration state/gating:
+  - always writes `OBSERVABILITY_RECORD.json` (success, no-hit, SSH unavailable, loop-breaker block, capture failure)
+  - records attempt signature, loop-breaker state, run decision, and traffic-generation execution status
+  - blocks repeated no-hit retries for materially identical attempt signatures unless correlation input improves (session ID, exact UI filter string, or manual supplement quality)
+  - keeps manual template usage optional via `--manual-observability-template`
 
 ## Test Log
 
@@ -479,6 +486,9 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
 - 2026-03-11: Ran `python3 -m py_compile scripts/panos_observe_and_validate.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 14 tests).
+- 2026-03-11: Ran `python3 -m py_compile scripts/panos_observe_and_validate.py tests/fixtures/test_panos_observe_and_validate.py` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_observe_and_validate.py` (pass, 7 tests).
+- 2026-03-11: Ran `uv run ruff check scripts/panos_observe_and_validate.py tests/fixtures/test_panos_observe_and_validate.py` (pass).
 
 ## Iteration Journal
 
@@ -539,7 +549,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Capture a newly timestamp-aligned fresh distinct deny row in `LIVE_DENY_OBSERVABILITY_TEMPLATE.md` immediately before reproduction, then run one bounded orchestrator attempt with a widened bounded `lookback_minutes` chosen from that exact row timestamp to determine whether distinct-scenario Stage 1 observability can be captured.
+Run one bounded orchestrator attempt for a distinct signature and rely on the latest `OBSERVABILITY_RECORD.json` loop-breaker/gating state first; only add manual template evidence if correlation quality needs improvement (for example session ID or exact UI filter string).
 
 ## Deferred / Later
 

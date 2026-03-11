@@ -83,9 +83,10 @@ The codebase currently contains a thin FastAPI API, a worker pipeline, and stubb
 ## PAN-OS Verification Discipline
 
 - Current PAN-OS token-validation phase is **observability-gated**.
-- Do not run another PAN-OS Stage 1/Stage 2 token-validation attempt until a completed fresh deny-row record exists in `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md` for the current reproduction window.
-- Do not perform blind repeated deny-hit XML retries when no fresh observability record exists.
-- Stage 1/Stage 2 query construction must come from the completed fresh observability record, not stale screenshots or prior memory.
+- `scripts/panos_observe_and_validate.py` is the primary PAN-OS observability/token-validation entrypoint, and its machine-written `OBSERVABILITY_RECORD.json` is the primary run-state artifact.
+- `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md` is optional supplemental/manual evidence, not a mandatory precondition for every run.
+- Do not perform blind repeated deny-hit XML retries: rely on orchestrator loop-breaker gating (`attempt_signature` + repeated no-hit detection) and require materially improved correlation input before rerunning identical no-hit attempts.
+- Stage 1/Stage 2 query construction must come from fresh run evidence (`OBSERVABILITY_RECORD.json`/`VALIDATION_RESULT.json`) and optionally manual supplements, not stale screenshots or prior memory.
 - Promotion of PAN-OS query-token assumptions from `UNVERIFIED` requires version-scoped, provenance-scoped evidence from `capture_provenance=real_capture` only.
 - Template-seeded and synthetic fixtures are valid for parser-shape/selector/malformed-shape tests only; they are non-promotable for environment/version token or XPath behavior.
 - Keep PAN-OS traffic-log and config workflows separate:

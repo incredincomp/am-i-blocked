@@ -165,8 +165,12 @@ Only durable, implementation-relevant facts belong here.
   - REST or XML for rule/config metadata, depending on actual need and version support
 - Keep concurrency conservative to avoid impacting the management plane.
 - Build polling/retry behavior into the worker, never the request thread.
-- For current repo state (`11.0.6-h1`): token-promotion attempts are observability-gated; complete a fresh live deny-row observability record first, then run bounded Stage 1/Stage 2 verification.
-- For bounded local verification loops, prefer repo-owned one-shot orchestration (`scripts/panos_observe_and_validate.py`) so traffic generation, Stage 1 observability, freshest-row selection, and Stage 2 token checks remain coupled and fail-closed.
+- For current repo state (`11.0.6-h1`): token-promotion attempts are observability-gated and should run through `scripts/panos_observe_and_validate.py`.
+- Treat orchestrator artifacts as primary evidence state:
+  - `OBSERVABILITY_RECORD.json` (always written; includes attempt signature, loop-breaker state, and gating outcome)
+  - `VALIDATION_RESULT.json` (validation-focused summary)
+- `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md` is optional/manual supplemental evidence only.
+- Loop-breaking is mandatory: repeated no-hit attempts for materially identical signatures must be blocked unless correlation input is improved (for example session ID, exact UI filter string, or stronger manual correlation evidence).
 - Promotion from `UNVERIFIED` requires `capture_provenance=real_capture` only and must remain version-scoped/scenario-scoped.
 - Use `dport` as the primary destination-port candidate in future PAN-OS traffic-log validation runs; `sport` is the source-port candidate if needed later.
 

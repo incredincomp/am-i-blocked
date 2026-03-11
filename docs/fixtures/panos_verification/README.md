@@ -13,12 +13,15 @@ In all cases, samples are verification artifacts, not production truth by themse
 
 ## Observability Prerequisite (Before Token Validation)
 
-Before attempting destination-token validation (`addr.dst` candidate / `dport` candidate) from real capture,
-first confirm live deny-row observability using:
+Primary gate is now machine-recorded by the orchestrator:
+
+- `OBSERVABILITY_RECORD.json` (always written by `scripts/panos_observe_and_validate.py`)
+
+Optional supplemental/manual evidence:
 
 - `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`
 
-If a fresh live deny row cannot be confirmed for the reproduction window, treat the blocker as
+If `OBSERVABILITY_RECORD.json` reports no qualifying observability hit, treat the blocker as
 observability/log visibility and do not run token-promotion attempts in that cycle.
 
 ## Required Files
@@ -176,7 +179,7 @@ Use `scripts/panos_observe_and_validate.py` to run one bounded workflow end-to-e
 2. run a broad Stage 1 deny observability sweep (`addr.src`/rule/action/session-end-reason/app/zones + bounded `receive_time`),
 3. auto-select the freshest qualifying deny row,
 4. run independent token subqueries (`addr.dst` and `dport`) only when Stage 1 finds a qualifying row,
-5. write `VALIDATION_RESULT.json` in the Stage 1 capture directory.
+5. write `OBSERVABILITY_RECORD.json` and `VALIDATION_RESULT.json` in the Stage 1 capture directory (or fallback preflight directory on early stop).
 
 The orchestrator delegates PAN-OS API capture to `gather_panos_fixtures.sh`, so read-only guardrails remain enforced through `scripts/panos_readonly_guard.sh`.
 
@@ -213,6 +216,14 @@ Example:
 - `panos_version`
 - `capture_provenance`
 - `scenario_name`
+
+`OBSERVABILITY_RECORD.json` is the primary run-state artifact and includes:
+- run timing (`run_started_at`, `run_finished_at`)
+- attempt signature and loop-breaker state
+- traffic-generation execution status
+- observability hit/no-hit and best-match summary
+- token-validation outcomes (`validated_tokens`, `addr_dst_validated`, `dport_validated`)
+- stop reason / run decision when execution is blocked or fails closed
 
 ### Local Firewall Run Pattern
 

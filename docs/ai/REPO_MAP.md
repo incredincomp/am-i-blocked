@@ -15,7 +15,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests`: unit, routes, fixtures, adapter contract tests.
 - `docs` and `docs/ai`: architecture and agent-grounding docs.
 - `docs/fixtures/panos_verification`: sanitized PAN-OS XML verification fixture pack templates plus versioned evidence-capture folders (`versions/<panos_version>/<capture_label>_<timestamp>/`).
-- `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`: required checklist for confirming fresh live deny-row observability before another XML destination-token validation run.
+- `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`: optional manual observability supplement (not required for every orchestrator run).
 
 ## Package Import Names
 
@@ -79,9 +79,9 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/fixtures/panos_fixture_selector.py`: helper for selecting versioned PAN-OS captures by `version + scenario` with provenance/scope gating (`require_provenance`, `minimum_verification_scope`) and strict manifest validation.
 - `tests/fixtures/test_panos_fixture_selector.py`: unit coverage for version/scenario fixture selection and manifest parsing.
 - `tests/fixtures/test_panos_collection_harness.py`: harness safety tests for read-only allowlist enforcement and real-capture manifest/sanitization behavior using fake `curl`.
-- `tests/fixtures/test_panos_observe_and_validate.py`: orchestration logic tests for bounded observe-and-validate flow (freshest deny-row matching, fail-closed no-hit behavior, SSH-unavailable fail-closed behavior, token-result handling, and summary writing).
+- `tests/fixtures/test_panos_observe_and_validate.py`: orchestration logic tests for bounded observe-and-validate flow (freshest deny-row matching, always-written observability records, SSH-unavailable/no-hit fail-closed behavior, loop-breaker gating, optional manual template handling, and token-result handling).
 - `scripts/gather_panos_fixtures.sh`: helper to capture sanitized PAN-OS XML samples, write versioned fixture packs, and mirror canonical required fixture files.
-- `scripts/panos_observe_and_validate.py`: bounded one-shot orchestrator that runs source-host traffic generation + Stage 1 observability sweep + Stage 2 token subqueries (`addr.dst` and `dport`) and writes `VALIDATION_RESULT.json`.
+- `scripts/panos_observe_and_validate.py`: bounded one-shot orchestrator that runs source-host traffic generation + Stage 1 observability sweep + Stage 2 token subqueries (`addr.dst` and `dport`) and writes both `OBSERVABILITY_RECORD.json` (primary run-state/gating artifact) and `VALIDATION_RESULT.json`.
 - `scripts/panos_readonly_guard.sh`: read-only PAN-OS XML request allowlist guard used by fixture collection harness and testable via `--assert`.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
@@ -111,6 +111,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - PAN-OS traffic-log field-name guidance for future validation is `sport`, `dport`, `natsport`, `natdport`; `port.src`/`port.dst` are not default candidates.
 - PAN-OS runtime query construction now uses `addr.dst` + `dport` for destination filtering in the adapter query builder, aligned to scenario-scoped `11.0.6-h1` UDP deny real-capture evidence.
 - PAN-OS one-shot orchestration now supports bounded observability-first validation in a single run while preserving fail-closed semantics: Stage 2 token checks run only when Stage 1 captures a qualifying deny row.
+- Orchestrator loop-breaker state is machine-recorded and enforced for repeated no-hit retries on materially identical attempt signatures.
 - PAN-OS metadata XPath shape remains explicitly `UNVERIFIED`/version-dependent pending target-environment capture; no PAN-OS version pin/source file exists in repo config today.
 - PAN-OS fixture pack currently validates parser shape expectations (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`) but does not independently verify version-specific query-field/XPath correctness.
 - Fixture helper supports explicit capture labels, optional destination/port/time-window query generation, API-key or keygen-based auth (`--username`/`--password` fallback), and per-capture metadata manifests with required trust fields (`capture_provenance`, `verification_scope`, `panos_version_source`).
@@ -120,8 +121,8 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Latest self-contained UDP verification precondition check: non-interactive SSH execution to source host `10.1.99.10` was unavailable from the current shell in this run, so bounded traffic generation could not be started directly and no additional PAN-OS capture stage was executed.
 - Latest operator-delegated UDP verification run (`deny-hit-udp-stage1-signature-livegen_20260311T014031Z`) executed during bounded source-host traffic generation, but Stage 1 still returned submit+poll `FIN` with zero log entries; Stage 2 destination-token validation did not run.
 - Latest final bounded UDP verification used exact 60-second generation plus two-pass Stage 1 (`deny-hit-udp-stage1a-live60_20260311T015054Z` during flow, `deny-hit-udp-stage1b-post60_20260311T015148Z` after flow with wider lookback); both returned submit+poll `FIN` with zero log entries, so Stage 2 destination-token validation did not run.
-- Current immediate follow-up is observability-first: use the completed fresh deny-row record in `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`, then run one bounded XML Stage 1 from that exact row; run Stage 2 only if Stage 1 captures a qualifying deny event.
-- Latest completed observability row for that workflow is recorded in the template (`11.0.6-h1`, UDP deny signature for `10.1.99.10 -> 10.1.20.20:30053`) and is the required input for the next bounded Stage 1 query.
+- Current immediate follow-up is observability-first through orchestrator artifacts: check latest `OBSERVABILITY_RECORD.json` for gating outcome, then rerun only when loop-breaker allows or correlation input materially improves.
+- The manual template remains useful as optional supplemental context for operator-observed UI details (for example session ID/filter string), but it is not the required input gate for every bounded run.
 - Latest bounded execution from that record succeeded in both stages (`jobs 444/445`, `FIN`, `logs count=20`) and is now the version/scenario proof anchor for destination-token behavior in this environment.
 - Versioned fixture selectors can now require `capture_provenance` and minimum `verification_scope`; newest-match selection is applied only after those trust filters pass.
 - Live fixture collection is constrained to read-only PAN-OS classes/actions by guard helper: `op(show_system_info)`, `log(submit/get)`, `config(get/show/complete)`, and `keygen` bootstrap only.

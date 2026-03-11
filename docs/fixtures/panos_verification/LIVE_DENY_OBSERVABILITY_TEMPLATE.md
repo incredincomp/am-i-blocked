@@ -1,6 +1,11 @@
 # LIVE_DENY_OBSERVABILITY_TEMPLATE.md
 
-Use this checklist before any new PAN-OS XML token-validation run (`addr.dst` / `dport` candidate).
+Optional manual supplement for PAN-OS observability runs.
+
+Primary per-run gate now lives in machine-written `OBSERVABILITY_RECORD.json` from
+`scripts/panos_observe_and_validate.py`. Use this template only when adding human-observed
+UI/CLI context (for example session ID or exact Monitor filter string) that is not already
+captured by orchestrator artifacts.
 
 Goal: prove whether the just-generated deny traffic is visible in live Traffic logs, and capture the exact observed signature.
 
@@ -48,7 +53,7 @@ Goal: prove whether the just-generated deny traffic is visible in live Traffic l
 - Flow type: `NonProxyTraffic`
 - Tunnel type: `N/A`
 
-## Observability Decision
+## Observability Decision (Manual Supplement)
 
 - If no fresh row is confirmed:
   - mark blocker as `observability` (not token-validation)
