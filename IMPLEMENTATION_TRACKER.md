@@ -258,6 +258,16 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
      - no PAN-OS assumption promotion without collected real-capture evidence - done
      - docs/tracker/source-refresh reconciled with this retry outcome - done
 
+20. **Produce PAN-OS observability coverage postmortem + single next-path decision**
+   - Status: completed (2026-03-11)
+   - Priority: P1
+   - Depends on: tasks 10-19
+   - Acceptance:
+     - analyze all versioned `CAPTURE_METADATA.txt`, `OBSERVABILITY_RECORD.json`, and `VALIDATION_RESULT.json` artifacts - done
+     - classify runs into proven / observability-hit-not-proven / no-hit / loop-breaker-risk groups - done
+     - generate machine-readable and human-readable coverage summaries under `docs/fixtures/panos_verification/` - done
+     - select exactly one evidence-backed next path and record it without running a new live attempt - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -358,6 +368,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
   - records attempt signature, loop-breaker state, run decision, and traffic-generation execution status
   - blocks repeated no-hit retries for materially identical attempt signatures unless correlation input improves (session ID, exact UI filter string, or manual supplement quality)
   - keeps manual template usage optional via `--manual-observability-template`
+- 2026-03-11: Completed analysis-only postmortem of all versioned PAN-OS verification artifacts and generated coverage summaries:
+  - machine-readable: `docs/fixtures/panos_verification/OBSERVABILITY_COVERAGE.json`
+  - human-readable: `docs/fixtures/panos_verification/OBSERVABILITY_COVERAGE.md`
+  - key decision: do not run more repeated no-hit distinct-signature attempts; next path is to acquire higher-confidence observability correlation evidence before any new live PAN-OS run.
 
 ## Test Log
 
@@ -500,6 +514,8 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh && python3 -m py_compile scripts/panos_observe_and_validate.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 14 tests).
 - 2026-03-11: Ran `uv run ruff check scripts/panos_observe_and_validate.py` (pass).
+- 2026-03-11: Ran `python3 scripts/summarize_panos_observability.py` (pass; wrote coverage JSON + MD artifacts).
+- 2026-03-11: Ran `uv run ruff check scripts/summarize_panos_observability.py` (pass).
 
 ## Iteration Journal
 
@@ -513,6 +529,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-08: Added observed-fact labeling/badges separating authoritative vs enrichment-only evidence.
 - 2026-03-08: Added evidence-bundle download endpoint and result page integration.
 - 2026-03-08: Re-prioritized queue to first authoritative PAN-OS deny path as the next MVP implementation target.
+- 2026-03-11: Added offline PAN-OS observability coverage summarizer script and artifacts to classify existing evidence and pick a single next path without launching a new live attempt.
 - 2026-03-08: Implemented PAN-OS adapter XML traffic-log job submission and polling with tests for success, timeout, no-match, and malformed XML; normalization remains conservative (deny/reset-only authoritative output).
 - 2026-03-08: Wired authoritative-correlation PAN-OS consumption with deny-authoritative filtering and added step-level tests proving non-deny/malformed/timeout/no-match paths do not emit authoritative evidence.
 - 2026-03-08: Added integration-style lifecycle tests covering submit/enqueue, worker dequeue/dispatch, persistence, and API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths.
@@ -560,7 +577,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Use the latest distinct-scenario `OBSERVABILITY_RECORD.json` as the sole rerun gate; do not rerun the same signature until correlation quality materially improves again (for example corrected session ID/filter evidence or a materially changed distinct signature).
+Use a higher-confidence observability source before any new live PAN-OS attempt (for example authoritative exported deny-row/session correlation evidence for the exact candidate family), and do not rerun repeated no-hit signature families until that evidence-quality change is present.
 
 ## Deferred / Later
 

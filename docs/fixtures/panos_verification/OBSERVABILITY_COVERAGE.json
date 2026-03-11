@@ -1,0 +1,1075 @@
+{
+  "analysis_scope": {
+    "hard_stop": "analysis_only_no_live_attempt",
+    "includes_only_existing_local_artifacts": true,
+    "version_scope": [
+      "11.0.2",
+      "11.0.6-h1"
+    ]
+  },
+  "artifacts_analyzed": {
+    "capture_manifests": [
+      "docs/fixtures/panos_verification/versions/11.0.2/deny-hit_20260308T210000Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-icmp-management-servers_20260310T221249Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-icmp-stage1-signature_20260311T010608Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-icmp-stage1-src-only_20260310T230931Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-icmp-stage1-src-only_20260310T231306Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-stage1_20260311T064433Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-udp-distinct-stage1_20260311T063652Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-udp-obsgate-stage1_20260311T052621Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-udp-stage1-signature-livegen_20260311T014031Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-udp-stage1-signature_20260311T012658Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-udp-stage1a-live60_20260311T015054Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-udp-stage1b-post60_20260311T015148Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit_20260310T172925Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit_20260310T182306Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit_20260310T184847Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/metadata-hit_20260310T173041Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/no-match_20260310T173006Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/query-shape_20260310T173118Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/xpath-shape_20260310T173154Z/CAPTURE_METADATA.txt"
+    ],
+    "observability_records": [
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z/OBSERVABILITY_RECORD.json"
+    ],
+    "validation_results": [
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z/VALIDATION_RESULT.json",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z/VALIDATION_RESULT.json"
+    ]
+  },
+  "counts": {
+    "loop_breaker_blocked_or_rerun_risk_scenarios": 16,
+    "no_observability_hit_scenarios": 19,
+    "observability_hit_token_not_proven_scenarios": 1,
+    "proven_token_validation_scenarios": 1,
+    "runs_with_observability_record": 1,
+    "runs_with_validation_result": 2,
+    "total_runs_analyzed": 22
+  },
+  "generated_from": "docs/fixtures/panos_verification/versions",
+  "observability": {
+    "observability_hit_false_run_ids": [
+      "deny-hit-icmp-management-servers_20260310T221249Z",
+      "deny-hit-icmp-stage1-signature_20260311T010608Z",
+      "deny-hit-icmp-stage1-src-only_20260310T230931Z",
+      "deny-hit-icmp-stage1-src-only_20260310T231306Z",
+      "deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z",
+      "deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z",
+      "deny-hit-tcp-distinct-stage1_20260311T064433Z",
+      "deny-hit-udp-distinct-stage1_20260311T063652Z",
+      "deny-hit-udp-stage1-signature-livegen_20260311T014031Z",
+      "deny-hit-udp-stage1-signature_20260311T012658Z",
+      "deny-hit-udp-stage1a-live60_20260311T015054Z",
+      "deny-hit-udp-stage1b-post60_20260311T015148Z",
+      "deny-hit_20260310T172925Z",
+      "deny-hit_20260310T182306Z",
+      "deny-hit_20260310T184847Z",
+      "metadata-hit_20260310T173041Z",
+      "no-match_20260310T173006Z",
+      "query-shape_20260310T173118Z",
+      "xpath-shape_20260310T173154Z"
+    ],
+    "observability_hit_true_run_ids": [
+      "deny-hit-udp-obsgate-stage1_20260311T052621Z",
+      "deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z"
+    ]
+  },
+  "primary_recommendation": {
+    "stop_condition": "Do not run another distinct-signature observe-and-validate attempt until new evidence quality is materially improved (for example: authoritative exported deny rows/session correlation for the exact candidate family).",
+    "title": "Use a higher-confidence observability source before any new live PAN-OS attempt",
+    "why": "Only one scenario-scoped success exists (11.0.6-h1 UDP obsgate pair), while repeated distinct-signature and replay families show no Stage-1 observability hit. Additional retries in those families have high marginal risk and low expected return without stronger observability evidence."
+  },
+  "proven_scenarios": [
+    {
+      "run_ids": [
+        "deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z"
+      ],
+      "scenario_name": "deny-hit-udp-obsgate-stage2-addrdst-dport",
+      "validated_tokens": [
+        "addr.dst",
+        "dport"
+      ],
+      "version": "11.0.6-h1"
+    }
+  ],
+  "run_categories": {
+    "loop_breaker_blocked_or_rerun_risk": [],
+    "no_observability_hit": [
+      "deny-hit-icmp-management-servers_20260310T221249Z",
+      "deny-hit-icmp-stage1-signature_20260311T010608Z",
+      "deny-hit-icmp-stage1-src-only_20260310T230931Z",
+      "deny-hit-icmp-stage1-src-only_20260310T231306Z",
+      "deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z",
+      "deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z",
+      "deny-hit-tcp-distinct-stage1_20260311T064433Z",
+      "deny-hit-udp-distinct-stage1_20260311T063652Z",
+      "deny-hit-udp-stage1-signature-livegen_20260311T014031Z",
+      "deny-hit-udp-stage1-signature_20260311T012658Z",
+      "deny-hit-udp-stage1a-live60_20260311T015054Z",
+      "deny-hit-udp-stage1b-post60_20260311T015148Z",
+      "deny-hit_20260310T172925Z",
+      "deny-hit_20260310T182306Z",
+      "deny-hit_20260310T184847Z",
+      "metadata-hit_20260310T173041Z",
+      "no-match_20260310T173006Z",
+      "query-shape_20260310T173118Z",
+      "xpath-shape_20260310T173154Z"
+    ],
+    "observability_hit_token_not_proven": [
+      "deny-hit-udp-obsgate-stage1_20260311T052621Z"
+    ],
+    "proven_token_validation": [
+      "deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z"
+    ],
+    "unclassified_non_observability_capture": [
+      "deny-hit_20260308T210000Z"
+    ]
+  },
+  "runs": [
+    {
+      "capture_label": "deny-hit",
+      "capture_provenance": "template_seeded",
+      "captured_at_utc": "2026-03-08T21:00:00Z",
+      "classification_bucket": "unclassified_non_observability_capture",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": null,
+      "poll_entry_count": 1,
+      "run_id": "deny-hit_20260308T210000Z",
+      "scenario": "deny-hit",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": null,
+      "validated_tokens": [],
+      "verification_scope": "parser_shape_only",
+      "version": "11.0.2"
+    },
+    {
+      "capture_label": "deny-hit",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T17:29:26Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": null,
+      "run_id": "deny-hit_20260310T172925Z",
+      "scenario": "deny-hit",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": "example.com",
+        "destination_port": 443,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "17",
+      "validated_tokens": [],
+      "verification_scope": "query_shape_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "no-match",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T17:30:07Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "no-match_20260310T173006Z",
+      "scenario": "no-match",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "metadata-hit",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T17:30:42Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "metadata-hit_20260310T173041Z",
+      "scenario": "metadata-hit",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "xpath_shape_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "query-shape",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T17:31:18Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": null,
+      "run_id": "query-shape_20260310T173118Z",
+      "scenario": "query-shape",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": "example.com",
+        "destination_port": 443,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "17",
+      "validated_tokens": [],
+      "verification_scope": "query_shape_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "xpath-shape",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T17:31:55Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "xpath-shape_20260310T173154Z",
+      "scenario": "xpath-shape",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "xpath_shape_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T18:23:07Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit_20260310T182306Z",
+      "scenario": "deny-hit",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T18:48:48Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit_20260310T184847Z",
+      "scenario": "deny-hit",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-icmp-management-servers",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T22:12:50Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-icmp-management-servers_20260310T221249Z",
+      "scenario": "deny-hit-icmp-management-servers",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": "10.1.20.180",
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-icmp-stage1-src-only",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T23:09:32Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-icmp-stage1-src-only_20260310T230931Z",
+      "scenario": "deny-hit-icmp-stage1-src-only",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-icmp-stage1-src-only",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-10T23:13:07Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-icmp-stage1-src-only_20260310T231306Z",
+      "scenario": "deny-hit-icmp-stage1-src-only",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-icmp-stage1-signature",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T01:06:09Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-icmp-stage1-signature_20260311T010608Z",
+      "scenario": "deny-hit-icmp-stage1-signature",
+      "signature_traits": {
+        "app": "icmp",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-udp-stage1-signature",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T01:27:00Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-udp-stage1-signature_20260311T012658Z",
+      "scenario": "deny-hit-udp-stage1-signature",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-udp-stage1-signature-livegen",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T01:40:32Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-udp-stage1-signature-livegen_20260311T014031Z",
+      "scenario": "deny-hit-udp-stage1-signature-livegen",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-udp-stage1a-live60",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T01:50:55Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-udp-stage1a-live60_20260311T015054Z",
+      "scenario": "deny-hit-udp-stage1a-live60",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-udp-stage1b-post60",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T01:51:49Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-udp-stage1b-post60_20260311T015148Z",
+      "scenario": "deny-hit-udp-stage1b-post60",
+      "signature_traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-udp-obsgate-stage1",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T05:26:22Z",
+      "classification_bucket": "observability_hit_token_not_proven",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": true,
+      "poll_entry_count": 20,
+      "run_id": "deny-hit-udp-obsgate-stage1_20260311T052621Z",
+      "scenario": "deny-hit-udp-obsgate-stage1",
+      "signature_traits": {
+        "app": "not-applicable",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": "tcp",
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-udp-obsgate-stage2-addrdst-dport",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T05:27:48Z",
+      "classification_bucket": "proven_token_validation",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": true,
+      "poll_entry_count": 20,
+      "run_id": "deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z",
+      "scenario": "deny-hit-udp-obsgate-stage2-addrdst-dport",
+      "signature_traits": {
+        "app": "not-applicable",
+        "destination_ip": "10.1.20.20",
+        "destination_port": 30053,
+        "protocol": "tcp",
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null,
+        "zone_dst": null,
+        "zone_src": null
+      },
+      "submit_code": "19",
+      "validated_tokens": [
+        "addr.dst",
+        "dport"
+      ],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-udp-distinct-stage1",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T06:36:53Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-udp-distinct-stage1_20260311T063652Z",
+      "scenario": "deny-hit-udp-distinct-stage1",
+      "signature_traits": {
+        "app": "not-applicable",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null,
+        "zone_dst": "servers",
+        "zone_src": "management"
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-tcp-distinct-stage1",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T06:44:34Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": null,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-tcp-distinct-stage1_20260311T064433Z",
+      "scenario": "deny-hit-tcp-distinct-stage1",
+      "signature_traits": {
+        "app": "not-applicable",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null,
+        "zone_dst": "servers",
+        "zone_src": "management"
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-tcp-distinct-observe-validate-stage1",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T07:33:00Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": null,
+        "reason": null
+      },
+      "matched_entry_count": 0,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z",
+      "scenario": "deny-hit-tcp-distinct-observe-validate-stage1",
+      "signature_traits": {
+        "app": "not-applicable",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null,
+        "zone_dst": "servers",
+        "zone_src": "management"
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-tcp-distinct-observe-validate-stage1",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T15:12:58Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": false,
+        "reason": "not_triggered"
+      },
+      "matched_entry_count": 0,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z",
+      "scenario": "deny-hit-tcp-distinct-observe-validate-stage1",
+      "signature_traits": {
+        "app": "not-applicable",
+        "destination_ip": "10.1.20.21",
+        "destination_port": 30053,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": "ssh_custom_command",
+        "zone_dst": "servers",
+        "zone_src": "management"
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
+    }
+  ],
+  "signature_families": [
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 0,
+        "observability_hit_runs": 1,
+        "validated_tokens": [
+          "addr.dst",
+          "dport"
+        ]
+      },
+      "family_id": "10.1.99.10|10.1.20.20|30053|not-applicable|tcp|interzone-default|policy-deny|unknown",
+      "loop_breaker_risk_status": "low",
+      "recommended_next_action": "preserve_as_scenario_scoped_proof_do_not_generalize",
+      "runs": [
+        "deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z"
+      ],
+      "traits": {
+        "app": "not-applicable",
+        "destination_ip": "10.1.20.20",
+        "destination_port": 30053,
+        "protocol": "tcp",
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 0,
+        "observability_hit_runs": 1,
+        "validated_tokens": []
+      },
+      "family_id": "10.1.99.10|unknown|unknown|not-applicable|tcp|interzone-default|policy-deny|unknown",
+      "loop_breaker_risk_status": "low",
+      "recommended_next_action": "keep_as_baseline_no_new_token_promotion",
+      "runs": [
+        "deny-hit-udp-obsgate-stage1_20260311T052621Z"
+      ],
+      "traits": {
+        "app": "not-applicable",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": "tcp",
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 4,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "family_id": "10.1.99.10|unknown|unknown|unknown|unknown|interzone-default|policy-deny|unknown",
+      "loop_breaker_risk_status": "high",
+      "recommended_next_action": "do_not_rerun_without_material_observability_quality_change",
+      "runs": [
+        "deny-hit-udp-stage1-signature_20260311T012658Z",
+        "deny-hit-udp-stage1-signature-livegen_20260311T014031Z",
+        "deny-hit-udp-stage1a-live60_20260311T015054Z",
+        "deny-hit-udp-stage1b-post60_20260311T015148Z"
+      ],
+      "traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 1,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "family_id": "10.1.99.3|10.1.20.180|unknown|unknown|unknown|unknown|policy-deny|unknown",
+      "loop_breaker_risk_status": "medium",
+      "recommended_next_action": "rerun_only_with_stronger_correlation_evidence",
+      "runs": [
+        "deny-hit-icmp-management-servers_20260310T221249Z"
+      ],
+      "traits": {
+        "app": null,
+        "destination_ip": "10.1.20.180",
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 1,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "family_id": "10.1.99.3|10.1.20.21|30053|not-applicable|unknown|interzone-default|policy-deny|ssh_custom_command",
+      "loop_breaker_risk_status": "medium",
+      "recommended_next_action": "rerun_only_with_stronger_correlation_evidence",
+      "runs": [
+        "deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z"
+      ],
+      "traits": {
+        "app": "not-applicable",
+        "destination_ip": "10.1.20.21",
+        "destination_port": 30053,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": "ssh_custom_command"
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 1,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "family_id": "10.1.99.3|unknown|unknown|icmp|unknown|interzone-default|policy-deny|unknown",
+      "loop_breaker_risk_status": "medium",
+      "recommended_next_action": "rerun_only_with_stronger_correlation_evidence",
+      "runs": [
+        "deny-hit-icmp-stage1-signature_20260311T010608Z"
+      ],
+      "traits": {
+        "app": "icmp",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 3,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "family_id": "10.1.99.3|unknown|unknown|not-applicable|unknown|interzone-default|policy-deny|unknown",
+      "loop_breaker_risk_status": "high",
+      "recommended_next_action": "do_not_rerun_without_material_observability_quality_change",
+      "runs": [
+        "deny-hit-udp-distinct-stage1_20260311T063652Z",
+        "deny-hit-tcp-distinct-stage1_20260311T064433Z",
+        "deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z"
+      ],
+      "traits": {
+        "app": "not-applicable",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 2,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "family_id": "10.1.99.3|unknown|unknown|unknown|unknown|unknown|policy-deny|unknown",
+      "loop_breaker_risk_status": "high",
+      "recommended_next_action": "do_not_rerun_without_material_observability_quality_change",
+      "runs": [
+        "deny-hit-icmp-stage1-src-only_20260310T230931Z",
+        "deny-hit-icmp-stage1-src-only_20260310T231306Z"
+      ],
+      "traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 2,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "family_id": "unknown|example.com|443|unknown|unknown|unknown|unknown|unknown",
+      "loop_breaker_risk_status": "high",
+      "recommended_next_action": "do_not_rerun_without_material_observability_quality_change",
+      "runs": [
+        "deny-hit_20260310T172925Z",
+        "query-shape_20260310T173118Z"
+      ],
+      "traits": {
+        "app": null,
+        "destination_ip": "example.com",
+        "destination_port": 443,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "classification": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 5,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "family_id": "unknown|unknown|unknown|unknown|unknown|unknown|unknown|unknown",
+      "loop_breaker_risk_status": "high",
+      "recommended_next_action": "do_not_rerun_without_material_observability_quality_change",
+      "runs": [
+        "deny-hit_20260308T210000Z",
+        "no-match_20260310T173006Z",
+        "metadata-hit_20260310T173041Z",
+        "xpath-shape_20260310T173154Z",
+        "deny-hit_20260310T182306Z",
+        "deny-hit_20260310T184847Z"
+      ],
+      "traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null
+      }
+    }
+  ]
+}
