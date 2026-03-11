@@ -333,6 +333,16 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
      - keep verdict/classifier/worker behavior unchanged - done
      - add focused route tests for render and load-path fallback behavior - done
 
+27. **Implement bounded SD-WAN readiness probe state mapping**
+   - Status: completed (2026-03-11)
+   - Priority: P1
+   - Depends on: tasks 24-26
+   - Acceptance:
+     - implement SD-WAN adapter readiness probe with explicit states (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`) - done
+     - keep probe bounded (single lightweight request, short timeout, no retries, no evidence-query expansion) - done
+     - normalize SD-WAN readiness into existing persisted `source_readiness` structure without classifier/verdict changes - done
+     - add focused non-live tests for SD-WAN readiness states and readiness-step propagation - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -625,8 +635,11 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: UI result route now normalizes dict-shaped persisted result payloads into `DiagnosticResult` before template rendering, so additive fields like `source_readiness_summary` render safely across mocked/test and DB-backed flows.
 - 2026-03-11: SCM adapter readiness now uses a bounded auth probe (single token-endpoint request, short timeout, no retries) and emits explicit readiness states: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`.
 - 2026-03-11: Worker source-readiness step now delegates SCM not-configured and probe diagnostics to the SCM adapter boundary rather than hardcoding SCM readiness fallback in the step.
+- 2026-03-11: SD-WAN adapter readiness now uses a bounded single-request probe against configured SD-WAN API base URL with bearer token and explicit readiness states: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`.
+- 2026-03-11: Worker source-readiness step now delegates SD-WAN configured/not-configured handling to the adapter boundary so persisted readiness diagnostics stay source-owned and explicit.
 - 2026-03-11: Result load path now builds additive `source_readiness_details` from persisted `report_json.source_readiness` with safe normalization (`source`, `status`, optional `reason`, optional `latency_ms`) and malformed-entry filtering.
 - 2026-03-11: Result page now renders compact “Source readiness details” block for per-source status/reason visibility, with fallback text when no details are present.
+- 2026-03-11: Implemented bounded SD-WAN adapter readiness probe and mapped explicit readiness states into persisted `report_json.source_readiness`; scope remained readiness-only with no SD-WAN evidence-query expansion.
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -634,6 +647,8 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py services/api/am_i_blocked_api/routes/ui.py packages/core/am_i_blocked_core/models.py tests/routes/test_api_routes.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py tests/unit/test_source_readiness_check.py` (pass, 22 tests).
 - 2026-03-11: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/scm/__init__.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py tests/adapters/test_scm_adapter.py tests/unit/test_source_readiness_check.py` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/adapters/test_sdwan_adapter.py tests/unit/test_source_readiness_check.py` (pass, 28 tests).
+- 2026-03-11: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/sdwan/__init__.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py tests/adapters/test_sdwan_adapter.py tests/unit/test_source_readiness_check.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness"` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass).
 - 2026-03-11: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
@@ -685,7 +700,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Implement a bounded SD-WAN adapter readiness probe with explicit state mapping (readiness-only, no evidence-query expansion) to reduce remaining `source_readiness` ambiguity outside PAN-OS/SCM.
+Implement bounded Torq adapter readiness state mapping so persisted `source_readiness` has explicit non-ambiguous Torq diagnostics aligned with SCM/SD-WAN readiness conventions.
 
 ## Deferred / Later
 

@@ -24,6 +24,7 @@ def _settings(**overrides):
         "logscale_token": None,
         "sdwan_api_url": None,
         "sdwan_api_key": None,
+        "sdwan_verify_ssl": False,
         "torq_client_id": None,
         "torq_client_secret": None,
     }
@@ -94,3 +95,38 @@ async def test_readiness_scm_not_configured_comes_from_adapter():
     scm = report.to_dict()["scm"]
     assert scm["available"] is False
     assert scm["status"] == "not_configured"
+
+
+@pytest.mark.anyio
+async def test_readiness_uses_sdwan_adapter_when_configured():
+    settings = _settings(
+        sdwan_api_url="https://sdwan.example.com/api",
+        sdwan_api_key="tok",
+        sdwan_verify_ssl=True,
+    )
+    with patch(
+        "am_i_blocked_adapters.sdwan.SDWANAdapter.check_readiness",
+        new_callable=AsyncMock,
+        return_value={
+            "available": False,
+            "status": "timeout",
+            "reason": "SD-WAN readiness probe timed out",
+            "latency_ms": None,
+        },
+    ) as readiness:
+        report = await source_readiness_check.run(settings)
+
+    readiness.assert_awaited_once()
+    sdwan = report.to_dict()["sdwan"]
+    assert sdwan["status"] == "timeout"
+    assert sdwan["available"] is False
+    assert "sdwan" not in report.available_sources
+
+
+@pytest.mark.anyio
+async def test_readiness_sdwan_not_configured_comes_from_adapter():
+    settings = _settings()
+    report = await source_readiness_check.run(settings)
+    sdwan = report.to_dict()["sdwan"]
+    assert sdwan["available"] is False
+    assert sdwan["status"] == "not_configured"

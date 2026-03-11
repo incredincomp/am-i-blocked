@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Any
 
+import httpx
 from am_i_blocked_core.enums import EvidenceKind, EvidenceSource
 from am_i_blocked_core.models import EvidenceRecord
 
@@ -26,27 +28,107 @@ class SDWANAdapter(BaseAdapter):
 
     def __init__(
         self,
-        api_url: str,
-        api_key: str,
+        api_url: str | None,
+        api_key: str | None,
         *,
         verify_ssl: bool = True,
+        request_timeout_seconds: float = 5.0,
     ) -> None:
-        self._api_url = api_url
-        self._api_key = api_key
+        self._api_url = (api_url or "").strip().rstrip("/")
+        self._api_key = (api_key or "").strip()
         self._verify_ssl = verify_ssl
+        self._request_timeout_seconds = max(1.0, float(request_timeout_seconds))
 
     async def check_readiness(self) -> dict[str, Any]:
-        """Check SD-WAN OpsCenter API availability.
+        """Check SD-WAN API availability via one bounded auth probe."""
+        if not self._api_url or not self._api_key:
+            return {
+                "available": False,
+                "status": "not_configured",
+                "reason": "SD-WAN API URL or API key not configured",
+                "latency_ms": None,
+            }
 
-        TODO: Implement actual health endpoint probe.
-        """
-        if not self._api_url:
-            return {"available": False, "reason": "SD-WAN API URL not configured", "latency_ms": None}
+        started = time.monotonic()
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/json",
+        }
+        try:
+            async with httpx.AsyncClient(
+                verify=self._verify_ssl,
+                timeout=self._request_timeout_seconds,
+            ) as client:
+                response = await client.get(self._api_url, headers=headers)
+        except httpx.TimeoutException:
+            return {
+                "available": False,
+                "status": "timeout",
+                "reason": "SD-WAN readiness probe timed out",
+                "latency_ms": None,
+            }
+        except httpx.ConnectError:
+            return {
+                "available": False,
+                "status": "unreachable",
+                "reason": "SD-WAN endpoint unreachable",
+                "latency_ms": None,
+            }
+        except httpx.RequestError as exc:
+            return {
+                "available": False,
+                "status": "unreachable",
+                "reason": f"SD-WAN request failed: {exc}",
+                "latency_ms": None,
+            }
+        except Exception as exc:
+            return {
+                "available": False,
+                "status": "internal_error",
+                "reason": f"SD-WAN readiness internal error: {exc}",
+                "latency_ms": None,
+            }
+
+        latency_ms = int((time.monotonic() - started) * 1000)
+        if response.status_code == 401:
+            return {
+                "available": False,
+                "status": "auth_failed",
+                "reason": "SD-WAN auth failed (401)",
+                "latency_ms": latency_ms,
+            }
+        if response.status_code == 403:
+            return {
+                "available": False,
+                "status": "unauthorized",
+                "reason": "SD-WAN auth unauthorized (403)",
+                "latency_ms": latency_ms,
+            }
+        if response.status_code < 200 or response.status_code >= 300:
+            return {
+                "available": False,
+                "status": "unexpected_response",
+                "reason": f"SD-WAN readiness probe returned HTTP {response.status_code}",
+                "latency_ms": latency_ms,
+            }
+
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+        if not isinstance(payload, (dict, list)):
+            return {
+                "available": False,
+                "status": "unexpected_response",
+                "reason": "SD-WAN readiness probe returned non-JSON response",
+                "latency_ms": latency_ms,
+            }
 
         return {
-            "available": False,
-            "reason": "TODO: SD-WAN readiness check not yet implemented",
-            "latency_ms": None,
+            "available": True,
+            "status": "ready",
+            "reason": "SD-WAN readiness probe succeeded",
+            "latency_ms": latency_ms,
         }
 
     async def query_evidence(

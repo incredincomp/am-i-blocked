@@ -249,6 +249,7 @@ Only durable, implementation-relevant facts belong here.
   - path health lookup
   - steering/path-change lookup
 - Keep SD-WAN influence strongest for `unknown` or path-quality cases, not for direct policy-deny claims.
+- Current repo SD-WAN readiness implementation is bounded to one authenticated probe request against configured SD-WAN API base URL and reports explicit readiness states (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`); this is readiness-only and not evidence retrieval.
 
 #### Do not assume
 - exact SD-WAN endpoint shapes without current tenant validation

@@ -75,13 +75,13 @@ async def run(settings: Settings) -> ReadinessReport:
         report.record("logscale", {"available": False, "reason": "not configured", "latency_ms": None})
 
     # SD-WAN
-    if settings.sdwan_api_url and settings.sdwan_api_key:
-        from am_i_blocked_adapters.sdwan import SDWANAdapter
-        adapter = SDWANAdapter(api_url=settings.sdwan_api_url, api_key=settings.sdwan_api_key)
-        result = await adapter.check_readiness()
-        report.record("sdwan", result)
-    else:
-        report.record("sdwan", {"available": False, "reason": "not configured", "latency_ms": None})
+    from am_i_blocked_adapters.sdwan import SDWANAdapter
+    sdwan_adapter = SDWANAdapter(
+        api_url=settings.sdwan_api_url,
+        api_key=settings.sdwan_api_key,
+        verify_ssl=settings.sdwan_verify_ssl,
+    )
+    report.record("sdwan", await sdwan_adapter.check_readiness())
 
     # Torq
     if settings.torq_client_id and settings.torq_client_secret:
