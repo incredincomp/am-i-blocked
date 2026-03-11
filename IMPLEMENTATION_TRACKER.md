@@ -331,6 +331,12 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
   - Stage 1 outcome: submit job `472`, poll `FIN`, `logs count=\"0\"`
   - Stage 2 execution: not run (required Stage 1 qualifying deny capture absent)
   - impact: no extension beyond current scenario-scoped `addr.dst`/`dport` proof.
+- 2026-03-11: Executed one bounded distinct-signature observe-and-validate orchestration run using `scripts/panos_observe_and_validate.py` and treated `VALIDATION_RESULT.json` as source of truth:
+  - Observability record used: `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md` distinct row (`src=10.1.99.3`, `dst=10.1.20.21`, `dport=30053`, `app=not-applicable`, `rule=interzone-default`, `action=deny`, `session_end_reason=policy-deny`, zones `management->servers`, type `drop`).
+  - Stage 1 fixture/result dir: `deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z`
+  - `VALIDATION_RESULT.json`: `observability_hit=false`, `matched_entry_count=0`, `reason_if_not_validated=no_qualifying_deny_row`
+  - Stage 2 execution: not run by orchestrator (no qualifying Stage 1 deny row)
+  - impact: no new token promotion; broader distinct-scenario behavior for `addr.dst`/`dport` remains `UNVERIFIED`.
 - 2026-03-11: Added bounded orchestration workflow entrypoint `scripts/panos_observe_and_validate.py`:
   - generates bounded source traffic over SSH (or fails closed with one exact operator command if SSH unavailable),
   - runs Stage 1 broad deny observability sweep while traffic is active,
@@ -467,6 +473,12 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
   - `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass)
   - `uv run pytest -q tests/fixtures/test_panos_observe_and_validate.py tests/unit/test_panos_fixture_script.py tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 20 tests)
   - `uv run ruff check scripts/panos_observe_and_validate.py tests/fixtures/test_panos_observe_and_validate.py tests/unit/test_panos_fixture_script.py` (pass)
+- 2026-03-11: Ran one bounded live orchestrator distinct-scenario execution:
+  - `set -a && source ./.env && set +a && python3 scripts/panos_observe_and_validate.py --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-tcp-distinct-observe-validate" --source-ssh-target "root@10.1.99.3" --traffic-command "end=$((SECONDS+60)); while [ $SECONDS -lt $end ]; do nc -vz -w 3 10.1.20.21 30053 >/dev/null 2>&1 || true; sleep 0.5; done" --source-ip "10.1.99.3" --destination-ip "10.1.20.21" --destination-port 30053 --app "not-applicable" --rule "interzone-default" --action "deny" --session-end-reason "policy-deny" --zone-src "management" --zone-dst "servers" --lookback-minutes 15`
+  - outcome: script exit code `11`, Stage 1 capture created, `VALIDATION_RESULT.json` reported `observability_hit=false`, no Stage 2 token queries executed.
+- 2026-03-11: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-11: Ran `python3 -m py_compile scripts/panos_observe_and_validate.py` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 14 tests).
 
 ## Iteration Journal
 
@@ -527,7 +539,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Execute one live run of `scripts/panos_observe_and_validate.py` against a fresh distinct deny signature and review `VALIDATION_RESULT.json` plus generated fixture pack to confirm end-to-end orchestration behavior under real capture.
+Capture a newly timestamp-aligned fresh distinct deny row in `LIVE_DENY_OBSERVABILITY_TEMPLATE.md` immediately before reproduction, then run one bounded orchestrator attempt with a widened bounded `lookback_minutes` chosen from that exact row timestamp to determine whether distinct-scenario Stage 1 observability can be captured.
 
 ## Deferred / Later
 
