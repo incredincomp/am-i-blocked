@@ -291,6 +291,17 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
      - treat resulting `OBSERVABILITY_RECORD.json`/`VALIDATION_RESULT.json` as source of truth and avoid same-run retries - done
      - promote assumptions only if new real-capture evidence justifies it - done (no promotions)
 
+23. **Add candidate-family selector to prevent exhausted retry loops**
+   - Status: completed (2026-03-11)
+   - Priority: P1
+   - Depends on: tasks 20-22
+   - Acceptance:
+     - classify signature families into `proven`, `candidate`, `exhausted_pending_new_evidence`, `blocked_by_loop_breaker` from existing artifacts - done
+     - generate `NEXT_CANDIDATE_DECISION.json` and `NEXT_CANDIDATE_DECISION.md` from evidence - done
+     - select exactly one next recommendation (`candidate` family or `pause`) - done (current output: `pause_panos_token_expansion`)
+     - record exhausted-family policy so repeated no-hit strong-input families are not retried without materially stronger evidence - done
+     - add focused non-live selector tests - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -557,6 +568,9 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Ran `uv run ruff check scripts/prepare_panos_observability_input.py scripts/panos_observe_and_validate.py scripts/summarize_panos_observability.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 14 tests).
 - 2026-03-11: Ran `python3 scripts/summarize_panos_observability.py` (pass; coverage updated to 23 analyzed runs, 20 no-hit, 2 observability records, 3 validation results).
+- 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_select_next_panos_candidate.py` (pass, 4 tests).
+- 2026-03-11: Ran `uv run ruff check scripts/select_next_panos_candidate.py tests/fixtures/test_select_next_panos_candidate.py` (pass).
+- 2026-03-11: Ran `uv run python scripts/select_next_panos_candidate.py` (pass; generated `NEXT_CANDIDATE_DECISION.json` + `.md` with single recommendation `pause_panos_token_expansion`).
 
 ## Iteration Journal
 
@@ -575,6 +589,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: One bounded distinct-signature run with ready observability input is now recorded as no-hit for `deny-hit-tcp-distinct-observe-validate-obsinput`; reruns for this same family are not recommended without materially stronger/newer correlation evidence.
 - 2026-03-11: Coverage artifact refresh after the bounded observability-input run now shows `23` analyzed runs and `20` no-observability-hit outcomes; the single scenario-scoped `11.0.6-h1` UDP `addr.dst` + `dport` proof remains the only promoted destination-token evidence.
 - 2026-03-11: Executed exactly one bounded distinct-signature attempt with ready `OBSERVABILITY_INPUT.json` (`deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z`); loop-breaker allowed run with improved correlation score, but Stage 1 still produced `observability_hit=false` and no token validation occurred.
+- 2026-03-11: Added selector-driven family classification (`scripts/select_next_panos_candidate.py`) and decision artifacts (`NEXT_CANDIDATE_DECISION.json`/`.md`) so exhausted families are machine-marked and future live attempts are picked from selector output instead of ad hoc retries.
 - 2026-03-08: Implemented PAN-OS adapter XML traffic-log job submission and polling with tests for success, timeout, no-match, and malformed XML; normalization remains conservative (deny/reset-only authoritative output).
 - 2026-03-08: Wired authoritative-correlation PAN-OS consumption with deny-authoritative filtering and added step-level tests proving non-deny/malformed/timeout/no-match paths do not emit authoritative evidence.
 - 2026-03-08: Added integration-style lifecycle tests covering submit/enqueue, worker dequeue/dispatch, persistence, and API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths.
@@ -605,6 +620,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Even with bounded operator-generated UDP traffic in flight, Stage 1 deny-signature query still returned zero entries in the 5-minute window; destination-token promotion remains blocked until Stage 1 can capture at least one qualifying deny event.
 - 2026-03-11: Final bounded run used exact 60-second UDP generation plus Stage 1A/1B confirmation windows; both Stage 1 passes returned zero entries, so Stage 2 remained blocked and destination-token assumptions were not promoted.
 - 2026-03-11: Final 60-second generation + Stage 1A/1B confirmation still returned zero qualifying deny entries, which currently points to deny-event observability/log visibility in XML results as the blocker rather than destination-token validation behavior.
+- 2026-03-11: Candidate-family selection policy is now machine-driven; families can be marked `exhausted_pending_new_evidence` and must not be retried without materially stronger/newer evidence (known exhausted family: `10.1.99.3|10.1.20.21|30053|not-applicable|unknown|interzone-default|policy-deny|ssh_custom_command`).
 - 2026-03-11: Added observability-first checklist template (`docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`) requiring fresh live deny-row evidence capture before any further bounded XML destination-token validation attempt.
 - 2026-03-11: Minimal runtime/query-token reconciliation completed: PAN-OS adapter `_build_traffic_query(...)` now uses `dport` (not `port.dst`) for destination-port filtering, aligned to scenario-scoped `11.0.6-h1` UDP deny real-capture evidence.
 
@@ -622,7 +638,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Do not rerun `deny-hit-tcp-distinct-observe-validate-obsinput` until materially stronger/newer correlation evidence exists; the next attempt should target a different signature family only when a fresh ready `OBSERVABILITY_INPUT.json` is available.
+Follow `docs/fixtures/panos_verification/NEXT_CANDIDATE_DECISION.json`: current primary action is `pause_panos_token_expansion` until a materially better non-exhausted family and stronger observability evidence source become available.
 
 ## Deferred / Later
 

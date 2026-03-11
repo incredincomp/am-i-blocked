@@ -85,9 +85,13 @@ The codebase currently contains a thin FastAPI API, a worker pipeline, and stubb
 - Current PAN-OS token-validation phase is **observability-gated**.
 - `scripts/panos_observe_and_validate.py` is the primary PAN-OS observability/token-validation entrypoint, and its machine-written `OBSERVABILITY_RECORD.json` is the primary run-state artifact.
 - `docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json` is the preferred pre-run correlation artifact when stronger evidence exists (session ID, exact UI filter string, structured row export).
+- `docs/fixtures/panos_verification/NEXT_CANDIDATE_DECISION.json` is the selector-owned source for next PAN-OS live-attempt choice; avoid ad hoc prompt-driven family selection.
 - `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md` is optional supplemental/manual evidence, not a mandatory precondition for every run.
 - Repeated low-confidence no-hit retries are blocked: for materially identical no-hit signatures, reruns require `OBSERVABILITY_INPUT.json` marked ready with materially improved correlation input.
+- Signature families can be classified as `exhausted_pending_new_evidence`; these are no-retry families until materially stronger/newer correlation evidence exists.
+- Known exhausted family to preserve unless materially new evidence appears: `10.1.99.3|10.1.20.21|30053|not-applicable|unknown|interzone-default|policy-deny|ssh_custom_command`.
 - Do not perform blind repeated deny-hit XML retries: rely on orchestrator loop-breaker gating (`attempt_signature` + repeated no-hit detection) and require materially improved correlation input before rerunning identical no-hit attempts.
+- If selector output indicates no worthwhile non-exhausted family, pause PAN-OS token expansion work instead of grinding additional no-hit retries.
 - Stage 1/Stage 2 query construction must come from fresh run evidence (`OBSERVABILITY_RECORD.json`/`VALIDATION_RESULT.json`) and optionally manual supplements, not stale screenshots or prior memory.
 - Promotion of PAN-OS query-token assumptions from `UNVERIFIED` requires version-scoped, provenance-scoped evidence from `capture_provenance=real_capture` only.
 - Template-seeded and synthetic fixtures are valid for parser-shape/selector/malformed-shape tests only; they are non-promotable for environment/version token or XPath behavior.

@@ -223,6 +223,21 @@ Prepare observability input artifact example:
   --out docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json
 ```
 
+Select the next family before any new live retry:
+
+```sh
+./scripts/select_next_panos_candidate.py
+```
+
+This writes:
+- `docs/fixtures/panos_verification/NEXT_CANDIDATE_DECISION.json`
+- `docs/fixtures/panos_verification/NEXT_CANDIDATE_DECISION.md`
+
+Selection policy:
+- future live PAN-OS attempts should come from selector output artifacts
+- families marked `exhausted_pending_new_evidence` are no-retry until materially stronger/newer evidence exists
+- if selector recommends `pause_panos_token_expansion`, pause token expansion rather than repeating low-value no-hit retries
+
 `VALIDATION_RESULT.json` includes machine-readable fields such as:
 - `observability_hit`
 - `matched_entry_count`

@@ -86,6 +86,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `scripts/panos_observe_and_validate.py`: supports optional `--observability-input` preflight gating; when repeated no-hit signatures exist, ready `OBSERVABILITY_INPUT.json` is required for retried identical signatures.
 - `scripts/prepare_panos_observability_input.py`: helper to normalize session/filter/structured row evidence (manual, CSV, or JSON input) into `OBSERVABILITY_INPUT.json` with readiness/confidence flags.
 - `scripts/summarize_panos_observability.py`: offline artifact summarizer that classifies versioned PAN-OS verification runs and writes coverage outputs (`OBSERVABILITY_COVERAGE.json` and `OBSERVABILITY_COVERAGE.md`) without making live PAN-OS calls.
+- `scripts/select_next_panos_candidate.py`: offline selector that classifies signature families (`proven`, `candidate`, `exhausted_pending_new_evidence`, `blocked_by_loop_breaker`) from coverage + versioned observability artifacts and writes `NEXT_CANDIDATE_DECISION.json`/`.md` with exactly one primary recommendation.
 - `scripts/panos_readonly_guard.sh`: read-only PAN-OS XML request allowlist guard used by fixture collection harness and testable via `--assert`.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
@@ -127,6 +128,8 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Latest final bounded UDP verification used exact 60-second generation plus two-pass Stage 1 (`deny-hit-udp-stage1a-live60_20260311T015054Z` during flow, `deny-hit-udp-stage1b-post60_20260311T015148Z` after flow with wider lookback); both returned submit+poll `FIN` with zero log entries, so Stage 2 destination-token validation did not run.
 - Current immediate follow-up is observability-first through orchestrator artifacts: check latest `OBSERVABILITY_RECORD.json` for gating outcome, then rerun only when loop-breaker allows or correlation input materially improves.
 - PAN-OS evidence-landscape summaries now live at `docs/fixtures/panos_verification/OBSERVABILITY_COVERAGE.json` and `.md`; they are generated from existing versioned fixture artifacts for postmortem/next-path planning.
+- PAN-OS next-attempt selection is now machine-driven via `docs/fixtures/panos_verification/NEXT_CANDIDATE_DECISION.json`; future live attempts should follow selector output, not ad hoc family choice.
+- Families marked `exhausted_pending_new_evidence` in selector output are blocked for retries until materially stronger/newer evidence exists.
 - The manual template remains useful as optional supplemental context for operator-observed UI details (for example session ID/filter string), but it is not the required input gate for every bounded run.
 - Latest bounded execution from that record succeeded in both stages (`jobs 444/445`, `FIN`, `logs count=20`) and is now the version/scenario proof anchor for destination-token behavior in this environment.
 - Versioned fixture selectors can now require `capture_provenance` and minimum `verification_scope`; newest-match selection is applied only after those trust filters pass.
