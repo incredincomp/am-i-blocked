@@ -47,7 +47,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - UI request page maps normalized failure stage/category to compact first-hop triage hints while preserving raw failure values in the rendered metadata.
 - Result evidence cards now visually distinguish observed facts tagged as enrichment-only vs authoritative using observed-fact detail metadata.
 - Result evidence cards now also render minimal PAN-OS metadata from persisted observed-fact detail when authoritative PAN-OS deny facts include `detail.rule_metadata`.
-- Unknown verdicts now render compact confidence explainability (`path_confidence`, `evidence_completeness`, `unknown_reason_signals`) in the result page "Why unknown" section.
+- Unknown verdicts now render compact confidence explainability (`path_confidence`, `evidence_completeness`, `unknown_reason_signals`) in the result page "Why this is unknown" section, including explicit copy that `unknown` is not equivalent to `allowed`.
 - Pipeline itself is implemented and exercised in tests via direct calls.
 - Target MVP:
 - API persists + enqueues.

@@ -124,7 +124,10 @@
     </div>
     {% if result.verdict == "unknown" %}
     <div class="section">
-      <h3>Why unknown</h3>
+      <h3>Why this is unknown</h3>
+      <p style="font-size:0.88rem; color:#475569; margin-bottom:0.55rem;">
+        Unknown is not the same as allowed. A missing deny signal is not proof of allow.
+      </p>
       <p style="font-size:0.88rem; color:#475569; margin-bottom:0.55rem;">
         Path confidence: <strong>{{ (result.path_confidence * 100)|int }}%</strong>
         | Evidence completeness: <strong>{{ (result.evidence_completeness * 100)|int }}%</strong>
@@ -133,7 +136,7 @@
         {% for reason in result.unknown_reason_signals %}
         <li>{{ reason }}</li>
         {% else %}
-        <li>No additional unknown-confidence signals available.</li>
+        <li>No additional confidence-reducing signals were recorded for this unknown result.</li>
         {% endfor %}
       </ul>
     </div>

@@ -60,7 +60,9 @@ def _derive_unknown_reason_signals(
     if isinstance(summary, str):
         lowered = summary.lower()
         if "insufficient evidence" in lowered or "no policy deny" in lowered:
-            signals.append("no authoritative deny evidence found")
+            signals.append(
+                "No authoritative deny evidence was found; this is not confirmation that access is allowed."
+            )
 
     readiness = report.get("source_readiness")
     if isinstance(readiness, dict):
@@ -70,12 +72,12 @@ def _derive_unknown_reason_signals(
                 readiness_incomplete = True
                 break
         if readiness_incomplete:
-            signals.append("source readiness incomplete")
+            signals.append("One or more data sources were degraded or unavailable, which reduced confidence.")
 
     if path_confidence < 0.5:
-        signals.append("path context confidence low")
+        signals.append("Path context confidence is low, so route or policy context may be incomplete.")
     if evidence_completeness < 0.6:
-        signals.append("evidence incomplete")
+        signals.append("Bounded checks were inconclusive or incomplete for this time window.")
 
     return list(dict.fromkeys(signals))
 

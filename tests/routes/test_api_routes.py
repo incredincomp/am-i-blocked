@@ -475,10 +475,10 @@ class TestGetResult:
                 "evidence_completeness": 0.3,
                 "summary": "Insufficient evidence.",
                 "unknown_reason_signals": [
-                    "no authoritative deny evidence found",
-                    "source readiness incomplete",
-                    "path context confidence low",
-                    "evidence incomplete",
+                    "No authoritative deny evidence was found; this is not confirmation that access is allowed.",
+                    "One or more data sources were degraded or unavailable, which reduced confidence.",
+                    "Path context confidence is low, so route or policy context may be incomplete.",
+                    "Bounded checks were inconclusive or incomplete for this time window.",
                 ],
                 "observed_facts": [],
                 "routing_recommendation": {
@@ -493,10 +493,10 @@ class TestGetResult:
 
         assert resp.status_code == 200
         assert resp.json()["unknown_reason_signals"] == [
-            "no authoritative deny evidence found",
-            "source readiness incomplete",
-            "path context confidence low",
-            "evidence incomplete",
+            "No authoritative deny evidence was found; this is not confirmation that access is allowed.",
+            "One or more data sources were degraded or unavailable, which reduced confidence.",
+            "Path context confidence is low, so route or policy context may be incomplete.",
+            "Bounded checks were inconclusive or incomplete for this time window.",
         ]
 
     def test_result_includes_source_readiness_summary(self, client):
@@ -667,7 +667,9 @@ class TestUIRoutes:
                 "result_confidence": 0.2,
                 "evidence_completeness": 0.3,
                 "summary": "Insufficient evidence.",
-                "unknown_reason_signals": ["source readiness incomplete"],
+                "unknown_reason_signals": [
+                    "One or more data sources were degraded or unavailable, which reduced confidence."
+                ],
                 "source_readiness_summary": {
                     "total_sources": 3,
                     "available_sources": ["panos"],
@@ -718,7 +720,9 @@ class TestUIRoutes:
                 "result_confidence": 0.2,
                 "evidence_completeness": 0.3,
                 "summary": "Insufficient evidence.",
-                "unknown_reason_signals": ["source readiness incomplete"],
+                "unknown_reason_signals": [
+                    "One or more data sources were degraded or unavailable, which reduced confidence."
+                ],
                 "source_readiness_summary": {
                     "total_sources": 2,
                     "available_sources": ["panos"],
@@ -982,8 +986,8 @@ class TestUIRoutes:
                 "evidence_completeness": 0.3,
                 "summary": "Insufficient evidence.",
                 "unknown_reason_signals": [
-                    "no authoritative deny evidence found",
-                    "path context confidence low",
+                    "No authoritative deny evidence was found; this is not confirmation that access is allowed.",
+                    "Path context confidence is low, so route or policy context may be incomplete.",
                 ],
                 "observed_facts": [],
                 "routing_recommendation": {
@@ -997,11 +1001,17 @@ class TestUIRoutes:
             resp = client.get(f"/requests/{request_id}")
 
         assert resp.status_code == 200
-        assert "Why unknown" in resp.text
+        assert "Why this is unknown" in resp.text
+        assert "Unknown is not the same as allowed. A missing deny signal is not proof of allow." in resp.text
         assert "Path confidence: <strong>20%</strong>" in resp.text
         assert "Evidence completeness: <strong>30%</strong>" in resp.text
-        assert "<li>no authoritative deny evidence found</li>" in resp.text
-        assert "<li>path context confidence low</li>" in resp.text
+        assert (
+            "<li>No authoritative deny evidence was found; this is not confirmation that access is allowed.</li>"
+            in resp.text
+        )
+        assert (
+            "<li>Path context confidence is low, so route or policy context may be incomplete.</li>" in resp.text
+        )
 
     def test_request_page_unknown_without_reason_signals_uses_fallback_message(self, client):
         request_id = "92929292-9292-9292-9292-929292929292"
@@ -1044,8 +1054,10 @@ class TestUIRoutes:
             resp = client.get(f"/requests/{request_id}")
 
         assert resp.status_code == 200
-        assert "Why unknown" in resp.text
-        assert "No additional unknown-confidence signals available." in resp.text
+        assert "Why this is unknown" in resp.text
+        assert (
+            "No additional confidence-reducing signals were recorded for this unknown result." in resp.text
+        )
 
     def test_request_page_renders_panos_rule_metadata_when_present(self, client):
         request_id = "98989898-9898-9898-9898-989898989898"
@@ -1283,10 +1295,10 @@ class TestLoadResultRecordConfidenceFallback:
 
         assert result is not None
         assert result.unknown_reason_signals == [
-            "no authoritative deny evidence found",
-            "source readiness incomplete",
-            "path context confidence low",
-            "evidence incomplete",
+            "No authoritative deny evidence was found; this is not confirmation that access is allowed.",
+            "One or more data sources were degraded or unavailable, which reduced confidence.",
+            "Path context confidence is low, so route or policy context may be incomplete.",
+            "Bounded checks were inconclusive or incomplete for this time window.",
         ]
         assert result.source_readiness_summary.total_sources == 1
         assert result.source_readiness_summary.unavailable_sources == ["panos"]

@@ -175,6 +175,7 @@ Retrieve the diagnostic result for a completed request.
 
 Per-source readiness diagnostics remain in persisted `report_json.source_readiness` and may include source-specific `status` values (for example SCM, SD-WAN, Torq, and LogScale: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
 `source_readiness_details` is a compact presentation-safe list derived from that persisted readiness object and includes `source`, normalized `status`, optional `reason`, and optional `latency_ms`.
+For `verdict="unknown"`, API responses may include `unknown_reason_signals` as operator-facing explainability hints (for example low path confidence, degraded source readiness, or inconclusive bounded checks). These hints are descriptive only and do not change verdict authority semantics.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
 

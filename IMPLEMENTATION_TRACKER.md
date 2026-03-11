@@ -12,7 +12,7 @@ Deliver the MVP single-destination flow that returns `allowed | denied | unknown
 
 ## Current Phase
 
-MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, minimal unknown-confidence explainability in place, and fixture-based PAN-OS parser-shape verification plus version-aware fixture-capture tooling completed with minimal query-token reconciliation aligned to real-capture evidence.
+MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, and unknown-confidence explainability wording tightened for operator clarity, plus fixture-based PAN-OS parser-shape verification and version-aware fixture-capture tooling completed with minimal query-token reconciliation aligned to real-capture evidence.
 
 Current PAN-OS evidence focus: **observability-gated token validation** for `11.0.6-h1` with one completed fresh-row-coupled Stage 1/Stage 2 success pair (`deny-hit-udp-obsgate-stage1_20260311T052621Z`, `deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z`).
 
@@ -667,6 +667,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Implemented bounded SD-WAN adapter readiness probe and mapped explicit readiness states into persisted `report_json.source_readiness`; scope remained readiness-only with no SD-WAN evidence-query expansion.
 - 2026-03-11: Implemented bounded Torq adapter readiness probe and mapped explicit readiness states into persisted `report_json.source_readiness`; scope remained readiness-only with no Torq workflow/execution expansion.
 - 2026-03-11: Implemented bounded LogScale adapter readiness probe and mapped explicit readiness states into persisted `report_json.source_readiness`; scope remained readiness-only with no LogScale query/evidence expansion, and enrichment-only authority boundaries were preserved.
+- 2026-03-11: Tightened unknown-confidence explainability wording in API/UI to distinguish missing authoritative deny evidence, degraded source readiness, low path confidence, and inconclusive bounded checks; this pass is presentation-only and does not alter verdict logic/classifier/source-readiness behavior.
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -731,7 +732,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Validate unknown-confidence explainability wording with operators and tighten thresholds/messages if needed (explainability-only, no verdict authority changes).
+Collect operator feedback on tightened unknown-confidence wording using real persisted unknown results, then adjust copy only if needed (no verdict/classifier/readiness logic changes).
 
 ## Deferred / Later
 
