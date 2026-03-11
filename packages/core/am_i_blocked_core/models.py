@@ -119,6 +119,15 @@ class SourceReadinessSummary(BaseModel):
     unknown_sources: list[str] = Field(default_factory=list)
 
 
+class SourceReadinessDetail(BaseModel):
+    """Per-source readiness status/detail for operator diagnostics."""
+
+    source: str
+    status: str
+    reason: str | None = None
+    latency_ms: int | None = None
+
+
 class DiagnosticResult(BaseModel):
     request_id: uuid.UUID
     verdict: Verdict
@@ -130,6 +139,7 @@ class DiagnosticResult(BaseModel):
     summary: str
     unknown_reason_signals: list[str] = Field(default_factory=list)
     source_readiness_summary: SourceReadinessSummary = Field(default_factory=SourceReadinessSummary)
+    source_readiness_details: list[SourceReadinessDetail] = Field(default_factory=list)
     observed_facts: list[ObservedFact] = Field(default_factory=list)
     routing_recommendation: RoutingRecommendation
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))

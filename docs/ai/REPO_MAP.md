@@ -159,6 +159,8 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
   - `unknown_reason_signals` (list of short strings; populated for unknown verdicts when available)
 - Diagnostic result now includes a compact additive readiness field:
   - `source_readiness_summary` (`total_sources`, `available_sources`, `unavailable_sources`, `unknown_sources`)
+- Diagnostic result now includes a compact per-source readiness field:
+  - `source_readiness_details` (list of `source`, `status`, optional `reason`, optional `latency_ms`), derived from persisted `report_json.source_readiness`
 - `docs/api.md` now also includes `RequestDetail` failed-state response examples documenting:
   - `failure_reason`
   - `failure_stage`

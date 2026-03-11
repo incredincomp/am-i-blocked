@@ -105,6 +105,23 @@
       <p style="font-size:0.88rem; color:#166534;">No unavailable sources reported.</p>
       {% endif %}
     </div>
+    <div class="section">
+      <h3>Source readiness details</h3>
+      {% if result.source_readiness_details %}
+      {% for item in result.source_readiness_details %}
+      <div class="evidence-card">
+        <div class="ev-source">{{ item.source }}</div>
+        <div class="ev-summary">
+          Status: <strong>{{ item.status }}</strong>
+          {% if item.reason %}<span> | Reason: {{ item.reason }}</span>{% endif %}
+          {% if item.latency_ms is not none %}<span> | Latency: {{ item.latency_ms }} ms</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p style="font-size:0.88rem; color:#64748b;">No per-source readiness details available.</p>
+      {% endif %}
+    </div>
     {% if result.verdict == "unknown" %}
     <div class="section">
       <h3>Why unknown</h3>

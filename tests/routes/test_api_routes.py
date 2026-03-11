@@ -550,6 +550,66 @@ class TestGetResult:
         assert summary["total_sources"] == 4
         assert summary["unavailable_sources"] == ["scm", "sdwan"]
 
+    def test_result_includes_source_readiness_details(self, client):
+        request_id = "57575757-5757-5757-5757-575757575757"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.4,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.3,
+                "summary": "Insufficient evidence.",
+                "source_readiness_summary": {
+                    "total_sources": 2,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": ["scm"],
+                    "unknown_sources": [],
+                },
+                "source_readiness_details": [
+                    {
+                        "source": "scm",
+                        "status": "auth_failed",
+                        "reason": "SCM auth failed (401)",
+                        "latency_ms": 14,
+                    },
+                ],
+                "unknown_reason_signals": [],
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        details = resp.json()["source_readiness_details"]
+        assert len(details) == 1
+        assert details[0]["source"] == "scm"
+        assert details[0]["status"] == "auth_failed"
+
 
 class TestUIRoutes:
     def test_index_returns_html(self, client):
@@ -629,6 +689,114 @@ class TestUIRoutes:
         assert "Source readiness" in resp.text
         assert "Sources checked:" in resp.text
         assert "Unavailable: scm" in resp.text
+
+    def test_request_page_renders_source_readiness_details(self, client):
+        request_id = "68686868-6868-6868-6868-686868686868"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.3,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": ["source readiness incomplete"],
+                "source_readiness_summary": {
+                    "total_sources": 2,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": ["scm"],
+                    "unknown_sources": [],
+                },
+                "source_readiness_details": [
+                    {
+                        "source": "scm",
+                        "status": "timeout",
+                        "reason": "SCM auth probe timed out",
+                        "latency_ms": None,
+                    }
+                ],
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Source readiness details" in resp.text
+        assert "Status: <strong>timeout</strong>" in resp.text
+        assert "Reason: SCM auth probe timed out" in resp.text
+
+    def test_request_page_handles_missing_source_readiness_details(self, client):
+        request_id = "69696969-6969-6969-6969-696969696969"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.3,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 0,
+                    "available_sources": [],
+                    "unavailable_sources": [],
+                    "unknown_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "No per-source readiness details available." in resp.text
 
     def test_request_page_unknown_returns_404(self, client):
         resp = client.get("/requests/00000000-0000-0000-0000-000000000002")
@@ -1122,6 +1290,9 @@ class TestLoadResultRecordConfidenceFallback:
         ]
         assert result.source_readiness_summary.total_sources == 1
         assert result.source_readiness_summary.unavailable_sources == ["panos"]
+        assert len(result.source_readiness_details) == 1
+        assert result.source_readiness_details[0].source == "panos"
+        assert result.source_readiness_details[0].status == "unavailable"
 
     @pytest.mark.anyio
     async def test_load_result_record_unknown_handles_missing_or_malformed_confidence_values(self):
@@ -1166,3 +1337,52 @@ class TestLoadResultRecordConfidenceFallback:
         assert result.result_confidence == 0.0
         assert result.unknown_reason_signals == ["custom reason"]
         assert result.source_readiness_summary.total_sources == 0
+        assert result.source_readiness_details == []
+
+    @pytest.mark.anyio
+    async def test_load_result_record_handles_partial_or_malformed_readiness_entries(self):
+        request_id = uuid.UUID("33333333-4444-5555-6666-777777777777")
+        row = api_routes.ResultRow(
+            request_id=request_id,
+            verdict="unknown",
+            owner_team="Unknown",
+            result_confidence=0.1,
+            evidence_completeness=0.1,
+            summary="Insufficient evidence.",
+            next_steps_json=[],
+            report_json={
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.1,
+                "source_readiness": {
+                    "scm": {"status": "auth_failed", "reason": "bad token"},
+                    "panos": {"available": True},
+                    "logscale": {"latency_ms": 7},
+                    "torq": "bad-shape",
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "generated_at": "2026-03-08T00:00:00Z",
+            },
+        )
+
+        with patch(
+            "am_i_blocked_api.routes.api.get_settings",
+            return_value=SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        ), patch(
+            "am_i_blocked_api.routes.api._get_session_factory",
+            return_value=_fake_result_session_factory(row),
+        ):
+            result = await _ORIG_LOAD_RESULT_RECORD(request_id)
+
+        assert result is not None
+        details = {item.source: item for item in result.source_readiness_details}
+        assert details["scm"].status == "auth_failed"
+        assert details["scm"].reason == "bad token"
+        assert details["panos"].status == "ready"
+        assert details["logscale"].status == "unknown"
+        assert "torq" not in details

@@ -117,6 +117,54 @@ def _summarize_source_readiness(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_source_readiness_details(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build compact per-source readiness entries for operator rendering."""
+    readiness = report.get("source_readiness")
+    if not isinstance(readiness, dict):
+        return []
+
+    details: list[dict[str, Any]] = []
+    for source, value in sorted(readiness.items()):
+        if not isinstance(source, str) or not source.strip():
+            continue
+        if not isinstance(value, dict):
+            continue
+
+        has_meaningful_data = any(
+            key in value for key in ("status", "reason", "available", "latency_ms")
+        )
+        if not has_meaningful_data:
+            continue
+
+        status_raw = value.get("status")
+        if isinstance(status_raw, str) and status_raw.strip():
+            status = status_raw.strip()
+        else:
+            available = value.get("available")
+            if available is True:
+                status = "ready"
+            elif available is False:
+                status = "unavailable"
+            else:
+                status = "unknown"
+
+        reason_raw = value.get("reason")
+        reason = reason_raw.strip() if isinstance(reason_raw, str) and reason_raw.strip() else None
+
+        latency = value.get("latency_ms")
+        latency_ms = latency if isinstance(latency, int) and latency >= 0 else None
+
+        details.append(
+            {
+                "source": source.strip(),
+                "status": status,
+                "reason": reason,
+                "latency_ms": latency_ms,
+            }
+        )
+    return details
+
+
 def _get_session_factory(database_url: str) -> async_sessionmaker:
     if database_url not in _sessions:
         if database_url not in _engines:
@@ -377,6 +425,7 @@ async def _load_result_record(request_id: uuid.UUID) -> DiagnosticResult | None:
             "summary": row.summary,
             "unknown_reason_signals": unknown_reason_signals,
             "source_readiness_summary": _summarize_source_readiness(report),
+            "source_readiness_details": _build_source_readiness_details(report),
             "observed_facts": report.get("observed_facts", []),
             "routing_recommendation": report.get(
                 "routing_recommendation",

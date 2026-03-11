@@ -140,6 +140,14 @@ Retrieve the diagnostic result for a completed request.
     "unavailable_sources": ["scm"],
     "unknown_sources": ["torq"]
   },
+  "source_readiness_details": [
+    {
+      "source": "scm",
+      "status": "auth_failed",
+      "reason": "SCM auth failed (401)",
+      "latency_ms": 14
+    }
+  ],
   "observed_facts": [
     {
       "source": "scm",
@@ -166,6 +174,7 @@ Retrieve the diagnostic result for a completed request.
 - `unknown_sources`: sources with malformed/missing readiness state
 
 Per-source readiness diagnostics remain in persisted `report_json.source_readiness` and may include source-specific `status` values (for example SCM: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
+`source_readiness_details` is a compact presentation-safe list derived from that persisted readiness object and includes `source`, normalized `status`, optional `reason`, and optional `latency_ms`.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
 
