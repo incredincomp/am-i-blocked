@@ -277,6 +277,7 @@ Only durable, implementation-relevant facts belong here.
 - Worker should be the only service that talks to Torq.
 - Store execution IDs in evidence or enrichment records if Torq is used.
 - Treat Torq failures as enrichment failures, not primary diagnostic failures.
+- Current repo Torq readiness implementation is bounded to one authenticated probe request against configured Torq API base URL and reports explicit readiness states (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`); this is readiness-only and does not trigger workflows.
 
 #### Do not assume
 - Torq is required for MVP verdict generation

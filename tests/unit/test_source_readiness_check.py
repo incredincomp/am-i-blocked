@@ -27,6 +27,7 @@ def _settings(**overrides):
         "sdwan_verify_ssl": False,
         "torq_client_id": None,
         "torq_client_secret": None,
+        "torq_api_base_url": "https://api.torq.io",
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -130,3 +131,38 @@ async def test_readiness_sdwan_not_configured_comes_from_adapter():
     sdwan = report.to_dict()["sdwan"]
     assert sdwan["available"] is False
     assert sdwan["status"] == "not_configured"
+
+
+@pytest.mark.anyio
+async def test_readiness_uses_torq_adapter_when_configured():
+    settings = _settings(
+        torq_client_id="cid",
+        torq_client_secret="sec",
+        torq_api_base_url="https://api.torq.example.com",
+    )
+    with patch(
+        "am_i_blocked_adapters.torq.TorqAdapter.check_readiness",
+        new_callable=AsyncMock,
+        return_value={
+            "available": False,
+            "status": "unauthorized",
+            "reason": "Torq auth unauthorized (403)",
+            "latency_ms": 7,
+        },
+    ) as readiness:
+        report = await source_readiness_check.run(settings)
+
+    readiness.assert_awaited_once()
+    torq = report.to_dict()["torq"]
+    assert torq["status"] == "unauthorized"
+    assert torq["available"] is False
+    assert "torq" not in report.available_sources
+
+
+@pytest.mark.anyio
+async def test_readiness_torq_not_configured_comes_from_adapter():
+    settings = _settings()
+    report = await source_readiness_check.run(settings)
+    torq = report.to_dict()["torq"]
+    assert torq["available"] is False
+    assert torq["status"] == "not_configured"

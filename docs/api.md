@@ -173,7 +173,7 @@ Retrieve the diagnostic result for a completed request.
 - `unavailable_sources`: sources reporting `available=false`
 - `unknown_sources`: sources with malformed/missing readiness state
 
-Per-source readiness diagnostics remain in persisted `report_json.source_readiness` and may include source-specific `status` values (for example SCM and SD-WAN: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
+Per-source readiness diagnostics remain in persisted `report_json.source_readiness` and may include source-specific `status` values (for example SCM, SD-WAN, and Torq: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
 `source_readiness_details` is a compact presentation-safe list derived from that persisted readiness object and includes `source`, normalized `status`, optional `reason`, and optional `latency_ms`.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
