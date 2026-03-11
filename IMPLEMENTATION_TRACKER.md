@@ -339,6 +339,14 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
   - `VALIDATION_RESULT.json`: `observability_hit=false`, `matched_entry_count=0`, `reason_if_not_validated=no_qualifying_deny_row`
   - Stage 2 execution: not run by orchestrator (no qualifying Stage 1 deny row)
   - impact: no new token promotion; broader distinct-scenario behavior for `addr.dst`/`dport` remains `UNVERIFIED`.
+- 2026-03-11: Executed one additional bounded distinct-signature orchestrator run with materially improved correlation inputs and machine-state gating:
+  - command path: `scripts/panos_observe_and_validate.py` only (no ad hoc Stage 1/2 bypass)
+  - distinct signature: `src=10.1.99.3`, `dst=10.1.20.21`, `dport=30053`, `app=not-applicable`, `rule=interzone-default`, `action=deny`, `session_end_reason=policy-deny`, zones `management->servers`
+  - improved inputs supplied: `--session-id 0`, `--ui-filter-string "!( action eq 'allow' )"`, `--manual-observability-template docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`
+  - loop-breaker state: not triggered (`blocked=false`, `prior_no_hit_count=0`, `improved_correlation_input=true`)
+  - resulting fixture: `deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z`
+  - result outcome: `observability_hit=false`, `matched_entry_count=0`, `reason_if_not_validated=no_qualifying_deny_row`, no Stage 2 token validation
+  - impact: no new token promotion; broader distinct-scenario behavior for `addr.dst`/`dport` remains `UNVERIFIED`.
 - 2026-03-11: Added bounded orchestration workflow entrypoint `scripts/panos_observe_and_validate.py`:
   - generates bounded source traffic over SSH (or fails closed with one exact operator command if SSH unavailable),
   - runs Stage 1 broad deny observability sweep while traffic is active,
@@ -489,6 +497,9 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Ran `python3 -m py_compile scripts/panos_observe_and_validate.py tests/fixtures/test_panos_observe_and_validate.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_observe_and_validate.py` (pass, 7 tests).
 - 2026-03-11: Ran `uv run ruff check scripts/panos_observe_and_validate.py tests/fixtures/test_panos_observe_and_validate.py` (pass).
+- 2026-03-11: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh && python3 -m py_compile scripts/panos_observe_and_validate.py` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 14 tests).
+- 2026-03-11: Ran `uv run ruff check scripts/panos_observe_and_validate.py` (pass).
 
 ## Iteration Journal
 
@@ -549,7 +560,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Run one bounded orchestrator attempt for a distinct signature and rely on the latest `OBSERVABILITY_RECORD.json` loop-breaker/gating state first; only add manual template evidence if correlation quality needs improvement (for example session ID or exact UI filter string).
+Use the latest distinct-scenario `OBSERVABILITY_RECORD.json` as the sole rerun gate; do not rerun the same signature until correlation quality materially improves again (for example corrected session ID/filter evidence or a materially changed distinct signature).
 
 ## Deferred / Later
 

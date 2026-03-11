@@ -1,0 +1,74 @@
+{
+  "action": "deny",
+  "addr_dst_validated": false,
+  "app": "not-applicable",
+  "attempt_signature": {
+    "components": {
+      "action": "deny",
+      "app": "not-applicable",
+      "destination_ip": "10.1.20.21",
+      "destination_port": 30053,
+      "lookback_window_class": "medium",
+      "panos_version": "11.0.6-h1",
+      "rule": "interzone-default",
+      "scenario_name": "deny-hit-tcp-distinct-observe-validate",
+      "session_end_reason": "policy-deny",
+      "source_ip": "10.1.99.3",
+      "traffic_generation_mode": "ssh_custom_command",
+      "zone_dst": "servers",
+      "zone_src": "management"
+    },
+    "key": "{\"action\": \"deny\", \"app\": \"not-applicable\", \"destination_ip\": \"10.1.20.21\", \"destination_port\": 30053, \"lookback_window_class\": \"medium\", \"panos_version\": \"unknown\", \"rule\": \"interzone-default\", \"scenario_name\": \"deny-hit-tcp-distinct-observe-validate\", \"session_end_reason\": \"policy-deny\", \"source_ip\": \"10.1.99.3\", \"traffic_generation_mode\": \"ssh_custom_command\", \"zone_dst\": \"servers\", \"zone_src\": \"management\"}"
+  },
+  "best_match_entry_summary": {},
+  "best_match_timestamp": null,
+  "capture_dirs": {
+    "stage1": "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z"
+  },
+  "capture_provenance": "real_capture",
+  "correlation_confidence": "low",
+  "destination_ip": "10.1.20.21",
+  "destination_port": 30053,
+  "dport_validated": false,
+  "lookback_minutes": 15,
+  "loop_breaker_state": {
+    "blocked": false,
+    "current_correlation_score": 5,
+    "improved_correlation_input": true,
+    "matching_record_paths": [],
+    "max_prior_correlation_score": 0,
+    "prior_matching_attempt_count": 0,
+    "prior_no_hit_count": 0,
+    "reason": "not_triggered",
+    "threshold": 2
+  },
+  "manual_observability": {
+    "freshness_note": "Immediately after running the nc test to 10.1.20.21:30053 from 10.1.99.3, a deny traffic log appeared showing src=10.1.99.3, dst=10.1.20.21, dport=30053, action=deny, rule=interzone-default, and session end reason=policy-deny at 2026/03/10 23:36:42.",
+    "path": "docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md",
+    "present": true,
+    "session_id": "78` (field-label confirmation pending)",
+    "ui_filter_string": "not captured"
+  },
+  "matched_entry_count": 0,
+  "observability_hit": false,
+  "operator_traffic_command": "ssh root@10.1.99.3 'bash -lc '\"'\"'end=60; while [ 0 -lt  ]; do nc -vz -w 3 10.1.20.21 30053 >/dev/null 2>&1 || true; sleep 0.5; done'\"'\"''",
+  "panos_version": "11.0.6-h1",
+  "queries": {
+    "stage1": "(addr.src eq 10.1.99.3) and (from eq management) and (to eq servers) and (app eq not-applicable) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '2026/03/11 14:57:50')"
+  },
+  "reason_if_not_validated": "no_qualifying_deny_row",
+  "rule": "interzone-default",
+  "run_decision": "stop_observability_failed",
+  "run_finished_at": "2026-03-11T15:12:58.241730Z",
+  "run_started_at": "2026-03-11T15:12:49.903944Z",
+  "scenario_name": "deny-hit-tcp-distinct-observe-validate",
+  "session_end_reason": "policy-deny",
+  "session_id": "0",
+  "source_ip": "10.1.99.3",
+  "traffic_generation_executed": true,
+  "traffic_generation_mode": "ssh_custom_command",
+  "ui_filter_string": "!( action eq 'allow' )",
+  "validated_tokens": [],
+  "zone_dst": "servers",
+  "zone_src": "management"
+}
