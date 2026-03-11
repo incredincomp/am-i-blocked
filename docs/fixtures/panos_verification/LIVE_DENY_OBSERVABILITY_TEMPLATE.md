@@ -7,6 +7,11 @@ Primary per-run gate now lives in machine-written `OBSERVABILITY_RECORD.json` fr
 UI/CLI context (for example session ID or exact Monitor filter string) that is not already
 captured by orchestrator artifacts.
 
+Preferred machine path for future runs:
+- normalize evidence into `OBSERVABILITY_INPUT.json` via `scripts/prepare_panos_observability_input.py`
+- provide that artifact to orchestrator with `--observability-input`
+- keep this markdown template as optional/manual support only
+
 Goal: prove whether the just-generated deny traffic is visible in live Traffic logs, and capture the exact observed signature.
 
 ## Run Header
@@ -35,6 +40,31 @@ Goal: prove whether the just-generated deny traffic is visible in live Traffic l
 - Session ID (if shown): `0`
 - Exact Monitor filter string used (if shown): `!( action eq 'allow' )`
 - Freshness note tying row to this reproduction: `Immediately after running the nc test to 10.1.20.21:30053 from 10.1.99.3, a deny traffic log appeared showing src=10.1.99.3, dst=10.1.20.21, dport=30053, action=deny, rule=interzone-default, and session end reason=policy-deny at 2026/03/10 23:36:42.`
+
+## Convert to OBSERVABILITY_INPUT.json (Preferred)
+
+After filling this template, convert the strongest fields into machine-readable input:
+
+```sh
+./scripts/prepare_panos_observability_input.py \
+  --panos-version "11.0.6-h1" \
+  --session-id "0" \
+  --ui-filter-string "!( action eq 'allow' )" \
+  --source-ip "10.1.99.3" \
+  --destination-ip "10.1.20.21" \
+  --destination-port "30053" \
+  --app "not-applicable" \
+  --action "deny" \
+  --rule "interzone-default" \
+  --session-end-reason "policy-deny" \
+  --zone-src "management" \
+  --zone-dst "servers" \
+  --type-detail "drop" \
+  --row-timestamp "2026/03/10 23:36:42" \
+  --freshness-note "deny row seen immediately after reproduction" \
+  --evidence-origin "structured_row" \
+  --out "docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json"
+```
 
 ## Optional additional fields observed in the log view
 

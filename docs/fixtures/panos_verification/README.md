@@ -16,6 +16,8 @@ In all cases, samples are verification artifacts, not production truth by themse
 Primary gate is now machine-recorded by the orchestrator:
 
 - `OBSERVABILITY_RECORD.json` (always written by `scripts/panos_observe_and_validate.py`)
+- Preferred pre-run correlation input when stronger evidence exists:
+  - `OBSERVABILITY_INPUT.json` (prepared via `scripts/prepare_panos_observability_input.py`)
 
 Optional supplemental/manual evidence:
 
@@ -181,6 +183,11 @@ Use `scripts/panos_observe_and_validate.py` to run one bounded workflow end-to-e
 4. run independent token subqueries (`addr.dst` and `dport`) only when Stage 1 finds a qualifying row,
 5. write `OBSERVABILITY_RECORD.json` and `VALIDATION_RESULT.json` in the Stage 1 capture directory (or fallback preflight directory on early stop).
 
+When correlation evidence is available, prepare and provide `OBSERVABILITY_INPUT.json`:
+- preferred strong signals: `session_id`, exact `ui_filter_string`, and structured row export fields
+- if the artifact is marked not-ready/low-confidence, orchestrator preflight fails closed
+- repeated no-hit retries for materially identical signatures require ready `OBSERVABILITY_INPUT.json`
+
 The orchestrator delegates PAN-OS API capture to `gather_panos_fixtures.sh`, so read-only guardrails remain enforced through `scripts/panos_readonly_guard.sh`.
 
 Example:
@@ -202,7 +209,18 @@ Example:
   --session-end-reason "policy-deny" \
   --zone-src "management" \
   --zone-dst "servers" \
+  --observability-input "docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json" \
   --lookback-minutes 15
+```
+
+Prepare observability input artifact example:
+
+```sh
+./scripts/prepare_panos_observability_input.py \
+  --row-json /path/to/ui_row.json \
+  --evidence-origin ui_json_export \
+  --freshness-note "row observed immediately after reproduction" \
+  --out docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json
 ```
 
 `VALIDATION_RESULT.json` includes machine-readable fields such as:

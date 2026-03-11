@@ -16,6 +16,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `docs` and `docs/ai`: architecture and agent-grounding docs.
 - `docs/fixtures/panos_verification`: sanitized PAN-OS XML verification fixture pack templates plus versioned evidence-capture folders (`versions/<panos_version>/<capture_label>_<timestamp>/`).
 - `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`: optional manual observability supplement (not required for every orchestrator run).
+- `docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json`: preferred machine-readable pre-run correlation artifact for stronger observability evidence.
 
 ## Package Import Names
 
@@ -82,6 +83,8 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/fixtures/test_panos_observe_and_validate.py`: orchestration logic tests for bounded observe-and-validate flow (freshest deny-row matching, always-written observability records, SSH-unavailable/no-hit fail-closed behavior, loop-breaker gating, optional manual template handling, and token-result handling).
 - `scripts/gather_panos_fixtures.sh`: helper to capture sanitized PAN-OS XML samples, write versioned fixture packs, and mirror canonical required fixture files.
 - `scripts/panos_observe_and_validate.py`: bounded one-shot orchestrator that runs source-host traffic generation + Stage 1 observability sweep + Stage 2 token subqueries (`addr.dst` and `dport`) and writes both `OBSERVABILITY_RECORD.json` (primary run-state/gating artifact) and `VALIDATION_RESULT.json`.
+- `scripts/panos_observe_and_validate.py`: supports optional `--observability-input` preflight gating; when repeated no-hit signatures exist, ready `OBSERVABILITY_INPUT.json` is required for retried identical signatures.
+- `scripts/prepare_panos_observability_input.py`: helper to normalize session/filter/structured row evidence (manual, CSV, or JSON input) into `OBSERVABILITY_INPUT.json` with readiness/confidence flags.
 - `scripts/summarize_panos_observability.py`: offline artifact summarizer that classifies versioned PAN-OS verification runs and writes coverage outputs (`OBSERVABILITY_COVERAGE.json` and `OBSERVABILITY_COVERAGE.md`) without making live PAN-OS calls.
 - `scripts/panos_readonly_guard.sh`: read-only PAN-OS XML request allowlist guard used by fixture collection harness and testable via `--assert`.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
@@ -112,7 +115,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - PAN-OS traffic-log field-name guidance for future validation is `sport`, `dport`, `natsport`, `natdport`; `port.src`/`port.dst` are not default candidates.
 - PAN-OS runtime query construction now uses `addr.dst` + `dport` for destination filtering in the adapter query builder, aligned to scenario-scoped `11.0.6-h1` UDP deny real-capture evidence.
 - PAN-OS one-shot orchestration now supports bounded observability-first validation in a single run while preserving fail-closed semantics: Stage 2 token checks run only when Stage 1 captures a qualifying deny row.
-- Orchestrator loop-breaker state is machine-recorded and enforced for repeated no-hit retries on materially identical attempt signatures.
+- Orchestrator loop-breaker state is machine-recorded and enforced for repeated no-hit retries on materially identical attempt signatures, and repeated retries now require ready `OBSERVABILITY_INPUT.json` as the preferred evidence-quality improvement path.
 - PAN-OS metadata XPath shape remains explicitly `UNVERIFIED`/version-dependent pending target-environment capture; no PAN-OS version pin/source file exists in repo config today.
 - PAN-OS fixture pack currently validates parser shape expectations (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`) but does not independently verify version-specific query-field/XPath correctness.
 - Fixture helper supports explicit capture labels, optional destination/port/time-window query generation, API-key or keygen-based auth (`--username`/`--password` fallback), and per-capture metadata manifests with required trust fields (`capture_provenance`, `verification_scope`, `panos_version_source`).

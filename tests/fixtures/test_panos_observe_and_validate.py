@@ -74,7 +74,14 @@ class _FakeBackend:
         return self.captures_by_label[label]
 
 
-def _make_cfg(m, tmp_path: Path, *, session_id: str | None = None, manual_template: Path | None = None):
+def _make_cfg(
+    m,
+    tmp_path: Path,
+    *,
+    session_id: str | None = None,
+    manual_template: Path | None = None,
+    observability_input: Path | None = None,
+):
     return m.RunConfig(
         host="10.1.99.1",
         rule_xpath="/config/devices/entry/vsys/entry/rulebase/security/rules",
@@ -103,9 +110,39 @@ def _make_cfg(m, tmp_path: Path, *, session_id: str | None = None, manual_templa
         password=None,
         session_id=session_id,
         ui_filter_string=None,
+        observability_input=observability_input,
         manual_observability_template=manual_template,
         no_hit_loop_threshold=2,
     )
+
+
+def _write_observability_input(path: Path, *, ready: bool, confidence: str, session_id: str | None, ui_filter: str | None) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "panos_version": "11.0.6-h1",
+        "source": "test",
+        "created_at": "2026-03-11T00:00:00Z",
+        "correlation_confidence": confidence,
+        "session_id": session_id,
+        "ui_filter_string": ui_filter,
+        "source_ip": "10.1.99.3",
+        "destination_ip": "10.1.20.21",
+        "destination_port": 30053,
+        "app": "not-applicable",
+        "action": "deny",
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "zone_src": "management",
+        "zone_dst": "servers",
+        "type_detail": "drop",
+        "row_timestamp": "2026/03/10 23:36:42",
+        "freshness_note": "test freshness",
+        "evidence_origin": "ui_json_export",
+        "distinct_signature_family": "10.1.99.3|10.1.20.21|30053|not-applicable|interzone-default|policy-deny|management|servers",
+        "ready_for_orchestrator": ready,
+        "why_not_ready": None if ready else ["correlation_signals_too_weak"],
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def test_pick_freshest_match_prefers_latest_matching_entry() -> None:
@@ -264,7 +301,15 @@ def test_loop_breaker_blocks_repeated_no_hit_identical_signature(tmp_path: Path)
 
 def test_loop_breaker_allows_retry_with_improved_correlation_input(tmp_path: Path) -> None:
     m = _load_module()
-    cfg = _make_cfg(m, tmp_path, session_id="78")
+    obs_input = tmp_path / "OBSERVABILITY_INPUT.json"
+    _write_observability_input(
+        obs_input,
+        ready=True,
+        confidence="high",
+        session_id="78",
+        ui_filter="!( action eq 'allow' )",
+    )
+    cfg = _make_cfg(m, tmp_path, observability_input=obs_input)
     attempt_signature = m.build_attempt_signature(cfg)
 
     for idx in (1, 2):
@@ -299,6 +344,55 @@ def test_loop_breaker_allows_retry_with_improved_correlation_input(tmp_path: Pat
     assert code == 11
     assert result["reason_if_not_validated"] == "no_qualifying_deny_row"
     assert backend.start_calls == 1
+    assert result["observability_input"]["ready_for_orchestrator"] is True
+
+
+def test_orchestrate_fails_closed_when_observability_input_not_ready(tmp_path: Path) -> None:
+    m = _load_module()
+    obs_input = tmp_path / "OBSERVABILITY_INPUT.json"
+    _write_observability_input(
+        obs_input,
+        ready=False,
+        confidence="low",
+        session_id=None,
+        ui_filter=None,
+    )
+    cfg = _make_cfg(m, tmp_path, observability_input=obs_input)
+
+    backend = _FakeBackend(captures_by_label={}, ssh_ok=True)
+    result, code = m.orchestrate(cfg, backend)
+    assert code == 15
+    assert result["reason_if_not_validated"] == "observability_input_not_ready"
+    assert backend.start_calls == 0
+    assert backend.collected == []
+
+
+def test_loop_breaker_blocks_repeated_no_hit_without_ready_observability_input(tmp_path: Path) -> None:
+    m = _load_module()
+    cfg = _make_cfg(m, tmp_path)
+    attempt_signature = m.build_attempt_signature(cfg)
+
+    for idx in (1, 2):
+        prior_path = tmp_path / "versions" / "11.0.6-h1" / f"prior-nr-{idx}" / "OBSERVABILITY_RECORD.json"
+        _write_previous_obs(
+            prior_path,
+            {
+                "attempt_signature": attempt_signature,
+                "observability_hit": False,
+                "session_id": "78",
+                "ui_filter_string": "!( action eq 'allow' )",
+                "manual_observability": {"present": True},
+                "observability_input": {"ready_for_orchestrator": False, "correlation_confidence": "low"},
+                "loop_breaker_state": {"current_correlation_score": 5},
+            },
+        )
+
+    backend = _FakeBackend(captures_by_label={}, ssh_ok=True)
+    result, code = m.orchestrate(cfg, backend)
+    assert code == 12
+    assert result["reason_if_not_validated"] == "loop_breaker_blocked"
+    assert result["loop_breaker_state"]["reason"] == "loop_breaker_requires_ready_observability_input"
+    assert backend.start_calls == 0
 
 
 def test_parse_args_manual_template_is_optional() -> None:
@@ -328,3 +422,35 @@ def test_parse_args_manual_template_is_optional() -> None:
         ]
     )
     assert cfg.manual_observability_template is None
+
+
+def test_parse_args_accepts_observability_input_path() -> None:
+    m = _load_module()
+    cfg = m.parse_args(
+        [
+            "--host",
+            "10.1.99.1",
+            "--rule-xpath",
+            "/config/devices/entry/vsys/entry/rulebase/security/rules",
+            "--capture-label",
+            "distinct-deny",
+            "--source-ssh-target",
+            "root@10.1.99.3",
+            "--traffic-command",
+            "echo test",
+            "--source-ip",
+            "10.1.99.3",
+            "--destination-ip",
+            "10.1.20.21",
+            "--destination-port",
+            "30053",
+            "--rule",
+            "interzone-default",
+            "--api-key",
+            "k",
+            "--observability-input",
+            "docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json",
+        ]
+    )
+    assert cfg.observability_input is not None
+    assert str(cfg.observability_input).endswith("OBSERVABILITY_INPUT.json")

@@ -169,8 +169,9 @@ Only durable, implementation-relevant facts belong here.
 - Treat orchestrator artifacts as primary evidence state:
   - `OBSERVABILITY_RECORD.json` (always written; includes attempt signature, loop-breaker state, and gating outcome)
   - `VALIDATION_RESULT.json` (validation-focused summary)
+- Treat `OBSERVABILITY_INPUT.json` as the preferred pre-run correlation artifact when stronger evidence is available (session ID, exact UI filter string, or structured UI row export).
 - `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md` is optional/manual supplemental evidence only.
-- Loop-breaking is mandatory: repeated no-hit attempts for materially identical signatures must be blocked unless correlation input is improved (for example session ID, exact UI filter string, or stronger manual correlation evidence).
+- Loop-breaking is mandatory: repeated no-hit attempts for materially identical signatures must be blocked unless correlation input is improved, with `OBSERVABILITY_INPUT.json` as the primary improvement mechanism.
 - Promotion from `UNVERIFIED` requires `capture_provenance=real_capture` only and must remain version-scoped/scenario-scoped.
 - Use `dport` as the primary destination-port candidate in future PAN-OS traffic-log validation runs; `sport` is the source-port candidate if needed later.
 

@@ -84,7 +84,9 @@ The codebase currently contains a thin FastAPI API, a worker pipeline, and stubb
 
 - Current PAN-OS token-validation phase is **observability-gated**.
 - `scripts/panos_observe_and_validate.py` is the primary PAN-OS observability/token-validation entrypoint, and its machine-written `OBSERVABILITY_RECORD.json` is the primary run-state artifact.
+- `docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json` is the preferred pre-run correlation artifact when stronger evidence exists (session ID, exact UI filter string, structured row export).
 - `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md` is optional supplemental/manual evidence, not a mandatory precondition for every run.
+- Repeated low-confidence no-hit retries are blocked: for materially identical no-hit signatures, reruns require `OBSERVABILITY_INPUT.json` marked ready with materially improved correlation input.
 - Do not perform blind repeated deny-hit XML retries: rely on orchestrator loop-breaker gating (`attempt_signature` + repeated no-hit detection) and require materially improved correlation input before rerunning identical no-hit attempts.
 - Stage 1/Stage 2 query construction must come from fresh run evidence (`OBSERVABILITY_RECORD.json`/`VALIDATION_RESULT.json`) and optionally manual supplements, not stale screenshots or prior memory.
 - Promotion of PAN-OS query-token assumptions from `UNVERIFIED` requires version-scoped, provenance-scoped evidence from `capture_provenance=real_capture` only.

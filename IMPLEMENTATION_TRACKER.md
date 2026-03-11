@@ -268,6 +268,18 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
      - generate machine-readable and human-readable coverage summaries under `docs/fixtures/panos_verification/` - done
      - select exactly one evidence-backed next path and record it without running a new live attempt - done
 
+21. **Implement higher-confidence observability input artifact + orchestrator gating**
+   - Status: completed (2026-03-11)
+   - Priority: P1
+   - Depends on: tasks 19-20
+   - Acceptance:
+     - add bounded helper to normalize stronger correlation evidence into machine-readable `OBSERVABILITY_INPUT.json` - done
+     - mark inputs as `ready_for_orchestrator=false` when confidence is too weak/incomplete and include explicit `why_not_ready` - done
+     - allow orchestrator to accept `--observability-input` and fail closed when provided input is not ready - done
+     - make loop-breaker treat `OBSERVABILITY_INPUT.json` as primary evidence-quality improvement mechanism for repeated no-hit signature retries - done
+     - keep `LIVE_DENY_OBSERVABILITY_TEMPLATE.md` optional/manual support, not preferred machine input - done
+     - add focused non-live tests for helper and orchestrator behavior - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -372,6 +384,11 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
   - machine-readable: `docs/fixtures/panos_verification/OBSERVABILITY_COVERAGE.json`
   - human-readable: `docs/fixtures/panos_verification/OBSERVABILITY_COVERAGE.md`
   - key decision: do not run more repeated no-hit distinct-signature attempts; next path is to acquire higher-confidence observability correlation evidence before any new live PAN-OS run.
+- 2026-03-11: Implemented preferred pre-run correlation artifact workflow:
+  - added `scripts/prepare_panos_observability_input.py` to normalize manual/CSV/JSON row evidence into `OBSERVABILITY_INPUT.json`
+  - orchestrator now supports `--observability-input` and fails closed when provided artifact is not ready
+  - loop-breaker now requires ready `OBSERVABILITY_INPUT.json` for repeated no-hit retries of materially identical signatures
+  - manual markdown template remains optional supplemental context, not preferred machine input
 
 ## Test Log
 
@@ -516,6 +533,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Ran `uv run ruff check scripts/panos_observe_and_validate.py` (pass).
 - 2026-03-11: Ran `python3 scripts/summarize_panos_observability.py` (pass; wrote coverage JSON + MD artifacts).
 - 2026-03-11: Ran `uv run ruff check scripts/summarize_panos_observability.py` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_prepare_panos_observability_input.py` (pass, 2 tests).
+- 2026-03-11: Ran `uv run ruff check scripts/prepare_panos_observability_input.py tests/fixtures/test_prepare_panos_observability_input.py` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_prepare_panos_observability_input.py tests/fixtures/test_panos_observe_and_validate.py` (pass, 12 tests).
+- 2026-03-11: Ran `uv run ruff check scripts/prepare_panos_observability_input.py scripts/panos_observe_and_validate.py tests/fixtures/test_prepare_panos_observability_input.py tests/fixtures/test_panos_observe_and_validate.py` (pass).
 
 ## Iteration Journal
 
@@ -530,6 +551,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-08: Added evidence-bundle download endpoint and result page integration.
 - 2026-03-08: Re-prioritized queue to first authoritative PAN-OS deny path as the next MVP implementation target.
 - 2026-03-11: Added offline PAN-OS observability coverage summarizer script and artifacts to classify existing evidence and pick a single next path without launching a new live attempt.
+- 2026-03-11: Added higher-confidence pre-run observability input path (`OBSERVABILITY_INPUT.json`) and wired orchestrator preflight + loop-breaker enforcement so repeated weak no-hit retries fail closed without ready machine-readable correlation evidence.
 - 2026-03-08: Implemented PAN-OS adapter XML traffic-log job submission and polling with tests for success, timeout, no-match, and malformed XML; normalization remains conservative (deny/reset-only authoritative output).
 - 2026-03-08: Wired authoritative-correlation PAN-OS consumption with deny-authoritative filtering and added step-level tests proving non-deny/malformed/timeout/no-match paths do not emit authoritative evidence.
 - 2026-03-08: Added integration-style lifecycle tests covering submit/enqueue, worker dequeue/dispatch, persistence, and API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths.
@@ -577,7 +599,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Use a higher-confidence observability source before any new live PAN-OS attempt (for example authoritative exported deny-row/session correlation evidence for the exact candidate family), and do not rerun repeated no-hit signature families until that evidence-quality change is present.
+Prepare a ready (`ready_for_orchestrator=true`) `OBSERVABILITY_INPUT.json` for the next candidate signature family and only then run one bounded orchestrator attempt; do not run retries for repeated no-hit families without that artifact.
 
 ## Deferred / Later
 

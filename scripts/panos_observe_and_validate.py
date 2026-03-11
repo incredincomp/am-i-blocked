@@ -2,7 +2,7 @@
 """Bounded PAN-OS observe-and-validate orchestration.
 
 Workflow:
-1. Optionally ingest manual observability supplement (not required).
+1. Optionally ingest machine-readable observability input (preferred) and/or manual supplement.
 2. Enforce loop-breaker guard for repeated no-hit identical attempts.
 3. Generate bounded source traffic over SSH (single target/port).
 4. Run broad deny observability sweep (no destination token validation).
@@ -69,6 +69,7 @@ class RunConfig:
     password: str | None
     session_id: str | None
     ui_filter_string: str | None
+    observability_input: Path | None
     manual_observability_template: Path | None
     no_hit_loop_threshold: int
 
@@ -366,6 +367,68 @@ def load_manual_observability(template_path: Path | None) -> dict[str, Any]:
     }
 
 
+def load_observability_input(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return {
+            "present": False,
+            "path": None,
+            "ready_for_orchestrator": False,
+            "correlation_confidence": None,
+            "session_id": None,
+            "ui_filter_string": None,
+            "why_not_ready": None,
+            "evidence_origin": None,
+        }
+    if not path.exists():
+        return {
+            "present": False,
+            "path": str(path),
+            "ready_for_orchestrator": False,
+            "correlation_confidence": None,
+            "session_id": None,
+            "ui_filter_string": None,
+            "why_not_ready": ["observability_input_missing"],
+            "evidence_origin": None,
+            "parse_error": "observability_input_missing",
+        }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {
+            "present": False,
+            "path": str(path),
+            "ready_for_orchestrator": False,
+            "correlation_confidence": None,
+            "session_id": None,
+            "ui_filter_string": None,
+            "why_not_ready": ["observability_input_invalid_json"],
+            "evidence_origin": None,
+            "parse_error": "observability_input_invalid_json",
+        }
+
+    ready = bool(payload.get("ready_for_orchestrator"))
+    confidence = payload.get("correlation_confidence")
+    why_not_ready = payload.get("why_not_ready")
+    if why_not_ready is None:
+        why_not_ready = []
+    elif isinstance(why_not_ready, str):
+        why_not_ready = [why_not_ready]
+    elif not isinstance(why_not_ready, list):
+        why_not_ready = ["observability_input_invalid_why_not_ready"]
+
+    return {
+        "present": True,
+        "path": str(path),
+        "ready_for_orchestrator": ready,
+        "correlation_confidence": confidence,
+        "session_id": payload.get("session_id"),
+        "ui_filter_string": payload.get("ui_filter_string"),
+        "why_not_ready": why_not_ready,
+        "evidence_origin": payload.get("evidence_origin"),
+        "payload": payload,
+    }
+
+
 def lookback_window_class(minutes: int) -> str:
     if minutes <= 5:
         return "short"
@@ -409,7 +472,12 @@ def iter_observability_records(out_root: Path) -> list[dict[str, Any]]:
     return records
 
 
-def correlation_input_score(session_id: str | None, ui_filter_string: str | None, manual_present: bool) -> int:
+def correlation_input_score(
+    session_id: str | None,
+    ui_filter_string: str | None,
+    manual_present: bool,
+    observability_input: dict[str, Any] | None = None,
+) -> int:
     score = 0
     if session_id:
         score += 2
@@ -417,13 +485,43 @@ def correlation_input_score(session_id: str | None, ui_filter_string: str | None
         score += 2
     if manual_present:
         score += 1
+    if observability_input and observability_input.get("present"):
+        score += 1
+        confidence = str(observability_input.get("correlation_confidence") or "").lower()
+        if confidence == "high":
+            score += 2
+        elif confidence == "medium":
+            score += 1
+        if observability_input.get("ready_for_orchestrator"):
+            score += 3
+        if observability_input.get("evidence_origin") in {"ui_json_export", "ui_csv_export", "structured_row"}:
+            score += 1
     return score
+
+
+def resolve_correlation_inputs(
+    cfg: RunConfig,
+    manual_observability: dict[str, Any],
+    observability_input: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    session_id = cfg.session_id
+    ui_filter_string = cfg.ui_filter_string
+    if session_id is None:
+        session_id = observability_input.get("session_id")
+    if ui_filter_string is None:
+        ui_filter_string = observability_input.get("ui_filter_string")
+    if session_id is None:
+        session_id = manual_observability.get("session_id")
+    if ui_filter_string is None:
+        ui_filter_string = manual_observability.get("ui_filter_string")
+    return session_id, ui_filter_string
 
 
 def evaluate_loop_breaker(
     cfg: RunConfig,
     attempt_signature: dict[str, Any],
     manual_observability: dict[str, Any],
+    observability_input: dict[str, Any],
 ) -> dict[str, Any]:
     previous = iter_observability_records(cfg.out_root)
     matching = [
@@ -432,10 +530,16 @@ def evaluate_loop_breaker(
         if (row.get("attempt_signature") or {}).get("key") == attempt_signature["key"]
     ]
     previous_no_hits = [row for row in matching if row.get("observability_hit") is False]
+    resolved_session_id, resolved_ui_filter = resolve_correlation_inputs(
+        cfg,
+        manual_observability,
+        observability_input,
+    )
     current_score = correlation_input_score(
-        cfg.session_id or manual_observability.get("session_id"),
-        cfg.ui_filter_string or manual_observability.get("ui_filter_string"),
+        resolved_session_id,
+        resolved_ui_filter,
         bool(manual_observability.get("present")),
+        observability_input,
     )
     max_prior_score = max(
         [
@@ -446,6 +550,7 @@ def evaluate_loop_breaker(
                         row.get("session_id"),
                         row.get("ui_filter_string"),
                         bool((row.get("manual_observability") or {}).get("present")),
+                        row.get("observability_input"),
                     ),
                 )
             )
@@ -454,17 +559,29 @@ def evaluate_loop_breaker(
         default=0,
     )
     improved = current_score > max_prior_score
-    blocked = len(previous_no_hits) >= cfg.no_hit_loop_threshold and not improved
+    requires_strong_input = len(previous_no_hits) >= cfg.no_hit_loop_threshold
+    has_ready_observability_input = bool(observability_input.get("ready_for_orchestrator"))
+    if requires_strong_input and not has_ready_observability_input:
+        blocked = True
+        reason = "loop_breaker_requires_ready_observability_input"
+    elif requires_strong_input and not improved:
+        blocked = True
+        reason = "loop_breaker_blocked_repeated_no_hit"
+    else:
+        blocked = False
+        reason = "not_triggered"
 
     return {
         "blocked": blocked,
-        "reason": "loop_breaker_blocked_repeated_no_hit" if blocked else "not_triggered",
+        "reason": reason,
         "threshold": cfg.no_hit_loop_threshold,
         "prior_matching_attempt_count": len(matching),
         "prior_no_hit_count": len(previous_no_hits),
         "current_correlation_score": current_score,
         "max_prior_correlation_score": max_prior_score,
         "improved_correlation_input": improved,
+        "requires_ready_observability_input": requires_strong_input,
+        "has_ready_observability_input": has_ready_observability_input,
         "matching_record_paths": [row.get("_path") for row in previous_no_hits][-5:],
     }
 
@@ -473,11 +590,11 @@ def make_base_record(
     cfg: RunConfig,
     run_started_at: datetime,
     manual_observability: dict[str, Any],
+    observability_input: dict[str, Any],
     attempt_signature: dict[str, Any],
     loop_breaker_state: dict[str, Any],
 ) -> dict[str, Any]:
-    session_id = cfg.session_id or manual_observability.get("session_id")
-    ui_filter = cfg.ui_filter_string or manual_observability.get("ui_filter_string")
+    session_id, ui_filter = resolve_correlation_inputs(cfg, manual_observability, observability_input)
     return {
         "panos_version": "unknown",
         "capture_provenance": "real_capture",
@@ -509,6 +626,7 @@ def make_base_record(
         "dport_validated": False,
         "attempt_signature": attempt_signature,
         "loop_breaker_state": loop_breaker_state,
+        "observability_input": observability_input,
         "manual_observability": manual_observability,
         "queries": {},
         "capture_dirs": {},
@@ -545,11 +663,29 @@ def finalize_and_write(record: dict[str, Any], out_dir: Path) -> None:
 def orchestrate(cfg: RunConfig, backend: LocalBackend) -> tuple[dict[str, Any], int]:
     run_started = now_utc()
     manual_observability = load_manual_observability(cfg.manual_observability_template)
+    observability_input = load_observability_input(cfg.observability_input)
     attempt_signature = build_attempt_signature(cfg)
-    loop_breaker_state = evaluate_loop_breaker(cfg, attempt_signature, manual_observability)
-    record = make_base_record(cfg, run_started, manual_observability, attempt_signature, loop_breaker_state)
+    loop_breaker_state = evaluate_loop_breaker(cfg, attempt_signature, manual_observability, observability_input)
+    record = make_base_record(
+        cfg,
+        run_started,
+        manual_observability,
+        observability_input,
+        attempt_signature,
+        loop_breaker_state,
+    )
 
     out_dir = default_output_dir(cfg)
+
+    if cfg.observability_input is not None and not observability_input.get("ready_for_orchestrator"):
+        record["reason_if_not_validated"] = "observability_input_not_ready"
+        record["run_decision"] = "stop_observability_input_not_ready"
+        finalize_and_write(record, out_dir)
+        print(
+            "Observability input is not ready; refusing to run with weak correlation evidence.",
+            file=sys.stderr,
+        )
+        return record, 15
 
     if loop_breaker_state["blocked"]:
         record["reason_if_not_validated"] = "loop_breaker_blocked"
@@ -696,6 +832,7 @@ def parse_args(argv: list[str]) -> RunConfig:
 
     parser.add_argument("--session-id")
     parser.add_argument("--ui-filter-string")
+    parser.add_argument("--observability-input")
     parser.add_argument("--manual-observability-template")
 
     parser.add_argument("--api-key")
@@ -723,6 +860,9 @@ def parse_args(argv: list[str]) -> RunConfig:
     manual_template: Path | None = None
     if args.manual_observability_template:
         manual_template = Path(args.manual_observability_template)
+    observability_input: Path | None = None
+    if args.observability_input:
+        observability_input = Path(args.observability_input)
 
     signature = Signature(
         source_ip=args.source_ip,
@@ -754,6 +894,7 @@ def parse_args(argv: list[str]) -> RunConfig:
         password=args.password,
         session_id=args.session_id,
         ui_filter_string=args.ui_filter_string,
+        observability_input=observability_input,
         manual_observability_template=manual_template,
         no_hit_loop_threshold=args.no_hit_loop_threshold,
     )
