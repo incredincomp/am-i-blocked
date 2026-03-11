@@ -92,7 +92,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `scripts/build_unknown_explainability_review.py`: extracts persisted `unknown` `ResultRow` fixtures from route tests and generates `docs/review/UNKNOWN_EXPLAINABILITY_SAMPLES.json` plus `docs/review/UNKNOWN_EXPLAINABILITY_REVIEW.md` for structured operator wording feedback.
 - `scripts/record_unknown_explainability_feedback.py`: records partial-safe operator feedback against known sample IDs into `docs/review/UNKNOWN_EXPLAINABILITY_FEEDBACK.json` and generates grouped aggregate summary output in `docs/review/UNKNOWN_EXPLAINABILITY_FEEDBACK.md`.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
-- `tests/adapters/test_scm_adapter.py`: bounded SCM readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
+- `tests/adapters/test_scm_adapter.py`: bounded SCM readiness probe coverage plus bounded evidence-query normalization coverage for authoritative SCM deny/decrypt records and fail-closed handling.
 - `tests/adapters/test_sdwan_adapter.py`: bounded SD-WAN readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
 - `tests/adapters/test_torq_adapter.py`: bounded Torq readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
 - `tests/adapters/test_logscale_adapter.py`: bounded LogScale readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`) and enrichment-only evidence contract preservation.
@@ -119,7 +119,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 
 - Adapter abstraction in `packages/adapters/am_i_blocked_adapters/base.py`.
 - PAN-OS adapter now contains XML log-job submit/poll helpers, conservative deny/reset normalization, and optional XML config-based `lookup_rule_metadata(...)` enrichment in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
-- SCM adapter readiness now performs a bounded auth probe (single token-endpoint request) and reports explicit readiness states in `source_readiness` without expanding SCM evidence-query scope.
+- SCM adapter readiness performs a bounded auth probe (single token-endpoint request) and reports explicit readiness states in `source_readiness`; SCM evidence retrieval now supports one bounded request path that emits only clearly authoritative deny/decrypt records and fail-closes on weak/malformed responses.
 - LogScale adapter readiness now performs a bounded repository probe request and reports explicit readiness states in `source_readiness` without expanding LogScale evidence-query scope or authority semantics.
 - SD-WAN adapter readiness now performs a bounded single-request probe against configured SD-WAN API base URL and reports explicit readiness states in `source_readiness` without expanding SD-WAN evidence-query scope.
 - Torq adapter readiness now performs a bounded single-request probe against configured Torq API base URL and reports explicit readiness states in `source_readiness` without expanding Torq workflow/execution scope.

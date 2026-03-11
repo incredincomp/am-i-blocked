@@ -364,6 +364,17 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
      - preserve LogScale enrichment-only/non-authoritative semantics - done
      - add focused non-live tests for LogScale readiness states and readiness-step propagation - done
 
+30. **Implement bounded SCM authoritative evidence retrieval path**
+   - Status: completed (2026-03-12)
+   - Priority: P1
+   - Depends on: tasks 25 and authoritative SCM gating hardening
+   - Acceptance:
+     - add one bounded SCM adapter evidence request path (worker-only) - done
+     - normalize only clearly authoritative SCM deny/decrypt records with explicit authoritative flag + request-context match - done
+     - fail closed for malformed/ambiguous/non-authoritative/non-deny SCM responses and transport/auth failures - done
+     - keep classifier/verdict logic unchanged aside from consuming normalized authoritative SCM records - done
+     - add focused mock-only adapter + authoritative-correlation tests - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -673,6 +684,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Unknown-explainability wording follow-up is now parked pending real operator feedback; current feedback ledger has zero entries and cannot justify evidence-based copy changes yet.
 - 2026-03-11: Authoritative-correlation now enforces SCM deny/decrypt authority gating (`source=scm`, `normalized.authoritative=true`, plus deny action or decrypt-error marker) before records can influence classification.
 - 2026-03-11: Added unit coverage proving authoritative SCM deny/decrypt records are kept while non-authoritative SCM deny/decrypt and SCM allow records are excluded.
+- 2026-03-12: SCM adapter now performs one bounded authenticated evidence retrieval request and emits normalized authoritative records only when SCM/Strata source-of-record, explicit `authoritative=true`, deny/decrypt-deny decision semantics, and bounded request-context matching are all present.
+- 2026-03-12: Added SCM adapter tests for authoritative deny, authoritative decrypt-deny, non-authoritative/non-deny exclusion, malformed response exclusion, and auth/transport fail-closed behavior.
+- 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py tests/unit/test_authoritative_correlation.py` (pass, 36 tests).
+- 2026-03-12: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/scm/__init__.py tests/adapters/test_scm_adapter.py services/worker/am_i_blocked_worker/steps/authoritative_correlation.py tests/unit/test_authoritative_correlation.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -737,7 +752,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Implement bounded SCM evidence retrieval (worker-only adapter path) that emits authoritative deny/decrypt records only when vendor responses explicitly include authoritative semantics; keep unknown fallback conservative and avoid expanding into broad SCM query orchestration.
+Add one bounded integration-style lifecycle test proving SCM authoritative deny/decrypt records can traverse submit -> queue -> worker -> persist -> API result retrieval without broad SCM orchestration changes.
 
 ## Deferred / Later
 

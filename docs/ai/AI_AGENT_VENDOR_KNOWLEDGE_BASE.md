@@ -214,7 +214,8 @@ Only durable, implementation-relevant facts belong here.
   - use authoritative PAN-OS on-prem path first
   - use SCM/Prisma metadata where confirmed
   - use forwarded logs or existing queryable stores where cloud query access is operationally verified
-- Current repo SCM readiness implementation is bounded to a single auth-token probe and reports explicit readiness states (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`); this is readiness-only and not evidence retrieval.
+- Current repo SCM readiness implementation is bounded to a single auth-token probe and reports explicit readiness states (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
+- Current repo SCM evidence retrieval is bounded to one authenticated request path (worker-only) and fail-closes unless records are explicitly authoritative SCM/Strata records with clear deny/decrypt-deny decision semantics and request-context match.
 - Distinguish these concepts in code:
   - cloud policy metadata
   - cloud log presence
@@ -223,6 +224,7 @@ Only durable, implementation-relevant facts belong here.
 
 #### Do not assume
 - that a simple universal cloud log query endpoint is available and approved for your tenant
+- that SCM response fields are stable across tenants/regions without validation
 - that decryption logs are complete by default
 - that cloud and on-prem logs have identical fields
 - that SCM alone should be the single source of truth for every path
