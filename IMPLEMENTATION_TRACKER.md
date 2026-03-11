@@ -353,6 +353,17 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
      - normalize Torq readiness into existing persisted `source_readiness` structure without classifier/verdict changes - done
      - add focused non-live tests for Torq readiness states and readiness-step propagation - done
 
+29. **Implement bounded LogScale readiness probe state mapping**
+   - Status: completed (2026-03-11)
+   - Priority: P1
+   - Depends on: tasks 24-28
+   - Acceptance:
+     - implement LogScale adapter readiness probe with explicit states (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`) - done
+     - keep probe bounded (single lightweight request, short timeout, no retries, no LogScale query execution expansion) - done
+     - normalize LogScale readiness into existing persisted `source_readiness` structure without classifier/verdict changes - done
+     - preserve LogScale enrichment-only/non-authoritative semantics - done
+     - add focused non-live tests for LogScale readiness states and readiness-step propagation - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -649,10 +660,13 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Worker source-readiness step now delegates SD-WAN configured/not-configured handling to the adapter boundary so persisted readiness diagnostics stay source-owned and explicit.
 - 2026-03-11: Torq adapter readiness now uses a bounded single-request probe against configured Torq API base URL with explicit readiness states: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`.
 - 2026-03-11: Worker source-readiness step now delegates Torq configured/not-configured handling to the adapter boundary so persisted readiness diagnostics stay source-owned and explicit.
+- 2026-03-11: LogScale adapter readiness now uses a bounded single-request repository probe and reports explicit readiness states: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`.
+- 2026-03-11: Worker source-readiness step now delegates LogScale configured/not-configured handling to the adapter boundary so persisted readiness diagnostics stay source-owned and explicit.
 - 2026-03-11: Result load path now builds additive `source_readiness_details` from persisted `report_json.source_readiness` with safe normalization (`source`, `status`, optional `reason`, optional `latency_ms`) and malformed-entry filtering.
 - 2026-03-11: Result page now renders compact “Source readiness details” block for per-source status/reason visibility, with fallback text when no details are present.
 - 2026-03-11: Implemented bounded SD-WAN adapter readiness probe and mapped explicit readiness states into persisted `report_json.source_readiness`; scope remained readiness-only with no SD-WAN evidence-query expansion.
 - 2026-03-11: Implemented bounded Torq adapter readiness probe and mapped explicit readiness states into persisted `report_json.source_readiness`; scope remained readiness-only with no Torq workflow/execution expansion.
+- 2026-03-11: Implemented bounded LogScale adapter readiness probe and mapped explicit readiness states into persisted `report_json.source_readiness`; scope remained readiness-only with no LogScale query/evidence expansion, and enrichment-only authority boundaries were preserved.
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -664,6 +678,8 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/sdwan/__init__.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py tests/adapters/test_sdwan_adapter.py tests/unit/test_source_readiness_check.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/adapters/test_torq_adapter.py tests/unit/test_source_readiness_check.py` (pass, 32 tests).
 - 2026-03-11: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/torq/__init__.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py tests/adapters/test_torq_adapter.py tests/unit/test_source_readiness_check.py` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/adapters/test_logscale_adapter.py tests/unit/test_source_readiness_check.py` (pass, 34 tests).
+- 2026-03-11: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/logscale/__init__.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py tests/adapters/test_logscale_adapter.py tests/unit/test_source_readiness_check.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness"` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass).
 - 2026-03-11: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
@@ -715,7 +731,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Implement bounded LogScale readiness state mapping with explicit status values aligned to SCM/SD-WAN/Torq conventions while preserving LogScale enrichment-only authority boundaries.
+Validate unknown-confidence explainability wording with operators and tighten thresholds/messages if needed (explainability-only, no verdict authority changes).
 
 ## Deferred / Later
 

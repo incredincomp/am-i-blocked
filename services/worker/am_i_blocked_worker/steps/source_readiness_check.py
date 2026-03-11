@@ -62,17 +62,13 @@ async def run(settings: Settings) -> ReadinessReport:
     report.record("scm", await scm_adapter.check_readiness())
 
     # LogScale
-    if settings.logscale_url and settings.logscale_token and settings.logscale_repo:
-        from am_i_blocked_adapters.logscale import LogScaleAdapter
-        adapter = LogScaleAdapter(
-            base_url=settings.logscale_url,
-            repo=settings.logscale_repo,
-            token=settings.logscale_token,
-        )
-        result = await adapter.check_readiness()
-        report.record("logscale", result)
-    else:
-        report.record("logscale", {"available": False, "reason": "not configured", "latency_ms": None})
+    from am_i_blocked_adapters.logscale import LogScaleAdapter
+    logscale_adapter = LogScaleAdapter(
+        base_url=settings.logscale_url or "",
+        repo=settings.logscale_repo or "",
+        token=settings.logscale_token or "",
+    )
+    report.record("logscale", await logscale_adapter.check_readiness())
 
     # SD-WAN
     from am_i_blocked_adapters.sdwan import SDWANAdapter

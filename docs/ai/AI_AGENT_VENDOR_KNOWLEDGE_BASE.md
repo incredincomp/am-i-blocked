@@ -307,7 +307,7 @@ Only durable, implementation-relevant facts belong here.
 - Keep field normalization explicit; do not assume Palo/Prisma fields map cleanly without a documented transform.
 
 #### Current repo implementation status (`UNVERIFIED`)
-- `check_readiness` currently performs a lightweight repository endpoint reachability check and treats HTTP `200` and `403` as reachable.
+- `check_readiness` now performs a bounded single-request repository probe and reports explicit readiness states (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`); this remains readiness-only and does not change LogScale authority semantics.
 - `query_evidence` currently returns a normalized stub sample tagged:
   - `classification_role=enrichment_only_unverified`
   - `authoritative=false`

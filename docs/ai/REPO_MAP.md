@@ -92,6 +92,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/adapters/test_scm_adapter.py`: bounded SCM readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
 - `tests/adapters/test_sdwan_adapter.py`: bounded SD-WAN readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
 - `tests/adapters/test_torq_adapter.py`: bounded Torq readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
+- `tests/adapters/test_logscale_adapter.py`: bounded LogScale readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`) and enrichment-only evidence contract preservation.
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
 - `tests/adapters/test_panos_adapter.py`: also covers PAN-OS rule metadata lookup behavior (success, no-match, malformed response, timeout/failure) and graceful deny-path behavior when metadata lookup fails.
 - `tests/adapters/test_panos_adapter.py`: includes PAN-OS fixture-pack alignment checks proving current parser assumptions match fixture submit/poll/metadata XML shapes.
@@ -116,6 +117,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Adapter abstraction in `packages/adapters/am_i_blocked_adapters/base.py`.
 - PAN-OS adapter now contains XML log-job submit/poll helpers, conservative deny/reset normalization, and optional XML config-based `lookup_rule_metadata(...)` enrichment in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
 - SCM adapter readiness now performs a bounded auth probe (single token-endpoint request) and reports explicit readiness states in `source_readiness` without expanding SCM evidence-query scope.
+- LogScale adapter readiness now performs a bounded repository probe request and reports explicit readiness states in `source_readiness` without expanding LogScale evidence-query scope or authority semantics.
 - SD-WAN adapter readiness now performs a bounded single-request probe against configured SD-WAN API base URL and reports explicit readiness states in `source_readiness` without expanding SD-WAN evidence-query scope.
 - Torq adapter readiness now performs a bounded single-request probe against configured Torq API base URL and reports explicit readiness states in `source_readiness` without expanding Torq workflow/execution scope.
 - PAN-OS traffic-log destination token validation remains observability-gated for new attempts; latest real-capture Stage 1/Stage 2 pair for `11.0.6-h1` UDP deny signature (`deny-hit-udp-obsgate-stage1_20260311T052621Z`, `deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z`) provides scenario-scoped evidence for `addr.dst` + `dport`.

@@ -38,7 +38,7 @@ async def test_readiness_marks_logscale_unavailable_when_not_configured():
     report = await source_readiness_check.run(_settings())
     logscale = report.to_dict()["logscale"]
     assert logscale["available"] is False
-    assert logscale["reason"] == "not configured"
+    assert logscale["status"] == "not_configured"
     assert "logscale" not in report.available_sources
 
 
@@ -52,7 +52,12 @@ async def test_readiness_uses_logscale_adapter_when_configured():
     with patch(
         "am_i_blocked_adapters.logscale.LogScaleAdapter.check_readiness",
         new_callable=AsyncMock,
-        return_value={"available": True, "reason": "HTTP 200", "latency_ms": 12},
+        return_value={
+            "available": True,
+            "status": "ready",
+            "reason": "LogScale readiness probe succeeded",
+            "latency_ms": 12,
+        },
     ) as readiness:
         report = await source_readiness_check.run(settings)
 
