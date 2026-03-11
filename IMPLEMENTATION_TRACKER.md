@@ -670,6 +670,9 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Tightened unknown-confidence explainability wording in API/UI to distinguish missing authoritative deny evidence, degraded source readiness, low path confidence, and inconclusive bounded checks; this pass is presentation-only and does not alter verdict logic/classifier/source-readiness behavior.
 - 2026-03-11: Added bounded unknown-explainability operator review-pack workflow via `scripts/build_unknown_explainability_review.py`, generating `docs/review/UNKNOWN_EXPLAINABILITY_SAMPLES.json` and `docs/review/UNKNOWN_EXPLAINABILITY_REVIEW.md` from real persisted `ResultRow` unknown fixtures for structured feedback without runtime logic changes.
 - 2026-03-11: Added structured unknown-explainability feedback workflow via `scripts/record_unknown_explainability_feedback.py`, with machine-readable append-safe `docs/review/UNKNOWN_EXPLAINABILITY_FEEDBACK.json` and grouped aggregate `docs/review/UNKNOWN_EXPLAINABILITY_FEEDBACK.md` for copy-only follow-up prioritization.
+- 2026-03-11: Unknown-explainability wording follow-up is now parked pending real operator feedback; current feedback ledger has zero entries and cannot justify evidence-based copy changes yet.
+- 2026-03-11: Authoritative-correlation now enforces SCM deny/decrypt authority gating (`source=scm`, `normalized.authoritative=true`, plus deny action or decrypt-error marker) before records can influence classification.
+- 2026-03-11: Added unit coverage proving authoritative SCM deny/decrypt records are kept while non-authoritative SCM deny/decrypt and SCM allow records are excluded.
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -734,7 +737,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Capture first operator feedback entries in `docs/review/UNKNOWN_EXPLAINABILITY_FEEDBACK.json` using `scripts/record_unknown_explainability_feedback.py --input-json ... --write-summary`, then review the generated priority buckets in `UNKNOWN_EXPLAINABILITY_FEEDBACK.md` to identify bounded copy-only follow-up candidates.
+Implement bounded SCM evidence retrieval (worker-only adapter path) that emits authoritative deny/decrypt records only when vendor responses explicitly include authoritative semantics; keep unknown fallback conservative and avoid expanding into broad SCM query orchestration.
 
 ## Deferred / Later
 

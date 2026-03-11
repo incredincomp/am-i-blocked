@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from am_i_blocked_core.config import Settings
-from am_i_blocked_core.enums import EvidenceSource
+from am_i_blocked_core.enums import EvidenceKind, EvidenceSource
 from am_i_blocked_core.logging_helpers import get_logger
 from am_i_blocked_core.models import EvidenceRecord
 
@@ -86,22 +86,28 @@ def _normalize_authoritative_records(
 ) -> list[EvidenceRecord]:
     """Normalize source evidence to conservative authoritative semantics.
 
-    PAN-OS records are authoritative for deny only when they explicitly contain:
-    - `source == panos`
-    - `normalized.authoritative is True`
-    - `normalized.action == deny`
+    PAN-OS and SCM records are authoritative for deny/decrypt decisions only
+    when they explicitly include authoritative flags.
     """
-    if source != EvidenceSource.PANOS.value:
+    authoritative_sources = {EvidenceSource.PANOS.value, EvidenceSource.SCM.value}
+    if source not in authoritative_sources:
         return records
 
     filtered: list[EvidenceRecord] = []
     for record in records:
         if not isinstance(record, EvidenceRecord):
             continue
-        if record.source != EvidenceSource.PANOS:
+        if record.source.value != source:
             continue
-        action = str(record.normalized.get("action", "")).strip().lower()
         authoritative = record.normalized.get("authoritative")
-        if action == "deny" and authoritative is True:
+        action = str(record.normalized.get("action", "")).strip().lower()
+        has_decrypt_error = bool(record.normalized.get("decrypt_error"))
+        is_authoritative_deny = action == "deny" and authoritative is True
+        is_authoritative_decrypt = (
+            record.kind == EvidenceKind.DECRYPT_LOG
+            and has_decrypt_error
+            and authoritative is True
+        )
+        if is_authoritative_deny or is_authoritative_decrypt:
             filtered.append(record)
     return filtered

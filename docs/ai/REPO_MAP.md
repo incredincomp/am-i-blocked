@@ -147,6 +147,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Live fixture collection is constrained to read-only PAN-OS classes/actions by guard helper: `op(show_system_info)`, `log(submit/get)`, `config(get/show/complete)`, and `keygen` bootstrap only.
 - Worker step modules in `services/worker/am_i_blocked_worker/steps/`.
 - Authoritative-correlation now applies PAN-OS deny-authoritative gating before passing evidence to classification (`services/worker/am_i_blocked_worker/steps/authoritative_correlation.py`).
+- Authoritative-correlation now applies conservative PAN-OS/SCM authority gating before passing evidence to classification; SCM records must be explicitly authoritative and deny/decrypt-relevant to pass through.
 - Classification logic isolated in `services/worker/am_i_blocked_worker/steps/classify.py`.
 - Classifier deny authority is constrained to authoritative sources (PAN-OS/SCM); enrichment sources like LogScale cannot independently produce `denied`.
 - Classifier now labels LogScale `enrichment_only_unverified` records as explicit observed facts so report bundles clearly separate enrichment from authority.

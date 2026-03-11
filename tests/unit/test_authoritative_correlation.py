@@ -166,3 +166,80 @@ async def test_absent_panos_authoritative_evidence_classifies_unknown() -> None:
         available_sources=["panos"],
     )
     assert classification.verdict == Verdict.UNKNOWN
+
+
+@pytest.mark.anyio
+async def test_authoritative_correlation_keeps_only_authoritative_scm_deny_and_decrypt() -> None:
+    req_id = str(uuid.uuid4())
+    records = [
+        _ev(
+            EvidenceSource.SCM,
+            {"action": "deny", "authoritative": True, "rule_name": "cloud-block"},
+            request_id=req_id,
+        ),
+        _ev(
+            EvidenceSource.SCM,
+            {"decrypt_error": "cert_mismatch", "authoritative": True},
+            request_id=req_id,
+        ),
+    ]
+    records[1].kind = EvidenceKind.DECRYPT_LOG
+
+    with patch(
+        "am_i_blocked_worker.steps.authoritative_correlation._build_adapter",
+        return_value=_FakeAdapter(records=records),
+    ):
+        result = await authoritative_correlation.run(
+            request_id=req_id,
+            destination="api.example.com",
+            port=443,
+            time_window_start="2026-01-01T00:00:00+00:00",
+            time_window_end="2026-01-01T00:15:00+00:00",
+            available_sources=["scm"],
+            settings=MagicMock(),
+        )
+
+    assert len(result) == 2
+    assert all(record.source == EvidenceSource.SCM for record in result)
+    assert any(record.normalized.get("action") == "deny" for record in result)
+    assert any(record.kind == EvidenceKind.DECRYPT_LOG for record in result)
+
+
+@pytest.mark.anyio
+async def test_authoritative_correlation_excludes_non_authoritative_scm_records() -> None:
+    req_id = str(uuid.uuid4())
+    decrypt_record = _ev(
+        EvidenceSource.SCM,
+        {"decrypt_error": "cert_mismatch", "authoritative": False},
+        request_id=req_id,
+    )
+    decrypt_record.kind = EvidenceKind.DECRYPT_LOG
+    records = [
+        _ev(
+            EvidenceSource.SCM,
+            {"action": "deny", "authoritative": False, "rule_name": "cloud-block"},
+            request_id=req_id,
+        ),
+        _ev(
+            EvidenceSource.SCM,
+            {"action": "allow", "authoritative": True, "rule_name": "cloud-allow"},
+            request_id=req_id,
+        ),
+        decrypt_record,
+    ]
+
+    with patch(
+        "am_i_blocked_worker.steps.authoritative_correlation._build_adapter",
+        return_value=_FakeAdapter(records=records),
+    ):
+        result = await authoritative_correlation.run(
+            request_id=req_id,
+            destination="api.example.com",
+            port=443,
+            time_window_start="2026-01-01T00:00:00+00:00",
+            time_window_end="2026-01-01T00:15:00+00:00",
+            available_sources=["scm"],
+            settings=MagicMock(),
+        )
+
+    assert result == []
