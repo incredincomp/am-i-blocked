@@ -14,6 +14,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `infra`: Docker Compose and `.env.example`.
 - `tests`: unit, routes, fixtures, adapter contract tests.
 - `docs` and `docs/ai`: architecture and agent-grounding docs.
+- `docs/review`: operator review packs generated from repo-owned persisted result samples for bounded feedback workflows.
 - `docs/fixtures/panos_verification`: sanitized PAN-OS XML verification fixture pack templates plus versioned evidence-capture folders (`versions/<panos_version>/<capture_label>_<timestamp>/`).
 - `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`: optional manual observability supplement (not required for every orchestrator run).
 - `docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json`: preferred machine-readable pre-run correlation artifact for stronger observability evidence.
@@ -88,6 +89,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `scripts/summarize_panos_observability.py`: offline artifact summarizer that classifies versioned PAN-OS verification runs and writes coverage outputs (`OBSERVABILITY_COVERAGE.json` and `OBSERVABILITY_COVERAGE.md`) without making live PAN-OS calls.
 - `scripts/select_next_panos_candidate.py`: offline selector that classifies signature families (`proven`, `candidate`, `exhausted_pending_new_evidence`, `blocked_by_loop_breaker`) from coverage + versioned observability artifacts and writes `NEXT_CANDIDATE_DECISION.json`/`.md` with exactly one primary recommendation.
 - `scripts/panos_readonly_guard.sh`: read-only PAN-OS XML request allowlist guard used by fixture collection harness and testable via `--assert`.
+- `scripts/build_unknown_explainability_review.py`: extracts persisted `unknown` `ResultRow` fixtures from route tests and generates `docs/review/UNKNOWN_EXPLAINABILITY_SAMPLES.json` plus `docs/review/UNKNOWN_EXPLAINABILITY_REVIEW.md` for structured operator wording feedback.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
 - `tests/adapters/test_scm_adapter.py`: bounded SCM readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
 - `tests/adapters/test_sdwan_adapter.py`: bounded SD-WAN readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).

@@ -1,0 +1,102 @@
+{
+  "samples": [
+    {
+      "sample_id": "sample_1",
+      "source_reference": "tests/routes/test_api_routes.py:1262",
+      "source_test": "test_load_result_record_unknown_derives_reasons_from_confidence_and_readiness",
+      "scenario_label": "Unknown with low confidence and explicit readiness degradation",
+      "verdict": "unknown",
+      "summary": "Insufficient evidence to determine verdict.",
+      "path_confidence": 0.2,
+      "evidence_completeness": 0.2,
+      "result_confidence": 0.2,
+      "source_readiness": {
+        "panos": {
+          "available": false,
+          "reason": "not configured"
+        }
+      },
+      "unknown_reason_signals": [
+        "One or more data sources were degraded or unavailable, which reduced confidence.",
+        "Path context confidence is low, so route or policy context may be incomplete.",
+        "Bounded checks were inconclusive or incomplete for this time window."
+      ],
+      "operator_explanation": {
+        "section_title": "Why this is unknown",
+        "safety_note": "Unknown is not the same as allowed. A missing deny signal is not proof of allow.",
+        "confidence_line": "Path confidence: 20% | Evidence completeness: 20%",
+        "reason_bullets": [
+          "One or more data sources were degraded or unavailable, which reduced confidence.",
+          "Path context confidence is low, so route or policy context may be incomplete.",
+          "Bounded checks were inconclusive or incomplete for this time window."
+        ]
+      },
+      "dominant_cause": "mixed causes",
+      "sample_provenance": "real persisted unknown-result row fixture from tests"
+    },
+    {
+      "sample_id": "sample_2",
+      "source_reference": "tests/routes/test_api_routes.py:1312",
+      "source_test": "test_load_result_record_unknown_handles_missing_or_malformed_confidence_values",
+      "scenario_label": "Unknown with malformed persisted confidence values and explicit custom reason",
+      "verdict": "unknown",
+      "summary": "Insufficient evidence.",
+      "path_confidence": 0.0,
+      "evidence_completeness": 0.2,
+      "result_confidence": 0.2,
+      "source_readiness": null,
+      "unknown_reason_signals": [
+        "custom reason"
+      ],
+      "operator_explanation": {
+        "section_title": "Why this is unknown",
+        "safety_note": "Unknown is not the same as allowed. A missing deny signal is not proof of allow.",
+        "confidence_line": "Path confidence: 0% | Evidence completeness: 20%",
+        "reason_bullets": [
+          "custom reason"
+        ]
+      },
+      "dominant_cause": "mixed causes",
+      "sample_provenance": "real persisted unknown-result row fixture from tests"
+    },
+    {
+      "sample_id": "sample_3",
+      "source_reference": "tests/routes/test_api_routes.py:1357",
+      "source_test": "test_load_result_record_handles_partial_or_malformed_readiness_entries",
+      "scenario_label": "Unknown with mixed readiness entry quality and incomplete evidence context",
+      "verdict": "unknown",
+      "summary": "Insufficient evidence.",
+      "path_confidence": 0.1,
+      "evidence_completeness": 0.1,
+      "result_confidence": 0.1,
+      "source_readiness": {
+        "scm": {
+          "status": "auth_failed",
+          "reason": "bad token"
+        },
+        "panos": {
+          "available": true
+        },
+        "logscale": {
+          "latency_ms": 7
+        },
+        "torq": "bad-shape"
+      },
+      "unknown_reason_signals": [
+        "Path context confidence is low, so route or policy context may be incomplete.",
+        "Bounded checks were inconclusive or incomplete for this time window."
+      ],
+      "operator_explanation": {
+        "section_title": "Why this is unknown",
+        "safety_note": "Unknown is not the same as allowed. A missing deny signal is not proof of allow.",
+        "confidence_line": "Path confidence: 10% | Evidence completeness: 10%",
+        "reason_bullets": [
+          "Path context confidence is low, so route or policy context may be incomplete.",
+          "Bounded checks were inconclusive or incomplete for this time window."
+        ]
+      },
+      "dominant_cause": "mixed causes",
+      "sample_provenance": "real persisted unknown-result row fixture from tests"
+    }
+  ]
+}
