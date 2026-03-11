@@ -17,6 +17,8 @@ def _settings(**overrides):
         "scm_client_id": None,
         "scm_client_secret": None,
         "scm_tsg_id": None,
+        "scm_auth_url": "https://auth.apps.paloaltonetworks.com/oauth2/access_token",
+        "scm_api_base_url": "https://api.sase.paloaltonetworks.com",
         "logscale_url": None,
         "logscale_repo": None,
         "logscale_token": None,
@@ -55,3 +57,40 @@ async def test_readiness_uses_logscale_adapter_when_configured():
     readiness.assert_awaited_once()
     assert report.to_dict()["logscale"]["available"] is True
     assert "logscale" in report.available_sources
+
+
+@pytest.mark.anyio
+async def test_readiness_uses_scm_adapter_when_configured():
+    settings = _settings(
+        scm_client_id="cid",
+        scm_client_secret="sec",
+        scm_tsg_id="tsg",
+        scm_auth_url="https://auth.example.com/oauth2/access_token",
+        scm_api_base_url="https://api.example.com",
+    )
+    with patch(
+        "am_i_blocked_adapters.scm.SCMAdapter.check_readiness",
+        new_callable=AsyncMock,
+        return_value={
+            "available": False,
+            "status": "auth_failed",
+            "reason": "SCM auth failed (401)",
+            "latency_ms": 12,
+        },
+    ) as readiness:
+        report = await source_readiness_check.run(settings)
+
+    readiness.assert_awaited_once()
+    scm = report.to_dict()["scm"]
+    assert scm["status"] == "auth_failed"
+    assert scm["available"] is False
+    assert "scm" not in report.available_sources
+
+
+@pytest.mark.anyio
+async def test_readiness_scm_not_configured_comes_from_adapter():
+    settings = _settings()
+    report = await source_readiness_check.run(settings)
+    scm = report.to_dict()["scm"]
+    assert scm["available"] is False
+    assert scm["status"] == "not_configured"

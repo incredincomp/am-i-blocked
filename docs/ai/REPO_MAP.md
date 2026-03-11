@@ -89,6 +89,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `scripts/select_next_panos_candidate.py`: offline selector that classifies signature families (`proven`, `candidate`, `exhausted_pending_new_evidence`, `blocked_by_loop_breaker`) from coverage + versioned observability artifacts and writes `NEXT_CANDIDATE_DECISION.json`/`.md` with exactly one primary recommendation.
 - `scripts/panos_readonly_guard.sh`: read-only PAN-OS XML request allowlist guard used by fixture collection harness and testable via `--assert`.
 - `tests/adapters`: adapter contract tests (`BaseAdapter` compliance).
+- `tests/adapters/test_scm_adapter.py`: bounded SCM readiness probe coverage for state mapping (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`).
 - `tests/adapters/test_panos_adapter.py`: PAN-OS XML traffic-log job submission/polling behavior (success, timeout, no-match, malformed XML).
 - `tests/adapters/test_panos_adapter.py`: also covers PAN-OS rule metadata lookup behavior (success, no-match, malformed response, timeout/failure) and graceful deny-path behavior when metadata lookup fails.
 - `tests/adapters/test_panos_adapter.py`: includes PAN-OS fixture-pack alignment checks proving current parser assumptions match fixture submit/poll/metadata XML shapes.
@@ -112,6 +113,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 
 - Adapter abstraction in `packages/adapters/am_i_blocked_adapters/base.py`.
 - PAN-OS adapter now contains XML log-job submit/poll helpers, conservative deny/reset normalization, and optional XML config-based `lookup_rule_metadata(...)` enrichment in `packages/adapters/am_i_blocked_adapters/panos/__init__.py`.
+- SCM adapter readiness now performs a bounded auth probe (single token-endpoint request) and reports explicit readiness states in `source_readiness` without expanding SCM evidence-query scope.
 - PAN-OS traffic-log destination token validation remains observability-gated for new attempts; latest real-capture Stage 1/Stage 2 pair for `11.0.6-h1` UDP deny signature (`deny-hit-udp-obsgate-stage1_20260311T052621Z`, `deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z`) provides scenario-scoped evidence for `addr.dst` + `dport`.
 - PAN-OS traffic-log field-name guidance for future validation is `sport`, `dport`, `natsport`, `natdport`; `port.src`/`port.dst` are not default candidates.
 - PAN-OS runtime query construction now uses `addr.dst` + `dport` for destination filtering in the adapter query builder, aligned to scenario-scoped `11.0.6-h1` UDP deny real-capture evidence.

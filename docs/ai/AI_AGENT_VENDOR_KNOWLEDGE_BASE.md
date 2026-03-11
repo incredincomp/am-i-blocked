@@ -214,6 +214,7 @@ Only durable, implementation-relevant facts belong here.
   - use authoritative PAN-OS on-prem path first
   - use SCM/Prisma metadata where confirmed
   - use forwarded logs or existing queryable stores where cloud query access is operationally verified
+- Current repo SCM readiness implementation is bounded to a single auth-token probe and reports explicit readiness states (`ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`); this is readiness-only and not evidence retrieval.
 - Distinguish these concepts in code:
   - cloud policy metadata
   - cloud log presence

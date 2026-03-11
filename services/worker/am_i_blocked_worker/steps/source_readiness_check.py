@@ -51,17 +51,15 @@ async def run(settings: Settings) -> ReadinessReport:
         report.record("panos", {"available": False, "reason": "not configured", "latency_ms": None})
 
     # SCM
-    if settings.scm_client_id and settings.scm_client_secret and settings.scm_tsg_id:
-        from am_i_blocked_adapters.scm import SCMAdapter
-        adapter = SCMAdapter(
-            client_id=settings.scm_client_id,
-            client_secret=settings.scm_client_secret,
-            tsg_id=settings.scm_tsg_id,
-        )
-        result = await adapter.check_readiness()
-        report.record("scm", result)
-    else:
-        report.record("scm", {"available": False, "reason": "not configured", "latency_ms": None})
+    from am_i_blocked_adapters.scm import SCMAdapter
+    scm_adapter = SCMAdapter(
+        client_id=settings.scm_client_id,
+        client_secret=settings.scm_client_secret,
+        tsg_id=settings.scm_tsg_id,
+        auth_url=settings.scm_auth_url,
+        api_base_url=settings.scm_api_base_url,
+    )
+    report.record("scm", await scm_adapter.check_readiness())
 
     # LogScale
     if settings.logscale_url and settings.logscale_token and settings.logscale_repo:

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Any
 
+import httpx
 from am_i_blocked_core.enums import EvidenceKind, EvidenceSource
 from am_i_blocked_core.models import EvidenceRecord
 
@@ -25,18 +27,20 @@ class SCMAdapter(BaseAdapter):
 
     def __init__(
         self,
-        client_id: str,
-        client_secret: str,
-        tsg_id: str,
+        client_id: str | None,
+        client_secret: str | None,
+        tsg_id: str | None,
         *,
         auth_url: str = "https://auth.apps.paloaltonetworks.com/oauth2/access_token",
         api_base_url: str = "https://api.sase.paloaltonetworks.com",
+        request_timeout_seconds: float = 5.0,
     ) -> None:
-        self._client_id = client_id
-        self._client_secret = client_secret
-        self._tsg_id = tsg_id
+        self._client_id = (client_id or "").strip()
+        self._client_secret = (client_secret or "").strip()
+        self._tsg_id = (tsg_id or "").strip()
         self._auth_url = auth_url
         self._api_base_url = api_base_url
+        self._request_timeout_seconds = max(1.0, float(request_timeout_seconds))
         self._access_token: str | None = None
 
     async def _get_token(self) -> str:
@@ -49,17 +53,104 @@ class SCMAdapter(BaseAdapter):
         )
 
     async def check_readiness(self) -> dict[str, Any]:
-        """Check SCM API availability.
-
-        TODO: Replace stub with a lightweight ping to the SCM health endpoint.
-        """
+        """Check SCM API availability via a bounded token probe."""
         if not self._client_id or not self._client_secret or not self._tsg_id:
-            return {"available": False, "reason": "SCM credentials not configured", "latency_ms": None}
+            return {
+                "available": False,
+                "status": "not_configured",
+                "reason": "SCM credentials not configured",
+                "latency_ms": None,
+            }
 
+        started = time.monotonic()
+        try:
+            async with httpx.AsyncClient(timeout=self._request_timeout_seconds) as client:
+                response = await client.post(
+                    self._auth_url,
+                    data={
+                        "grant_type": "client_credentials",
+                        "client_id": self._client_id,
+                        "client_secret": self._client_secret,
+                    },
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
+        except httpx.TimeoutException:
+            return {
+                "available": False,
+                "status": "timeout",
+                "reason": "SCM auth probe timed out",
+                "latency_ms": None,
+            }
+        except httpx.ConnectError:
+            return {
+                "available": False,
+                "status": "unreachable",
+                "reason": "SCM auth endpoint unreachable",
+                "latency_ms": None,
+            }
+        except httpx.RequestError as exc:
+            return {
+                "available": False,
+                "status": "unreachable",
+                "reason": f"SCM auth request failed: {exc}",
+                "latency_ms": None,
+            }
+        except Exception as exc:
+            return {
+                "available": False,
+                "status": "internal_error",
+                "reason": f"SCM readiness internal error: {exc}",
+                "latency_ms": None,
+            }
+
+        latency_ms = int((time.monotonic() - started) * 1000)
+        if response.status_code == 401:
+            return {
+                "available": False,
+                "status": "auth_failed",
+                "reason": "SCM auth failed (401)",
+                "latency_ms": latency_ms,
+            }
+        if response.status_code == 403:
+            return {
+                "available": False,
+                "status": "unauthorized",
+                "reason": "SCM auth unauthorized (403)",
+                "latency_ms": latency_ms,
+            }
+        if response.status_code < 200 or response.status_code >= 300:
+            return {
+                "available": False,
+                "status": "unexpected_response",
+                "reason": f"SCM auth probe returned HTTP {response.status_code}",
+                "latency_ms": latency_ms,
+            }
+
+        try:
+            payload = response.json()
+        except ValueError:
+            return {
+                "available": False,
+                "status": "unexpected_response",
+                "reason": "SCM auth probe returned non-JSON response",
+                "latency_ms": latency_ms,
+            }
+
+        access_token = payload.get("access_token") if isinstance(payload, dict) else None
+        if not isinstance(access_token, str) or not access_token.strip():
+            return {
+                "available": False,
+                "status": "unexpected_response",
+                "reason": "SCM auth probe response missing access token",
+                "latency_ms": latency_ms,
+            }
+
+        self._access_token = access_token.strip()
         return {
-            "available": False,
-            "reason": "TODO: SCM readiness check not yet implemented",
-            "latency_ms": None,
+            "available": True,
+            "status": "ready",
+            "reason": "SCM auth probe succeeded",
+            "latency_ms": latency_ms,
         }
 
     async def query_evidence(
