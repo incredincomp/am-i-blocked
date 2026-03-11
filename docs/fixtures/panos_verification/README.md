@@ -11,6 +11,16 @@ These files may be either:
 In all cases, samples are verification artifacts, not production truth by themselves.
 **Versioned does not automatically mean verified.**
 
+## Observability Prerequisite (Before Token Validation)
+
+Before attempting destination-token validation (`addr.dst` candidate / `dport` candidate) from real capture,
+first confirm live deny-row observability using:
+
+- `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`
+
+If a fresh live deny row cannot be confirmed for the reproduction window, treat the blocker as
+observability/log visibility and do not run token-promotion attempts in that cycle.
+
 ## Required Files
 
 - `traffic_log_submit_response.xml`
@@ -157,6 +167,52 @@ Script behavior:
   - `panos_version_source=auto_detected` when discovered from system info
   - `panos_version_source=override` when `--version` is explicitly used
   - `verification_scope` defaults to `real_env_partial` (override via `--verification-scope`)
+
+### One-Shot Observe + Validate Orchestrator
+
+Use `scripts/panos_observe_and_validate.py` to run one bounded workflow end-to-end:
+
+1. generate bounded source traffic over SSH,
+2. run a broad Stage 1 deny observability sweep (`addr.src`/rule/action/session-end-reason/app/zones + bounded `receive_time`),
+3. auto-select the freshest qualifying deny row,
+4. run independent token subqueries (`addr.dst` and `dport`) only when Stage 1 finds a qualifying row,
+5. write `VALIDATION_RESULT.json` in the Stage 1 capture directory.
+
+The orchestrator delegates PAN-OS API capture to `gather_panos_fixtures.sh`, so read-only guardrails remain enforced through `scripts/panos_readonly_guard.sh`.
+
+Example:
+
+```sh
+./scripts/panos_observe_and_validate.py \
+  --host "$PANOS_HOST" \
+  --username "$PANOS_USERNAME" \
+  --password "$PANOS_PASSWORD" \
+  --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" \
+  --capture-label "deny-hit-distinct" \
+  --source-ssh-target "root@10.1.99.3" \
+  --source-ip "10.1.99.3" \
+  --destination-ip "10.1.20.21" \
+  --destination-port 30053 \
+  --app "not-applicable" \
+  --rule "interzone-default" \
+  --action "deny" \
+  --session-end-reason "policy-deny" \
+  --zone-src "management" \
+  --zone-dst "servers" \
+  --lookback-minutes 15
+```
+
+`VALIDATION_RESULT.json` includes machine-readable fields such as:
+- `observability_hit`
+- `matched_entry_count`
+- `best_match_timestamp`
+- `validated_tokens`
+- `addr_dst_validated`
+- `dport_validated`
+- `reason_if_not_validated`
+- `panos_version`
+- `capture_provenance`
+- `scenario_name`
 
 ### Local Firewall Run Pattern
 
