@@ -1,0 +1,325 @@
+{
+  "exhausted_families": [
+    {
+      "family_id": "10.1.99.10|unknown|unknown|unknown|unknown|interzone-default|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 4,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "repeated_no_hit_pattern",
+        "destination_ip_not_specific",
+        "destination_port_not_specific"
+      ]
+    },
+    {
+      "family_id": "10.1.99.3|10.1.20.21|30053|not-applicable|unknown|interzone-default|policy-deny|ssh_custom_command",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 2,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "repeated_no_hit_with_high_confidence_attempt"
+      ]
+    },
+    {
+      "family_id": "10.1.99.3|unknown|unknown|not-applicable|unknown|interzone-default|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 3,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "repeated_no_hit_pattern",
+        "destination_ip_not_specific",
+        "destination_port_not_specific"
+      ]
+    },
+    {
+      "family_id": "unknown|unknown|unknown|unknown|unknown|unknown|unknown|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 5,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "repeated_no_hit_pattern",
+        "destination_ip_not_specific",
+        "destination_port_not_specific",
+        "source_ip_not_specific"
+      ]
+    }
+  ],
+  "family_classifications": [
+    {
+      "family_id": "10.1.99.10|10.1.20.20|30053|not-applicable|tcp|interzone-default|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 0,
+        "observability_hit_runs": 1,
+        "validated_tokens": [
+          "addr.dst",
+          "dport"
+        ]
+      },
+      "reasons": [
+        "scenario_scoped_token_validation_exists"
+      ],
+      "status": "proven",
+      "traits": {
+        "app": "not-applicable",
+        "destination_ip": "10.1.20.20",
+        "destination_port": 30053,
+        "protocol": "tcp",
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "family_id": "10.1.99.10|unknown|unknown|not-applicable|tcp|interzone-default|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 0,
+        "observability_hit_runs": 1,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "not_proven_and_not_exhausted",
+        "destination_ip_not_specific",
+        "destination_port_not_specific"
+      ],
+      "status": "candidate",
+      "traits": {
+        "app": "not-applicable",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": "tcp",
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "family_id": "10.1.99.10|unknown|unknown|unknown|unknown|interzone-default|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 4,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "repeated_no_hit_pattern",
+        "destination_ip_not_specific",
+        "destination_port_not_specific"
+      ],
+      "status": "exhausted_pending_new_evidence",
+      "traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.10",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "family_id": "10.1.99.3|10.1.20.180|unknown|unknown|unknown|unknown|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 1,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "not_proven_and_not_exhausted",
+        "destination_port_not_specific"
+      ],
+      "status": "candidate",
+      "traits": {
+        "app": null,
+        "destination_ip": "10.1.20.180",
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "family_id": "10.1.99.3|10.1.20.21|30053|not-applicable|unknown|interzone-default|policy-deny|ssh_custom_command",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 2,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "repeated_no_hit_with_high_confidence_attempt"
+      ],
+      "status": "exhausted_pending_new_evidence",
+      "traits": {
+        "app": "not-applicable",
+        "destination_ip": "10.1.20.21",
+        "destination_port": 30053,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": "ssh_custom_command"
+      }
+    },
+    {
+      "family_id": "10.1.99.3|unknown|unknown|icmp|unknown|interzone-default|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 1,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "not_proven_and_not_exhausted",
+        "destination_ip_not_specific",
+        "destination_port_not_specific"
+      ],
+      "status": "candidate",
+      "traits": {
+        "app": "icmp",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "family_id": "10.1.99.3|unknown|unknown|not-applicable|unknown|interzone-default|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 3,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "repeated_no_hit_pattern",
+        "destination_ip_not_specific",
+        "destination_port_not_specific"
+      ],
+      "status": "exhausted_pending_new_evidence",
+      "traits": {
+        "app": "not-applicable",
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "family_id": "10.1.99.3|unknown|unknown|unknown|unknown|unknown|policy-deny|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 2,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "not_proven_and_not_exhausted",
+        "destination_ip_not_specific",
+        "destination_port_not_specific"
+      ],
+      "status": "candidate",
+      "traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "family_id": "unknown|example.com|443|unknown|unknown|unknown|unknown|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 2,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "not_proven_and_not_exhausted",
+        "source_ip_not_specific"
+      ],
+      "status": "candidate",
+      "traits": {
+        "app": null,
+        "destination_ip": "example.com",
+        "destination_port": 443,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null
+      }
+    },
+    {
+      "family_id": "unknown|unknown|unknown|unknown|unknown|unknown|unknown|unknown",
+      "metrics": {
+        "loop_breaker_blocked_runs": 0,
+        "no_observability_hit_runs": 5,
+        "observability_hit_runs": 0,
+        "validated_tokens": []
+      },
+      "reasons": [
+        "repeated_no_hit_pattern",
+        "destination_ip_not_specific",
+        "destination_port_not_specific",
+        "source_ip_not_specific"
+      ],
+      "status": "exhausted_pending_new_evidence",
+      "traits": {
+        "app": null,
+        "destination_ip": null,
+        "destination_port": null,
+        "protocol": null,
+        "rule": null,
+        "session_end_reason": null,
+        "source_ip": null,
+        "traffic_generation_mode": null
+      }
+    }
+  ],
+  "generated_at": "2026-03-11T17:16:50.032375Z",
+  "inputs": {
+    "coverage_generated_from": "docs/fixtures/panos_verification/versions",
+    "total_runs_analyzed": 23
+  },
+  "policy_notes": [
+    "Future PAN-OS live attempts must come from selector output artifacts, not ad hoc signature retries.",
+    "Families classified exhausted_pending_new_evidence require materially stronger/newer evidence before rerun.",
+    "OBSERVABILITY_RECORD.json remains primary run-state source of truth."
+  ],
+  "primary_recommendation": {
+    "action": "pause_panos_token_expansion",
+    "family_id": null,
+    "score": null,
+    "why": "No worthwhile non-exhausted candidate family with sufficient destination-token potential; avoid further no-hit loop retries."
+  }
+}
