@@ -499,6 +499,57 @@ class TestGetResult:
             "evidence incomplete",
         ]
 
+    def test_result_includes_source_readiness_summary(self, client):
+        request_id = "56565656-5656-5656-5656-565656565656"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.4,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.3,
+                "summary": "Insufficient evidence.",
+                "source_readiness_summary": {
+                    "total_sources": 4,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": ["scm", "sdwan"],
+                    "unknown_sources": ["torq"],
+                },
+                "unknown_reason_signals": [],
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        summary = resp.json()["source_readiness_summary"]
+        assert summary["total_sources"] == 4
+        assert summary["unavailable_sources"] == ["scm", "sdwan"]
+
 
 class TestUIRoutes:
     def test_index_returns_html(self, client):
@@ -527,6 +578,57 @@ class TestUIRoutes:
             resp = client.get(f"/requests/{request_id}")
         assert resp.status_code == 200
         assert "text/html" in resp.headers["content-type"]
+
+    def test_request_page_renders_source_readiness_summary(self, client):
+        request_id = "67676767-6767-6767-6767-676767676767"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.3,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": ["source readiness incomplete"],
+                "source_readiness_summary": {
+                    "total_sources": 3,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": ["scm"],
+                    "unknown_sources": ["torq"],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Source readiness" in resp.text
+        assert "Sources checked:" in resp.text
+        assert "Unavailable: scm" in resp.text
 
     def test_request_page_unknown_returns_404(self, client):
         resp = client.get("/requests/00000000-0000-0000-0000-000000000002")
@@ -1018,6 +1120,8 @@ class TestLoadResultRecordConfidenceFallback:
             "path context confidence low",
             "evidence incomplete",
         ]
+        assert result.source_readiness_summary.total_sources == 1
+        assert result.source_readiness_summary.unavailable_sources == ["panos"]
 
     @pytest.mark.anyio
     async def test_load_result_record_unknown_handles_missing_or_malformed_confidence_values(self):
@@ -1061,3 +1165,4 @@ class TestLoadResultRecordConfidenceFallback:
         assert result.evidence_completeness == 0.0
         assert result.result_confidence == 0.0
         assert result.unknown_reason_signals == ["custom reason"]
+        assert result.source_readiness_summary.total_sources == 0

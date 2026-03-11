@@ -6,6 +6,7 @@ import os
 import uuid
 
 from am_i_blocked_core.enums import FailureCategory, FailureStage, RequestStatus
+from am_i_blocked_core.models import DiagnosticResult
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -95,6 +96,8 @@ async def request_page(request: Request, request_id: uuid.UUID) -> HTMLResponse:
         result = await _load_result_record(request_id)
     except DependencyUnavailableError:
         raise HTTPException(status_code=503, detail="Persistence unavailable") from None
+    if isinstance(result, dict):
+        result = DiagnosticResult.model_validate(result)
     return templates.TemplateResponse(
         request,
         "result.html",

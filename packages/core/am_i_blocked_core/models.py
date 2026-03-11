@@ -110,6 +110,15 @@ class RoutingRecommendation(BaseModel):
     next_steps: list[str] = Field(default_factory=list)
 
 
+class SourceReadinessSummary(BaseModel):
+    """Compact operator-facing summary of source readiness state."""
+
+    total_sources: int = 0
+    available_sources: list[str] = Field(default_factory=list)
+    unavailable_sources: list[str] = Field(default_factory=list)
+    unknown_sources: list[str] = Field(default_factory=list)
+
+
 class DiagnosticResult(BaseModel):
     request_id: uuid.UUID
     verdict: Verdict
@@ -120,6 +129,7 @@ class DiagnosticResult(BaseModel):
     evidence_completeness: float = Field(ge=0.0, le=1.0)
     summary: str
     unknown_reason_signals: list[str] = Field(default_factory=list)
+    source_readiness_summary: SourceReadinessSummary = Field(default_factory=SourceReadinessSummary)
     observed_facts: list[ObservedFact] = Field(default_factory=list)
     routing_recommendation: RoutingRecommendation
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))

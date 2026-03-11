@@ -302,6 +302,16 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
      - record exhausted-family policy so repeated no-hit strong-input families are not retried without materially stronger evidence - done
      - add focused non-live selector tests - done
 
+24. **Surface source-readiness snapshot in result API/UI output**
+   - Status: completed (2026-03-11)
+   - Priority: P1
+   - Depends on: tasks 1-9
+   - Acceptance:
+     - expose compact source-readiness summary in `DiagnosticResult` payload from persisted `report_json.source_readiness` - done
+     - render the readiness summary in result UI for operator triage - done
+     - keep verdict/classifier behavior unchanged - done
+     - add focused route tests for API + UI readiness-summary surfacing - done
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -590,6 +600,13 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Coverage artifact refresh after the bounded observability-input run now shows `23` analyzed runs and `20` no-observability-hit outcomes; the single scenario-scoped `11.0.6-h1` UDP `addr.dst` + `dport` proof remains the only promoted destination-token evidence.
 - 2026-03-11: Executed exactly one bounded distinct-signature attempt with ready `OBSERVABILITY_INPUT.json` (`deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z`); loop-breaker allowed run with improved correlation score, but Stage 1 still produced `observability_hit=false` and no token validation occurred.
 - 2026-03-11: Added selector-driven family classification (`scripts/select_next_panos_candidate.py`) and decision artifacts (`NEXT_CANDIDATE_DECISION.json`/`.md`) so exhausted families are machine-marked and future live attempts are picked from selector output instead of ad hoc retries.
+- 2026-03-11: Added compact `source_readiness_summary` surfacing in API/UI result output from persisted readiness data to reduce operator triage friction without changing verdict/classifier behavior.
+- 2026-03-11: UI result route now normalizes dict-shaped persisted result payloads into `DiagnosticResult` before template rendering, so additive fields like `source_readiness_summary` render safely across mocked/test and DB-backed flows.
+- 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
+- 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
+- 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
+- 2026-03-11: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py packages/core/am_i_blocked_core/models.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-11: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py services/api/am_i_blocked_api/routes/ui.py packages/core/am_i_blocked_core/models.py tests/routes/test_api_routes.py` (pass).
 - 2026-03-08: Implemented PAN-OS adapter XML traffic-log job submission and polling with tests for success, timeout, no-match, and malformed XML; normalization remains conservative (deny/reset-only authoritative output).
 - 2026-03-08: Wired authoritative-correlation PAN-OS consumption with deny-authoritative filtering and added step-level tests proving non-deny/malformed/timeout/no-match paths do not emit authoritative evidence.
 - 2026-03-08: Added integration-style lifecycle tests covering submit/enqueue, worker dequeue/dispatch, persistence, and API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths.
@@ -638,7 +655,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Follow `docs/fixtures/panos_verification/NEXT_CANDIDATE_DECISION.json`: current primary action is `pause_panos_token_expansion` until a materially better non-exhausted family and stronger observability evidence source become available.
+Implement a bounded SCM adapter readiness probe (no evidence-query expansion) so result `source_readiness_summary` can transition SCM from persistent TODO-state ambiguity to concrete availability diagnostics.
 
 ## Deferred / Later
 

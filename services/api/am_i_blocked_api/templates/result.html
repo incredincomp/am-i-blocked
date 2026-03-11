@@ -92,6 +92,19 @@
       <h3>Summary</h3>
       <p>{{ result.summary }}</p>
     </div>
+    <div class="section">
+      <h3>Source readiness</h3>
+      <p style="font-size:0.88rem; color:#475569; margin-bottom:0.55rem;">
+        Sources checked: <strong>{{ result.source_readiness_summary.total_sources }}</strong>
+      </p>
+      {% if result.source_readiness_summary.unavailable_sources %}
+      <p style="font-size:0.88rem; color:#b42318;">
+        Unavailable: {{ result.source_readiness_summary.unavailable_sources | join(", ") }}
+      </p>
+      {% else %}
+      <p style="font-size:0.88rem; color:#166534;">No unavailable sources reported.</p>
+      {% endif %}
+    </div>
     {% if result.verdict == "unknown" %}
     <div class="section">
       <h3>Why unknown</h3>

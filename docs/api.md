@@ -134,6 +134,12 @@ Retrieve the diagnostic result for a completed request.
   "result_confidence": 0.9,
   "evidence_completeness": 0.5,
   "summary": "Cloud policy deny detected in Strata/Prisma evidence.",
+  "source_readiness_summary": {
+    "total_sources": 4,
+    "available_sources": ["panos", "logscale"],
+    "unavailable_sources": ["scm"],
+    "unknown_sources": ["torq"]
+  },
   "observed_facts": [
     {
       "source": "scm",
@@ -152,6 +158,12 @@ Retrieve the diagnostic result for a completed request.
   "created_at": "2026-01-01T00:14:05Z"
 }
 ```
+
+`source_readiness_summary` is a compact operator-facing view derived from persisted `report_json.source_readiness`:
+- `total_sources`: number of sources with readiness entries
+- `available_sources`: sources reporting `available=true`
+- `unavailable_sources`: sources reporting `available=false`
+- `unknown_sources`: sources with malformed/missing readiness state
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
 

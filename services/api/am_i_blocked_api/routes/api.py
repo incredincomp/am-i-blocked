@@ -80,6 +80,43 @@ def _derive_unknown_reason_signals(
     return list(dict.fromkeys(signals))
 
 
+def _summarize_source_readiness(report: dict[str, Any]) -> dict[str, Any]:
+    """Build a compact readiness summary from persisted report payload."""
+    readiness = report.get("source_readiness")
+    if not isinstance(readiness, dict):
+        return {
+            "total_sources": 0,
+            "available_sources": [],
+            "unavailable_sources": [],
+            "unknown_sources": [],
+        }
+
+    available_sources: list[str] = []
+    unavailable_sources: list[str] = []
+    unknown_sources: list[str] = []
+
+    for source, value in readiness.items():
+        if not isinstance(source, str) or not source.strip():
+            continue
+        if isinstance(value, dict):
+            available_flag = value.get("available")
+            if available_flag is True:
+                available_sources.append(source)
+            elif available_flag is False:
+                unavailable_sources.append(source)
+            else:
+                unknown_sources.append(source)
+        else:
+            unknown_sources.append(source)
+
+    return {
+        "total_sources": len(available_sources) + len(unavailable_sources) + len(unknown_sources),
+        "available_sources": sorted(available_sources),
+        "unavailable_sources": sorted(unavailable_sources),
+        "unknown_sources": sorted(unknown_sources),
+    }
+
+
 def _get_session_factory(database_url: str) -> async_sessionmaker:
     if database_url not in _sessions:
         if database_url not in _engines:
@@ -339,6 +376,7 @@ async def _load_result_record(request_id: uuid.UUID) -> DiagnosticResult | None:
             "evidence_completeness": evidence_completeness,
             "summary": row.summary,
             "unknown_reason_signals": unknown_reason_signals,
+            "source_readiness_summary": _summarize_source_readiness(report),
             "observed_facts": report.get("observed_facts", []),
             "routing_recommendation": report.get(
                 "routing_recommendation",

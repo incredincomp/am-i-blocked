@@ -73,7 +73,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `tests/unit`: step and classifier unit tests.
 - `tests/routes`: FastAPI API/route tests.
 - `tests/routes/test_api_routes.py`: includes route/UI checks for PAN-OS metadata render behavior (present, absent, malformed).
-- `tests/routes/test_api_routes.py`: also covers unknown-confidence explainability rendering and persisted-result fallback handling for missing/malformed confidence values.
+- `tests/routes/test_api_routes.py`: also covers unknown-confidence explainability rendering, `source_readiness_summary` surfacing in API/UI results, and persisted-result fallback handling for missing/malformed confidence values.
 - `tests/fixtures`: pipeline integration-style tests with mocked adapters/readiness.
 - `tests/fixtures/test_lifecycle_integration.py`: integration-style submit -> queue -> worker -> persist -> API result retrieval + UI render coverage with controlled PAN-OS deny/no-authoritative-evidence outcomes, including persisted PAN-OS metadata present/malformed lifecycle assertions.
 - `tests/fixtures/test_panos_verification_fixture_pack.py`: fixture-pack scaffolding validation (required PAN-OS XML sample files exist, parse, and contain minimum structural markers).
@@ -155,6 +155,8 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - PAN-OS rule metadata is currently surfaced through existing observed-fact detail payload (`observed_facts[].detail.rule_metadata`) without introducing new top-level API fields.
 - Diagnostic result now includes a minimal additive explainability field:
   - `unknown_reason_signals` (list of short strings; populated for unknown verdicts when available)
+- Diagnostic result now includes a compact additive readiness field:
+  - `source_readiness_summary` (`total_sources`, `available_sources`, `unavailable_sources`, `unknown_sources`)
 - `docs/api.md` now also includes `RequestDetail` failed-state response examples documenting:
   - `failure_reason`
   - `failure_stage`
