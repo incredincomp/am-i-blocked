@@ -690,8 +690,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run ruff check packages/adapters/am_i_blocked_adapters/scm/__init__.py tests/adapters/test_scm_adapter.py services/worker/am_i_blocked_worker/steps/authoritative_correlation.py tests/unit/test_authoritative_correlation.py` (pass).
 - 2026-03-12: Added integration-style lifecycle proofs for authoritative SCM deny and authoritative SCM decrypt-deny records through submit -> queue -> worker -> persist -> API result retrieval using mock-only SCM adapter injection.
 - 2026-03-12: Added bounded negative SCM lifecycle proof showing a deny-like SCM record with `authoritative=false` is dropped by authoritative correlation and does not produce a denied verdict through persisted API result retrieval.
+- 2026-03-12: Added bounded malformed-shape SCM lifecycle proof showing a deny-like SCM candidate with malformed decision structure (no usable normalized deny action) fails closed and does not produce a denied verdict through persisted API result retrieval.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 12 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 14 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/unit/test_authoritative_correlation.py` (pass, 12 tests).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
@@ -758,7 +760,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded negative lifecycle case for malformed SCM record shape (for example missing timestamp/source-of-record marker) proving fail-closed non-denied persistence/retrieval behavior without SCM feature expansion.
+Add one bounded SCM adapter unit case proving malformed source-of-record marker fails closed in normalization (`authoritative=true` + deny-like decision but missing/invalid SCM/Strata source marker returns no authoritative evidence).
 
 ## Deferred / Later
 

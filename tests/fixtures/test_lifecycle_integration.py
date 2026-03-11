@@ -188,6 +188,26 @@ class _FakeSCMAdapter:
                     },
                 )
             ]
+        if self._mode == "malformed_decision_shape":
+            # Intentionally deny-like candidate with malformed decision structure and no usable action.
+            # This should fail closed and never become authoritative deny evidence.
+            return [
+                EvidenceRecord(
+                    request_id=request_uuid,
+                    source=EvidenceSource.SCM,
+                    kind=EvidenceKind.TRAFFIC_LOG,
+                    normalized={
+                        "authoritative": True,
+                        "decision": {"value": "deny"},
+                        "source_system": "strata_cloud_manager",
+                        "destination": "api.example.com",
+                        "port": 443,
+                        "event_ts": "2026-01-01T00:10:00Z",
+                        "rule_name": "cloud-block-malformed",
+                        "reason": "Malformed decision structure",
+                    },
+                )
+            ]
         return []
 
 
@@ -467,6 +487,33 @@ async def test_lifecycle_scm_non_authoritative_deny_fails_closed_and_not_denied(
     assert db.requests[request_id].status == RequestStatus.COMPLETE.value
 
     # Deny-like SCM record is present at adapter output but must be dropped before authority.
+    assert result["verdict"] != "denied"
+
+    evidence_records = db.results[request_id].report_json.get("evidence_records", [])
+    scm_authoritative_deny = [
+        ev
+        for ev in evidence_records
+        if ev.get("source") == "scm"
+        and ev.get("normalized", {}).get("action") == "deny"
+        and ev.get("normalized", {}).get("authoritative") is True
+    ]
+    assert scm_authoritative_deny == []
+
+
+@pytest.mark.anyio
+async def test_lifecycle_scm_malformed_decision_shape_fails_closed_and_not_denied() -> None:
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=True,
+        source="scm",
+        scm_mode="malformed_decision_shape",
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    # SCM candidate resembles deny context but malformed decision shape must fail closed.
     assert result["verdict"] != "denied"
 
     evidence_records = db.results[request_id].report_json.get("evidence_records", [])
