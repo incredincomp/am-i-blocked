@@ -14,6 +14,7 @@
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-icmp-stage1-signature_20260311T010608Z/CAPTURE_METADATA.txt",
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-icmp-stage1-src-only_20260310T230931Z/CAPTURE_METADATA.txt",
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-icmp-stage1-src-only_20260310T231306Z/CAPTURE_METADATA.txt",
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z/CAPTURE_METADATA.txt",
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z/CAPTURE_METADATA.txt",
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z/CAPTURE_METADATA.txt",
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-stage1_20260311T064433Z/CAPTURE_METADATA.txt",
@@ -33,21 +34,23 @@
       "docs/fixtures/panos_verification/versions/11.0.6-h1/xpath-shape_20260310T173154Z/CAPTURE_METADATA.txt"
     ],
     "observability_records": [
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z/OBSERVABILITY_RECORD.json",
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z/OBSERVABILITY_RECORD.json"
     ],
     "validation_results": [
+      "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z/VALIDATION_RESULT.json",
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z/VALIDATION_RESULT.json",
       "docs/fixtures/panos_verification/versions/11.0.6-h1/deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z/VALIDATION_RESULT.json"
     ]
   },
   "counts": {
-    "loop_breaker_blocked_or_rerun_risk_scenarios": 16,
-    "no_observability_hit_scenarios": 19,
+    "loop_breaker_blocked_or_rerun_risk_scenarios": 18,
+    "no_observability_hit_scenarios": 20,
     "observability_hit_token_not_proven_scenarios": 1,
     "proven_token_validation_scenarios": 1,
-    "runs_with_observability_record": 1,
-    "runs_with_validation_result": 2,
-    "total_runs_analyzed": 22
+    "runs_with_observability_record": 2,
+    "runs_with_validation_result": 3,
+    "total_runs_analyzed": 23
   },
   "generated_from": "docs/fixtures/panos_verification/versions",
   "observability": {
@@ -56,6 +59,7 @@
       "deny-hit-icmp-stage1-signature_20260311T010608Z",
       "deny-hit-icmp-stage1-src-only_20260310T230931Z",
       "deny-hit-icmp-stage1-src-only_20260310T231306Z",
+      "deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z",
       "deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z",
       "deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z",
       "deny-hit-tcp-distinct-stage1_20260311T064433Z",
@@ -102,6 +106,7 @@
       "deny-hit-icmp-stage1-signature_20260311T010608Z",
       "deny-hit-icmp-stage1-src-only_20260310T230931Z",
       "deny-hit-icmp-stage1-src-only_20260310T231306Z",
+      "deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z",
       "deny-hit-tcp-distinct-observe-validate-stage1_20260311T073259Z",
       "deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z",
       "deny-hit-tcp-distinct-stage1_20260311T064433Z",
@@ -813,6 +818,37 @@
       "validated_tokens": [],
       "verification_scope": "real_env_partial",
       "version": "11.0.6-h1"
+    },
+    {
+      "capture_label": "deny-hit-tcp-distinct-observe-validate-obsinput-stage1",
+      "capture_provenance": "real_capture",
+      "captured_at_utc": "2026-03-11T16:48:16Z",
+      "classification_bucket": "no_observability_hit",
+      "loop_breaker": {
+        "blocked": false,
+        "reason": "not_triggered"
+      },
+      "matched_entry_count": 0,
+      "observability_hit": false,
+      "poll_entry_count": 0,
+      "run_id": "deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z",
+      "scenario": "deny-hit-tcp-distinct-observe-validate-obsinput-stage1",
+      "signature_traits": {
+        "app": "not-applicable",
+        "destination_ip": "10.1.20.21",
+        "destination_port": 30053,
+        "protocol": null,
+        "rule": "interzone-default",
+        "session_end_reason": "policy-deny",
+        "source_ip": "10.1.99.3",
+        "traffic_generation_mode": "ssh_custom_command",
+        "zone_dst": "servers",
+        "zone_src": "management"
+      },
+      "submit_code": "19",
+      "validated_tokens": [],
+      "verification_scope": "real_env_partial",
+      "version": "11.0.6-h1"
     }
   ],
   "signature_families": [
@@ -921,15 +957,16 @@
     {
       "classification": {
         "loop_breaker_blocked_runs": 0,
-        "no_observability_hit_runs": 1,
+        "no_observability_hit_runs": 2,
         "observability_hit_runs": 0,
         "validated_tokens": []
       },
       "family_id": "10.1.99.3|10.1.20.21|30053|not-applicable|unknown|interzone-default|policy-deny|ssh_custom_command",
-      "loop_breaker_risk_status": "medium",
-      "recommended_next_action": "rerun_only_with_stronger_correlation_evidence",
+      "loop_breaker_risk_status": "high",
+      "recommended_next_action": "do_not_rerun_without_material_observability_quality_change",
       "runs": [
-        "deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z"
+        "deny-hit-tcp-distinct-observe-validate-stage1_20260311T151256Z",
+        "deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z"
       ],
       "traits": {
         "app": "not-applicable",

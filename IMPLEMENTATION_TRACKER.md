@@ -280,6 +280,17 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
      - keep `LIVE_DENY_OBSERVABILITY_TEMPLATE.md` optional/manual support, not preferred machine input - done
      - add focused non-live tests for helper and orchestrator behavior - done
 
+22. **Execute one bounded distinct-signature run with ready observability input**
+   - Status: completed (2026-03-11)
+   - Priority: P1
+   - Depends on: tasks 20-21
+   - Acceptance:
+     - select one materially distinct candidate family from observability coverage - done (`10.1.99.3 -> 10.1.20.21:30053`, `app=not-applicable`, `rule=interzone-default`)
+     - prepare `OBSERVABILITY_INPUT.json` with strong correlation evidence and verify `ready_for_orchestrator=true` - done
+     - run exactly one bounded orchestrator attempt with `--observability-input` - done
+     - treat resulting `OBSERVABILITY_RECORD.json`/`VALIDATION_RESULT.json` as source of truth and avoid same-run retries - done
+     - promote assumptions only if new real-capture evidence justifies it - done (no promotions)
+
 ## ROI-Ranked TODO Backlog
 
 1. Populate PAN-OS fixture pack with sanitized real-environment XML captures across each target PAN-OS version (deny/no-match/metadata/malformed matrix) and use them to validate/correct adapter query-field/XPath placeholders.
@@ -537,6 +548,15 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Ran `uv run ruff check scripts/prepare_panos_observability_input.py tests/fixtures/test_prepare_panos_observability_input.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_prepare_panos_observability_input.py tests/fixtures/test_panos_observe_and_validate.py` (pass, 12 tests).
 - 2026-03-11: Ran `uv run ruff check scripts/prepare_panos_observability_input.py scripts/panos_observe_and_validate.py tests/fixtures/test_prepare_panos_observability_input.py tests/fixtures/test_panos_observe_and_validate.py` (pass).
+- 2026-03-11: Ran `python3 scripts/prepare_panos_observability_input.py ... --out docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json` (pass; artifact `ready_for_orchestrator=true`, `correlation_confidence=high`).
+- 2026-03-11: Ran one bounded orchestrator attempt with observability-input gate:
+  - `set -a && source ./.env && set +a && python3 scripts/panos_observe_and_validate.py --host "$PANOS_HOST" --username "$PANOS_USERNAME" --password "$PANOS_PASSWORD" --rule-xpath "/config/devices/entry/vsys/entry/rulebase/security/rules" --capture-label "deny-hit-tcp-distinct-observe-validate-obsinput" --source-ssh-target "root@10.1.99.3" --traffic-command 'end=$((SECONDS+60)); while [ $SECONDS -lt $end ]; do nc -vz -w 3 10.1.20.21 30053 >/dev/null 2>&1 || true; sleep 0.5; done' --source-ip "10.1.99.3" --destination-ip "10.1.20.21" --destination-port 30053 --app "not-applicable" --rule "interzone-default" --action "deny" --session-end-reason "policy-deny" --zone-src "management" --zone-dst "servers" --lookback-minutes 15 --observability-input "docs/fixtures/panos_verification/OBSERVABILITY_INPUT.json"`
+  - outcome: exit `11`, `OBSERVABILITY_RECORD.json` + `VALIDATION_RESULT.json` written, `observability_hit=false`, no Stage 2 token subqueries.
+- 2026-03-11: Ran `bash -n scripts/panos_readonly_guard.sh && bash -n scripts/gather_panos_fixtures.sh` (pass).
+- 2026-03-11: Ran `python3 -m py_compile scripts/prepare_panos_observability_input.py scripts/panos_observe_and_validate.py scripts/summarize_panos_observability.py` (pass).
+- 2026-03-11: Ran `uv run ruff check scripts/prepare_panos_observability_input.py scripts/panos_observe_and_validate.py scripts/summarize_panos_observability.py` (pass).
+- 2026-03-11: Ran `uv run pytest -q tests/fixtures/test_panos_fixture_selector.py tests/fixtures/test_panos_verification_fixture_pack.py` (pass, 14 tests).
+- 2026-03-11: Ran `python3 scripts/summarize_panos_observability.py` (pass; coverage updated to 23 analyzed runs, 20 no-hit, 2 observability records, 3 validation results).
 
 ## Iteration Journal
 
@@ -552,6 +572,9 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-08: Re-prioritized queue to first authoritative PAN-OS deny path as the next MVP implementation target.
 - 2026-03-11: Added offline PAN-OS observability coverage summarizer script and artifacts to classify existing evidence and pick a single next path without launching a new live attempt.
 - 2026-03-11: Added higher-confidence pre-run observability input path (`OBSERVABILITY_INPUT.json`) and wired orchestrator preflight + loop-breaker enforcement so repeated weak no-hit retries fail closed without ready machine-readable correlation evidence.
+- 2026-03-11: One bounded distinct-signature run with ready observability input is now recorded as no-hit for `deny-hit-tcp-distinct-observe-validate-obsinput`; reruns for this same family are not recommended without materially stronger/newer correlation evidence.
+- 2026-03-11: Coverage artifact refresh after the bounded observability-input run now shows `23` analyzed runs and `20` no-observability-hit outcomes; the single scenario-scoped `11.0.6-h1` UDP `addr.dst` + `dport` proof remains the only promoted destination-token evidence.
+- 2026-03-11: Executed exactly one bounded distinct-signature attempt with ready `OBSERVABILITY_INPUT.json` (`deny-hit-tcp-distinct-observe-validate-obsinput-stage1_20260311T164815Z`); loop-breaker allowed run with improved correlation score, but Stage 1 still produced `observability_hit=false` and no token validation occurred.
 - 2026-03-08: Implemented PAN-OS adapter XML traffic-log job submission and polling with tests for success, timeout, no-match, and malformed XML; normalization remains conservative (deny/reset-only authoritative output).
 - 2026-03-08: Wired authoritative-correlation PAN-OS consumption with deny-authoritative filtering and added step-level tests proving non-deny/malformed/timeout/no-match paths do not emit authoritative evidence.
 - 2026-03-08: Added integration-style lifecycle tests covering submit/enqueue, worker dequeue/dispatch, persistence, and API result retrieval for both authoritative PAN-OS deny and no-authoritative-evidence paths.
@@ -599,7 +622,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Prepare a ready (`ready_for_orchestrator=true`) `OBSERVABILITY_INPUT.json` for the next candidate signature family and only then run one bounded orchestrator attempt; do not run retries for repeated no-hit families without that artifact.
+Do not rerun `deny-hit-tcp-distinct-observe-validate-obsinput` until materially stronger/newer correlation evidence exists; the next attempt should target a different signature family only when a fresh ready `OBSERVABILITY_INPUT.json` is available.
 
 ## Deferred / Later
 
