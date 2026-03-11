@@ -355,3 +355,48 @@ class TestPANOSAdapterFixtureAlignment:
 
         root = ET.fromstring((capture_dir / "rule_metadata_config_response.xml").read_text(encoding="utf-8"))
         assert root.find(".//rules/entry") is not None
+
+    def test_real_capture_deny_signature_stage2_proves_addr_dst_and_dport_for_11_0_6_h1(self) -> None:
+        stage2_dir = select_versioned_capture(
+            version="11.0.6-h1",
+            scenario="deny-hit-udp-obsgate-stage2-addrdst-dport",
+            require_provenance="real_capture",
+            minimum_verification_scope="real_env_partial",
+        )
+        manifest = load_capture_manifest(stage2_dir)
+        assert manifest.get("capture_provenance") == "real_capture"
+        assert manifest.get("scenario") == "deny-hit-udp-obsgate-stage2-addrdst-dport"
+        query_expr = manifest.get("log_query_expr", "")
+        assert "addr.dst eq 10.1.20.20" in query_expr
+        assert "dport eq 30053" in query_expr
+
+        root = ET.fromstring((stage2_dir / "traffic_log_poll_response.xml").read_text(encoding="utf-8"))
+        entries = self.adapter._extract_log_entries(root)
+        assert entries
+        deny_matches = [
+            e
+            for e in entries
+            if (e.get("action") or "").lower() == "deny"
+            and (e.get("session_end_reason") or "").lower() == "policy-deny"
+            and (e.get("rule") or "") == "interzone-default"
+            and (e.get("app") or "") == "not-applicable"
+            and (e.get("dport") or "") == "30053"
+            and (e.get("from") or "") == "management"
+            and (e.get("to") or "") == "servers"
+        ]
+        assert deny_matches
+
+
+class TestPANOSAdapterQueryBuilder:
+    def setup_method(self) -> None:
+        self.adapter = PANOSAdapter(
+            fw_hosts=["10.0.0.1"],
+            api_key="test-key",
+            verify_ssl=False,
+        )
+
+    def test_build_traffic_query_uses_addr_dst_and_dport_tokens(self) -> None:
+        query = self.adapter._build_traffic_query(destination="10.1.20.20", port=30053)
+        assert "(addr.dst eq '10.1.20.20')" in query
+        assert "(dport eq 30053)" in query
+        assert "port.dst" not in query

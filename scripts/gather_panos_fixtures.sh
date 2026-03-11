@@ -147,7 +147,7 @@ build_log_query_expr() {
         parts+=("(addr.dst eq ${DST_QUERY})")
     fi
     if [[ -n "$DPORT_QUERY" ]]; then
-        parts+=("(port.dst eq ${DPORT_QUERY})")
+        parts+=("(dport eq ${DPORT_QUERY})")
     fi
     if [[ -n "$WINDOW_HOURS" ]]; then
         parts+=("(receive_time geq '$(date -u -d "-${WINDOW_HOURS} hour" '+%Y/%m/%d %H:%M:%S')')")

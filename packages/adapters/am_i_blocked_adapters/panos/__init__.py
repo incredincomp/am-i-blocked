@@ -109,13 +109,13 @@ class PANOSAdapter(BaseAdapter):
         """Build a conservative PAN-OS XML traffic-log query string.
 
         Query field semantics can vary by environment/version; this query shape is
-        intentionally narrow and should be treated as UNVERIFIED until validated
-        against target firewalls.
+        intentionally narrow. Destination token behavior must stay scoped to
+        version/scenario-backed real-capture evidence.
         """
         destination_clean = destination.replace("'", "")
         clauses = [f"(addr.dst eq '{destination_clean}')"]
         if port is not None:
-            clauses.append(f"(port.dst eq {port})")
+            clauses.append(f"(dport eq {port})")
         return " and ".join(clauses)
 
     async def _submit_traffic_log_job(self, host: str, query: str) -> str | None:
