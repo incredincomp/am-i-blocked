@@ -1,0 +1,14 @@
+captured_at_utc=2026-03-10T22:12:50Z
+capture_label=deny-hit-icmp-management-servers
+capture_provenance=real_capture
+verification_scope=real_env_partial
+panos_version_reported=11.0.6-h1
+panos_version_source=auto_detected
+scenario=deny-hit-icmp-management-servers
+firewall_host_input=SANITIZED_IPv4
+rule_xpath_input=/config/devices/entry/vsys/entry/rulebase/security/rules
+log_query_expr=(addr.src eq 10.1.99.3) and (addr.dst eq 10.1.20.180) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '2026/03/10 21:57:47')
+max_polls=10
+poll_interval_secs=1
+notes=Sanitized real-firewall fixture capture; values are representative structure only.
+api_key_source=keygen

@@ -1,0 +1,1 @@
+GET https://SANITIZED_IPv4/api/?type=config&action=complete&key=REDACTED_API_KEY&xpath=/config/devices/entry/vsys/entry/rulebase/security

@@ -1,0 +1,1 @@
+GET https://SANITIZED_IPv4/api/?type=op&cmd=<show><system><info></info></system></show>&key=REDACTED_API_KEY

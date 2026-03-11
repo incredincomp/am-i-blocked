@@ -1,6 +1,6 @@
-<response status="success"><result><system><hostname>SANITIZED_HOST</hostname><ip-address>SANITIZED_IPv4</ip-address><public-ip-address>unknown</public-ip-address><netmask>SANITIZED_IPv4</netmask><default-gateway>SANITIZED_IPv4</default-gateway><is-dhcp>no</is-dhcp><ipv6-address>unknown</ipv6-address><ipv6-link-local-address>unknown</ipv6-link-local-address><mac-address>8c:36:7a:01:f4:65</mac-address><time>Tue Mar 10 23:40:38 2026
+<response status="success"><result><system><hostname>SANITIZED_HOST</hostname><ip-address>SANITIZED_IPv4</ip-address><public-ip-address>unknown</public-ip-address><netmask>SANITIZED_IPv4</netmask><default-gateway>SANITIZED_IPv4</default-gateway><is-dhcp>no</is-dhcp><ipv6-address>unknown</ipv6-address><ipv6-link-local-address>unknown</ipv6-link-local-address><mac-address>8c:36:7a:01:f4:65</mac-address><time>Tue Mar 10 18:23:03 2026
 </time>
-<uptime>21 days, 14:11:52</uptime>
+<uptime>21 days, 8:54:18</uptime>
 <devicename>SANITIZED_HOST</devicename>
 <family>400</family><model>PA-460</model><serial>SANITIZED_SERIAL</serial><base_mac>64:7c:e8:b4:0d:00</base_mac>
 <mac_count>254</mac_count>

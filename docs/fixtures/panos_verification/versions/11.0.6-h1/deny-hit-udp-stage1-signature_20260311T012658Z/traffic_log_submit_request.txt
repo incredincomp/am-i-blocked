@@ -1,0 +1,1 @@
+GET https://SANITIZED_IPv4/api/?type=log&log-type=traffic&key=REDACTED_API_KEY&query=(addr.src eq SANITIZED_IPv4) and (rule eq interzone-default) and (action eq deny) and (session_end_reason eq policy-deny) and (receive_time geq '2026/03/11 01:21:55')
