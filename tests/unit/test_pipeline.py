@@ -17,6 +17,25 @@ from am_i_blocked_core.enums import (
 from am_i_blocked_worker import pipeline
 
 
+@pytest.mark.parametrize(
+    ("stage", "expected_category"),
+    [
+        (FailureStage.QUEUE_ENQUEUE, FailureCategory.INTERNAL),
+        (FailureStage.VALIDATE_REQUEST, FailureCategory.VALIDATION),
+        (FailureStage.SOURCE_READINESS_CHECK, FailureCategory.DEPENDENCY),
+        (FailureStage.CONTEXT_RESOLVER, FailureCategory.PIPELINE_STEP),
+        (FailureStage.BOUNDED_PROBES, FailureCategory.DEPENDENCY),
+        (FailureStage.AUTHORITATIVE_CORRELATION, FailureCategory.DEPENDENCY),
+        (FailureStage.CLASSIFY, FailureCategory.PIPELINE_STEP),
+        (FailureStage.PERSIST_AND_REPORT, FailureCategory.PERSISTENCE),
+        (FailureStage.PIPELINE, FailureCategory.INTERNAL),
+        (FailureStage.UNKNOWN, FailureCategory.INTERNAL),
+    ],
+)
+def test_failure_stage_to_category_mapping_is_stable(stage, expected_category):
+    assert pipeline._failure_category_for_stage(stage) == expected_category
+
+
 @pytest.mark.anyio
 async def test_validate_request_failure_records_validate_stage_and_validation_category():
     req_id = str(uuid.uuid4())
