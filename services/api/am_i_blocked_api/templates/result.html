@@ -81,6 +81,16 @@
         Routing context: {{ result.routing_recommendation.reason }}
       </p>
       {% endif %}
+      {% if result.destination_value %}
+      <p style="margin-top:0.4rem; font-size:0.88rem; color:#475569;">
+        Destination:
+        {% if result.destination_port %}
+        {{ result.destination_value }}:{{ result.destination_port }}
+        {% else %}
+        {{ result.destination_value }}
+        {% endif %}
+      </p>
+      {% endif %}
       {% if record.time_window_start or record.time_window_end %}
       <p style="margin-top:0.4rem; font-size:0.88rem; color:#475569;">
         Time window:

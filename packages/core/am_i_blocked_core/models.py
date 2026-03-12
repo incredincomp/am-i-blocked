@@ -141,6 +141,8 @@ class ObservedFactSummary(BaseModel):
 class DiagnosticResult(BaseModel):
     request_id: uuid.UUID
     verdict: Verdict
+    destination_value: str | None = None
+    destination_port: int | None = None
     enforcement_plane: EnforcementPlane
     path_context: PathContext
     path_confidence: float = Field(ge=0.0, le=1.0)

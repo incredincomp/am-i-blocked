@@ -954,6 +954,64 @@ class TestGetResult:
             == "On-prem policy deny evidence matches destination and port."
         )
 
+    @pytest.mark.parametrize(
+        ("destination_value", "port"),
+        [
+            ("api.example.com", None),
+            ("10.20.30.40", 8443),
+            (None, None),
+        ],
+    )
+    def test_result_includes_destination_context_for_ticket_handoff(
+        self,
+        client,
+        destination_value,
+        port,
+    ):
+        request_id = "5c5c5c5c-5c5c-5c5c-5c5c-5c5c5c5c5c5c"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": destination_value,
+                "port": port,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "unknown",
+                    "enforcement_plane": "unknown",
+                    "path_context": "unknown",
+                    "path_confidence": 0.2,
+                    "result_confidence": 0.2,
+                    "evidence_completeness": 0.2,
+                    "summary": "Insufficient evidence.",
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "Unknown",
+                        "reason": "Insufficient evidence",
+                        "next_steps": [],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        assert resp.json()["destination_value"] == destination_value
+        assert resp.json()["destination_port"] == port
+
     def test_result_includes_time_window_context_from_request_record(self, client):
         request_id = "5a5a5a5a-5a5a-5a5a-5a5a-5a5a5a5a5a5a"
         with patch(
@@ -1543,6 +1601,82 @@ class TestUIRoutes:
 
         assert resp.status_code == 200
         assert "Time window:" not in resp.text
+
+    @pytest.mark.parametrize(
+        ("destination_value", "destination_port", "expected_fragment"),
+        [
+            ("api.example.com", None, "api.example.com"),
+            ("10.20.30.40", 8443, "10.20.30.40:8443"),
+            (None, None, None),
+        ],
+    )
+    def test_request_page_destination_context_line_behaves_gracefully(
+        self,
+        client,
+        destination_value,
+        destination_port,
+        expected_fragment,
+    ):
+        request_id = "75757575-7575-7575-7575-757575757575"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "destination_value": destination_value,
+                "destination_port": destination_port,
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.2,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": [],
+                    "unavailable_sources": ["scm"],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 0,
+                    "authoritative_facts": 0,
+                    "enrichment_only_facts": 0,
+                    "authoritative_sources": [],
+                    "enrichment_only_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        if expected_fragment is None:
+            assert "Destination:" not in resp.text
+        else:
+            assert "Destination:" in resp.text
+            assert expected_fragment in resp.text
 
     def test_request_page_handles_missing_source_readiness_details(self, client):
         request_id = "69696969-6969-6969-6969-696969696969"

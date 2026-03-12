@@ -800,6 +800,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added focused route/UI tests for time-window context behavior: both values present, partial availability, and both missing; API result shaping coverage now verifies normalized start/end propagation and graceful `null` handling.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "time_window"` (pass, 7 selected).
 - 2026-03-12: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Added bounded API/UI destination handoff surfacing: result payload now carries `destination_value` and optional `destination_port` from request context, and result-page context block now renders compact `Destination` output for destination-only/destination+port and hides when destination is missing.
+- 2026-03-12: Added focused route/UI tests for destination context behavior: destination only, destination + port, and destination missing; API result shaping coverage now verifies graceful `null` handling.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "destination"` (pass, 9 selected).
+- 2026-03-12: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -815,7 +819,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded API contract/UI parity milestone to include request destination context (`destination_value` + optional `port`) in `/api/v1/requests/{id}/result` payload for direct ticket copy/paste, with focused route tests and no verdict/routing logic changes.
+Add one bounded API/UI milestone that surfaces `destination_type` in the result context block and `/api/v1/requests/{id}/result` payload for clearer ticket handoff classification, with focused route/UI tests and no verdict/routing logic changes.
 
 ## Deferred / Later
 
