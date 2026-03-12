@@ -280,6 +280,14 @@ def _details_skip_readiness_report() -> ReadinessReport:
     return report
 
 
+def _nondict_readiness_report() -> ReadinessReport:
+    report = ReadinessReport()
+    report.record("panos", {"available": True, "status": "ready", "reason": "probe ok", "latency_ms": 4})
+    report.record("scm", {"available": True, "reason": "reachable"})
+    report.sources["torq"] = "non-dict-shape"
+    return report
+
+
 async def _run_lifecycle_case(
     deny: bool,
     *,
@@ -685,6 +693,43 @@ async def test_lifecycle_source_readiness_details_skip_meaningless_entries() -> 
     assert details["panos"]["status"] == "ready"
     assert details["panos"]["reason"] == "probe ok"
     assert details["panos"]["latency_ms"] == 3
+
+    assert details["scm"]["status"] == "ready"
+    assert details["scm"]["reason"] == "reachable"
+    assert details["scm"]["latency_ms"] is None
+
+
+@pytest.mark.anyio
+async def test_lifecycle_source_readiness_nondict_entries_are_unknown_in_summary_and_skipped_in_details() -> None:
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=False,
+        readiness_report=_nondict_readiness_report(),
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    persisted_readiness = db.results[request_id].report_json.get("source_readiness")
+    assert isinstance(persisted_readiness, dict)
+    assert persisted_readiness["torq"] == "non-dict-shape"
+
+    summary = result["source_readiness_summary"]
+    assert summary == {
+        "total_sources": 3,
+        "available_sources": ["panos", "scm"],
+        "unavailable_sources": [],
+        "unknown_sources": ["torq"],
+    }
+
+    details = {item["source"]: item for item in result["source_readiness_details"]}
+    assert set(details) == {"panos", "scm"}
+    assert "torq" not in details
+
+    assert details["panos"]["status"] == "ready"
+    assert details["panos"]["reason"] == "probe ok"
+    assert details["panos"]["latency_ms"] == 4
 
     assert details["scm"]["status"] == "ready"
     assert details["scm"]["reason"] == "reachable"

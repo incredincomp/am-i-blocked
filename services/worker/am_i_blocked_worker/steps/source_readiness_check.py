@@ -20,11 +20,11 @@ class ReadinessReport:
 
     @property
     def any_available(self) -> bool:
-        return any(v.get("available") for v in self.sources.values())
+        return any(isinstance(v, dict) and v.get("available") for v in self.sources.values())
 
     @property
     def available_sources(self) -> list[str]:
-        return [k for k, v in self.sources.items() if v.get("available")]
+        return [k for k, v in self.sources.items() if isinstance(v, dict) and v.get("available")]
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self.sources)

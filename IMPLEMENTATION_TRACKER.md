@@ -701,6 +701,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added integration-style lifecycle proof that mixed source readiness states survive submit -> queue -> worker -> persist -> API result retrieval, with persisted `source_readiness` yielding expected `source_readiness_summary` and `source_readiness_details` in result output.
 - 2026-03-12: Added lifecycle integration proof for fallback readiness-status derivation end-to-end: persisted mixed readiness entries with `available` but no explicit `status` now have retrieval assertions for `ready`/`unavailable` fallback statuses (plus optional `unknown` fallback when both fields are absent).
 - 2026-03-12: Added lifecycle integration proof that `source_readiness_details` omits meaningless entries with no readiness keys while valid explicit/fallback entries still survive persistence and API retrieval; `source_readiness_summary` remains correct for valid availability signals.
+- 2026-03-12: Added lifecycle integration proof that non-dict readiness entries are classified under `unknown_sources` in summary and excluded from details, plus a tiny runtime hardening in `ReadinessReport` dict-guards to prevent worker crashes on malformed readiness shapes.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 12 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 14 tests).
@@ -716,8 +717,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 16 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 18 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 20 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 22 tests).
 - 2026-03-12: Ran `uv run ruff check tests/adapters/test_scm_adapter.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
+- 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -782,7 +785,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded lifecycle integration case proving `source_readiness_summary` gracefully handles non-dict readiness entries as `unknown_sources` while `source_readiness_details` excludes those non-dict entries.
+Pause readiness-shape lifecycle micro-cases and execute one bounded non-readiness milestone: add integration-style evidence-bundle retrieval assertion that persisted readiness summary/details are included in `/result/evidence-bundle` payload without schema expansion.
 
 ## Deferred / Later
 
