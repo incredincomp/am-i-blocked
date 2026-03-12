@@ -263,6 +263,15 @@ def _mixed_readiness_report() -> ReadinessReport:
     return report
 
 
+def _fallback_readiness_report() -> ReadinessReport:
+    report = ReadinessReport()
+    report.record("panos", {"available": True, "status": "ready", "reason": "probe ok", "latency_ms": 5})
+    report.record("scm", {"available": True, "reason": "configured and reachable", "latency_ms": 11})
+    report.record("sdwan", {"available": False, "reason": "auth error", "latency_ms": 9})
+    report.record("torq", {"reason": "status missing and available missing", "latency_ms": None})
+    return report
+
+
 async def _run_lifecycle_case(
     deny: bool,
     *,
@@ -586,4 +595,52 @@ async def test_lifecycle_mixed_source_readiness_survives_persist_and_result_api(
 
     assert details["torq"]["status"] == "timeout"
     assert details["torq"]["reason"] == "request timed out"
+    assert details["torq"]["latency_ms"] is None
+
+
+@pytest.mark.anyio
+async def test_lifecycle_source_readiness_fallback_status_survives_persist_and_result_api() -> None:
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=False,
+        readiness_report=_fallback_readiness_report(),
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    persisted_readiness = db.results[request_id].report_json.get("source_readiness")
+    assert isinstance(persisted_readiness, dict)
+    assert "status" not in persisted_readiness["scm"]
+    assert "status" not in persisted_readiness["sdwan"]
+    assert "status" not in persisted_readiness["torq"]
+
+    summary = result["source_readiness_summary"]
+    assert summary == {
+        "total_sources": 4,
+        "available_sources": ["panos", "scm"],
+        "unavailable_sources": ["sdwan"],
+        "unknown_sources": ["torq"],
+    }
+
+    details = {item["source"]: item for item in result["source_readiness_details"]}
+    assert set(details) == {"panos", "scm", "sdwan", "torq"}
+
+    # Explicit status remains unchanged.
+    assert details["panos"]["status"] == "ready"
+    assert details["panos"]["reason"] == "probe ok"
+    assert details["panos"]["latency_ms"] == 5
+
+    # Fallback derivation from available flag remains stable end-to-end.
+    assert details["scm"]["status"] == "ready"
+    assert details["scm"]["reason"] == "configured and reachable"
+    assert details["scm"]["latency_ms"] == 11
+
+    assert details["sdwan"]["status"] == "unavailable"
+    assert details["sdwan"]["reason"] == "auth error"
+    assert details["sdwan"]["latency_ms"] == 9
+
+    assert details["torq"]["status"] == "unknown"
+    assert details["torq"]["reason"] == "status missing and available missing"
     assert details["torq"]["latency_ms"] is None
