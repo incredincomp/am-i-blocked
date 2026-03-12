@@ -537,6 +537,82 @@ class TestGetResult:
         assert payload["source_readiness_summary"]["unavailable_sources"] == ["sdwan"]
         assert len(payload["source_readiness_details"]) == 3
 
+    def test_evidence_bundle_unknown_reason_signals_match_result_payload(self, client):
+        request_id = "79797979-7979-7979-7979-797979797979"
+        expected_signals = [
+            "No authoritative deny evidence was found; this is not confirmation that access is allowed.",
+            "One or more data sources were degraded or unavailable, which reduced confidence.",
+        ]
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "unknown",
+                    "enforcement_plane": "unknown",
+                    "path_context": "unknown",
+                    "path_confidence": 0.3,
+                    "result_confidence": 0.2,
+                    "evidence_completeness": 0.3,
+                    "summary": "Insufficient evidence.",
+                    "unknown_reason_signals": expected_signals,
+                    "source_readiness_summary": {
+                        "total_sources": 2,
+                        "available_sources": ["panos"],
+                        "unavailable_sources": ["scm"],
+                        "unknown_sources": [],
+                    },
+                    "source_readiness_details": [
+                        {
+                            "source": "scm",
+                            "status": "auth_failed",
+                            "reason": "SCM auth failed (401)",
+                            "latency_ms": 14,
+                        }
+                    ],
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "Unknown",
+                        "reason": "Insufficient evidence",
+                        "next_steps": [],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            result_resp = client.get(f"/api/v1/requests/{request_id}/result")
+            bundle_resp = client.get(f"/api/v1/requests/{request_id}/result/evidence-bundle")
+
+        assert result_resp.status_code == 200
+        assert bundle_resp.status_code == 200
+        assert (
+            bundle_resp.headers["content-disposition"]
+            == f'attachment; filename="evidence-{request_id}.json"'
+        )
+
+        result_payload = result_resp.json()
+        bundle_payload = bundle_resp.json()
+        assert result_payload["unknown_reason_signals"] == expected_signals
+        assert bundle_payload["unknown_reason_signals"] == expected_signals
+        assert bundle_payload["unknown_reason_signals"] == result_payload["unknown_reason_signals"]
+        assert bundle_payload["source_readiness_summary"] == result_payload["source_readiness_summary"]
+        assert bundle_payload["source_readiness_details"] == result_payload["source_readiness_details"]
+
     def test_result_includes_panos_rule_metadata_when_present(self, client):
         request_id = "12121212-1212-1212-1212-121212121212"
         with patch(

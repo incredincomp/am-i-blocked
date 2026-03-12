@@ -708,6 +708,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added lifecycle failure-path proof for submit -> queue -> worker failure -> persist -> API request-detail retrieval: controlled source-readiness-step exception now verifies persisted `failure_reason`, normalized `failure_stage`, and normalized `failure_category` visibility in `GET /api/v1/requests/{id}`.
 - 2026-03-12: Added bounded request-detail route contract proof that malformed persisted audit metadata (`stage`/`category`) is normalized to `unknown` in `GET /api/v1/requests/{id}` while preserving `failure_reason`.
 - 2026-03-12: Added bounded route contract proof that denied-path `/result/evidence-bundle` retrieval remains attachment-available and preserves authoritative PAN-OS observed-fact metadata (`detail.rule_metadata`) plus readiness summary/details.
+- 2026-03-12: Added bounded route contract proof that `unknown`-verdict `unknown_reason_signals` are preserved with parity between `GET /api/v1/requests/{id}/result` and `GET /api/v1/requests/{id}/result/evidence-bundle`, while readiness summary/details remain unchanged and bundle attachment semantics remain intact.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 12 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 14 tests).
@@ -730,6 +731,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 30 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 49 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 50 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 51 tests).
 - 2026-03-12: Ran `uv run ruff check tests/adapters/test_scm_adapter.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py` (pass).
