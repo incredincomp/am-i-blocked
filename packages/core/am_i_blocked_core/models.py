@@ -128,6 +128,16 @@ class SourceReadinessDetail(BaseModel):
     latency_ms: int | None = None
 
 
+class ObservedFactSummary(BaseModel):
+    """Compact operator-facing summary of observed fact authority mix."""
+
+    total_facts: int = 0
+    authoritative_facts: int = 0
+    enrichment_only_facts: int = 0
+    authoritative_sources: list[str] = Field(default_factory=list)
+    enrichment_only_sources: list[str] = Field(default_factory=list)
+
+
 class DiagnosticResult(BaseModel):
     request_id: uuid.UUID
     verdict: Verdict
@@ -140,6 +150,7 @@ class DiagnosticResult(BaseModel):
     unknown_reason_signals: list[str] = Field(default_factory=list)
     source_readiness_summary: SourceReadinessSummary = Field(default_factory=SourceReadinessSummary)
     source_readiness_details: list[SourceReadinessDetail] = Field(default_factory=list)
+    observed_fact_summary: ObservedFactSummary = Field(default_factory=ObservedFactSummary)
     observed_facts: list[ObservedFact] = Field(default_factory=list)
     routing_recommendation: RoutingRecommendation
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))

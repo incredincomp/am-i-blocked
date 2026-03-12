@@ -836,6 +836,65 @@ class TestGetResult:
         assert details[0]["source"] == "scm"
         assert details[0]["status"] == "auth_failed"
 
+    def test_result_includes_observed_fact_summary(self, client):
+        request_id = "58585858-5858-5858-5858-585858585858"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "campus_non_sdwan",
+                "path_confidence": 0.8,
+                "result_confidence": 0.9,
+                "evidence_completeness": 0.9,
+                "summary": "Authoritative policy deny was observed.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": [],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 2,
+                    "authoritative_facts": 1,
+                    "enrichment_only_facts": 1,
+                    "authoritative_sources": ["panos"],
+                    "enrichment_only_sources": ["logscale"],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "policy deny found",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        summary = resp.json()["observed_fact_summary"]
+        assert summary["total_facts"] == 2
+        assert summary["authoritative_facts"] == 1
+        assert summary["enrichment_only_sources"] == ["logscale"]
+
 
 class TestUIRoutes:
     def test_index_returns_html(self, client):
@@ -978,6 +1037,65 @@ class TestUIRoutes:
         assert "Source readiness details" in resp.text
         assert "Status: <strong>timeout</strong>" in resp.text
         assert "Reason: SCM auth probe timed out" in resp.text
+
+    def test_request_page_renders_observed_fact_summary(self, client):
+        request_id = "69696969-6969-6969-6969-696969696969"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "campus_non_sdwan",
+                "path_confidence": 0.9,
+                "result_confidence": 0.9,
+                "evidence_completeness": 0.9,
+                "summary": "Authoritative policy deny was observed.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": [],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 3,
+                    "authoritative_facts": 2,
+                    "enrichment_only_facts": 1,
+                    "authoritative_sources": ["panos", "scm"],
+                    "enrichment_only_sources": ["logscale"],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "policy deny found",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Evidence summary" in resp.text
+        assert "Observed facts: <strong>3</strong>" in resp.text
+        assert "Authoritative sources: panos, scm" in resp.text
+        assert "Enrichment-only sources: logscale" in resp.text
 
     def test_request_page_handles_missing_source_readiness_details(self, client):
         request_id = "69696969-6969-6969-6969-696969696969"
@@ -1624,3 +1742,60 @@ class TestLoadResultRecordConfidenceFallback:
         assert details["panos"].status == "ready"
         assert details["logscale"].status == "unknown"
         assert "torq" not in details
+
+    @pytest.mark.anyio
+    async def test_load_result_record_summarizes_observed_fact_authority_mix(self):
+        request_id = uuid.UUID("44444444-5555-6666-7777-888888888888")
+        row = api_routes.ResultRow(
+            request_id=request_id,
+            verdict="unknown",
+            owner_team="Unknown",
+            result_confidence=0.1,
+            evidence_completeness=0.1,
+            summary="Insufficient evidence.",
+            next_steps_json=[],
+            report_json={
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.1,
+                "observed_facts": [
+                    {
+                        "source": "panos",
+                        "summary": "Policy deny observed",
+                        "detail": {"action": "deny", "authoritative": True},
+                    },
+                    {
+                        "source": "logscale",
+                        "summary": "enrichment record",
+                        "detail": {"classification_role": "enrichment_only_unverified"},
+                    },
+                    {
+                        "source": "scm",
+                        "summary": "authoritative deny",
+                        "detail": {"authoritative": True},
+                    },
+                ],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "generated_at": "2026-03-08T00:00:00Z",
+            },
+        )
+
+        with patch(
+            "am_i_blocked_api.routes.api.get_settings",
+            return_value=SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        ), patch(
+            "am_i_blocked_api.routes.api._get_session_factory",
+            return_value=_fake_result_session_factory(row),
+        ):
+            result = await _ORIG_LOAD_RESULT_RECORD(request_id)
+
+        assert result is not None
+        assert result.observed_fact_summary.total_facts == 3
+        assert result.observed_fact_summary.authoritative_facts == 2
+        assert result.observed_fact_summary.enrichment_only_facts == 1
+        assert result.observed_fact_summary.authoritative_sources == ["panos", "scm"]
+        assert result.observed_fact_summary.enrichment_only_sources == ["logscale"]

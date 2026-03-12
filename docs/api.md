@@ -148,6 +148,13 @@ Retrieve the diagnostic result for a completed request.
       "latency_ms": 14
     }
   ],
+  "observed_fact_summary": {
+    "total_facts": 2,
+    "authoritative_facts": 1,
+    "enrichment_only_facts": 1,
+    "authoritative_sources": ["scm"],
+    "enrichment_only_sources": ["logscale"]
+  },
   "observed_facts": [
     {
       "source": "scm",
@@ -176,6 +183,12 @@ Retrieve the diagnostic result for a completed request.
 Per-source readiness diagnostics remain in persisted `report_json.source_readiness` and may include source-specific `status` values (for example SCM, SD-WAN, Torq, and LogScale: `ready`, `not_configured`, `auth_failed`, `unauthorized`, `unreachable`, `timeout`, `unexpected_response`, `internal_error`).
 `source_readiness_details` is a compact presentation-safe list derived from that persisted readiness object and includes `source`, normalized `status`, optional `reason`, and optional `latency_ms`.
 For `verdict="unknown"`, API responses may include `unknown_reason_signals` as operator-facing explainability hints (for example low path confidence, degraded source readiness, or inconclusive bounded checks). These hints are descriptive only and do not change verdict authority semantics.
+`observed_fact_summary` is a compact authority-mix view derived from persisted `report_json.observed_facts`:
+- `total_facts`: number of structurally valid observed-fact entries
+- `authoritative_facts`: observed facts not tagged as enrichment-only
+- `enrichment_only_facts`: observed facts tagged via `classification_role=enrichment_only_unverified` or `authoritative=false`
+- `authoritative_sources`: unique source list for authoritative facts
+- `enrichment_only_sources`: unique source list for enrichment-only facts
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
 

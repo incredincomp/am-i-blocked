@@ -167,6 +167,56 @@ def _build_source_readiness_details(report: dict[str, Any]) -> list[dict[str, An
     return details
 
 
+def _summarize_observed_facts(report: dict[str, Any]) -> dict[str, Any]:
+    """Build a compact authority/enrichment summary from observed facts."""
+    observed_facts = report.get("observed_facts")
+    if not isinstance(observed_facts, list):
+        return {
+            "total_facts": 0,
+            "authoritative_facts": 0,
+            "enrichment_only_facts": 0,
+            "authoritative_sources": [],
+            "enrichment_only_sources": [],
+        }
+
+    total_facts = 0
+    authoritative_facts = 0
+    enrichment_only_facts = 0
+    authoritative_sources: set[str] = set()
+    enrichment_only_sources: set[str] = set()
+
+    for fact in observed_facts:
+        if not isinstance(fact, dict):
+            continue
+        total_facts += 1
+        source = fact.get("source")
+        normalized_source = source.strip() if isinstance(source, str) and source.strip() else None
+
+        detail = fact.get("detail")
+        detail_dict = detail if isinstance(detail, dict) else {}
+        is_enrichment = (
+            detail_dict.get("classification_role") == "enrichment_only_unverified"
+            or detail_dict.get("authoritative") is False
+        )
+
+        if is_enrichment:
+            enrichment_only_facts += 1
+            if normalized_source:
+                enrichment_only_sources.add(normalized_source)
+        else:
+            authoritative_facts += 1
+            if normalized_source:
+                authoritative_sources.add(normalized_source)
+
+    return {
+        "total_facts": total_facts,
+        "authoritative_facts": authoritative_facts,
+        "enrichment_only_facts": enrichment_only_facts,
+        "authoritative_sources": sorted(authoritative_sources),
+        "enrichment_only_sources": sorted(enrichment_only_sources),
+    }
+
+
 def _get_session_factory(database_url: str) -> async_sessionmaker:
     if database_url not in _sessions:
         if database_url not in _engines:
@@ -428,6 +478,7 @@ async def _load_result_record(request_id: uuid.UUID) -> DiagnosticResult | None:
             "unknown_reason_signals": unknown_reason_signals,
             "source_readiness_summary": _summarize_source_readiness(report),
             "source_readiness_details": _build_source_readiness_details(report),
+            "observed_fact_summary": _summarize_observed_facts(report),
             "observed_facts": report.get("observed_facts", []),
             "routing_recommendation": report.get(
                 "routing_recommendation",

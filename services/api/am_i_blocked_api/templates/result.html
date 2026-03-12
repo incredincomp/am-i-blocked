@@ -122,6 +122,24 @@
       <p style="font-size:0.88rem; color:#64748b;">No per-source readiness details available.</p>
       {% endif %}
     </div>
+    <div class="section">
+      <h3>Evidence summary</h3>
+      <p style="font-size:0.88rem; color:#475569; margin-bottom:0.55rem;">
+        Observed facts: <strong>{{ result.observed_fact_summary.total_facts }}</strong>
+        | Authoritative: <strong>{{ result.observed_fact_summary.authoritative_facts }}</strong>
+        | Enrichment only: <strong>{{ result.observed_fact_summary.enrichment_only_facts }}</strong>
+      </p>
+      {% if result.observed_fact_summary.authoritative_sources %}
+      <p style="font-size:0.88rem; color:#166534; margin-bottom:0.3rem;">
+        Authoritative sources: {{ result.observed_fact_summary.authoritative_sources | join(", ") }}
+      </p>
+      {% endif %}
+      {% if result.observed_fact_summary.enrichment_only_sources %}
+      <p style="font-size:0.88rem; color:#92400e;">
+        Enrichment-only sources: {{ result.observed_fact_summary.enrichment_only_sources | join(", ") }}
+      </p>
+      {% endif %}
+    </div>
     {% if result.verdict == "unknown" %}
     <div class="section">
       <h3>Why this is unknown</h3>

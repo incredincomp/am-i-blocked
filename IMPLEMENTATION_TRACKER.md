@@ -788,6 +788,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-11: Candidate-family selection policy is now machine-driven; families can be marked `exhausted_pending_new_evidence` and must not be retried without materially stronger/newer evidence (known exhausted family: `10.1.99.3|10.1.20.21|30053|not-applicable|unknown|interzone-default|policy-deny|ssh_custom_command`).
 - 2026-03-11: Added observability-first checklist template (`docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`) requiring fresh live deny-row evidence capture before any further bounded XML destination-token validation attempt.
 - 2026-03-11: Minimal runtime/query-token reconciliation completed: PAN-OS adapter `_build_traffic_query(...)` now uses `dport` (not `port.dst`) for destination-port filtering, aligned to scenario-scoped `11.0.6-h1` UDP deny real-capture evidence.
+- 2026-03-12: Reconciled stale next-task guidance: the suggested `FailureStage -> FailureCategory` mapping-stability proof already exists on `main` (`tests/unit/test_pipeline.py::test_failure_stage_to_category_mapping_is_stable`), so work pivoted to a non-contract MVP increment.
+- 2026-03-12: Added bounded operator-facing `observed_fact_summary` shaping in result API/UI (authority vs enrichment counts and source lists derived from persisted `report_json.observed_facts`) with focused route/load tests and docs updates.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "observed_fact_summary or load_result_record"` (pass, 10 selected).
+- 2026-03-12: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -803,7 +807,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Pause evidence-bundle/request-detail micro-slices for now; execute one bounded non-contract milestone (for example, targeted worker unit test that ensures failure-category mapping remains stable for each `FailureStage` enum value).
+Add one bounded API/UI milestone that surfaces `routing_recommendation.reason` explicitly in the result page context block (without changing verdict authority or classifier behavior), plus focused route/UI tests.
 
 ## Deferred / Later
 
