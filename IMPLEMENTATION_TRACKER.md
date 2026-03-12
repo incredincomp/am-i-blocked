@@ -698,6 +698,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added bounded SCM adapter unit proof showing a deny-like authoritative candidate with valid SCM source marker and deny semantics still fails closed when destination is present but object-typed/unusable, yielding no authoritative evidence records.
 - 2026-03-12: Added bounded SCM adapter unit proof showing a deny-like authoritative candidate with valid SCM source marker and deny semantics still fails closed when timestamp is present but object-typed/non-string, yielding no authoritative evidence records.
 - 2026-03-12: Consolidated remaining SCM normalization fail-closed gaps into one table-driven adapter unit batch proving deny-like authoritative candidates are dropped when critical fields are malformed/missing for `port` (missing/object-typed) and `timestamp` (missing), ending the one-field-per-run micro-loop.
+- 2026-03-12: Added integration-style lifecycle proof that mixed source readiness states survive submit -> queue -> worker -> persist -> API result retrieval, with persisted `source_readiness` yielding expected `source_readiness_summary` and `source_readiness_details` in result output.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 12 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 14 tests).
@@ -710,7 +711,9 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py` (pass, 34 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py` (pass, 36 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py` (pass, 42 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 16 tests).
 - 2026-03-12: Ran `uv run ruff check tests/adapters/test_scm_adapter.py` (pass).
+- 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -775,7 +778,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Pause additional SCM malformed-field micro-tests and execute one bounded non-SCM MVP milestone: add an integration-style proof that persisted `source_readiness_summary` and `source_readiness_details` survive submit -> queue -> worker -> persist -> API result retrieval for mixed source states.
+Add one bounded lifecycle integration case proving persisted readiness summary/details gracefully normalize when one source has `available` set but missing explicit `status` (fallback status derivation remains stable end-to-end).
 
 ## Deferred / Later
 

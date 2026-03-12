@@ -248,12 +248,28 @@ def _readiness_report(source: str = "panos") -> ReadinessReport:
     return report
 
 
+def _mixed_readiness_report() -> ReadinessReport:
+    report = ReadinessReport()
+    report.record("panos", {"available": True, "status": "ready", "reason": "probe ok", "latency_ms": 5})
+    report.record(
+        "scm",
+        {"available": False, "status": "not_configured", "reason": "missing credentials", "latency_ms": None},
+    )
+    report.record(
+        "sdwan",
+        {"available": False, "status": "auth_failed", "reason": "invalid api key", "latency_ms": 7},
+    )
+    report.record("torq", {"available": False, "status": "timeout", "reason": "request timed out", "latency_ms": None})
+    return report
+
+
 async def _run_lifecycle_case(
     deny: bool,
     *,
     metadata_mode: str = "none",
     source: str = "panos",
     scm_mode: str = "deny",
+    readiness_report: ReadinessReport | None = None,
 ) -> tuple[dict, str, _FakeDb]:
     db = _FakeDb()
     queue: list[dict] = []
@@ -299,7 +315,7 @@ async def _run_lifecycle_case(
         return_value=settings,
     ), patch(
         "am_i_blocked_worker.steps.source_readiness_check.run",
-        return_value=_readiness_report(source=source),
+        return_value=readiness_report or _readiness_report(source=source),
     ), patch(
         "am_i_blocked_worker.main.dequeue_job",
         side_effect=_dequeue_job,
@@ -525,3 +541,49 @@ async def test_lifecycle_scm_malformed_decision_shape_fails_closed_and_not_denie
         and ev.get("normalized", {}).get("authoritative") is True
     ]
     assert scm_authoritative_deny == []
+
+
+@pytest.mark.anyio
+async def test_lifecycle_mixed_source_readiness_survives_persist_and_result_api() -> None:
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=False,
+        readiness_report=_mixed_readiness_report(),
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    persisted_readiness = db.results[request_id].report_json.get("source_readiness")
+    assert isinstance(persisted_readiness, dict)
+    assert persisted_readiness["panos"]["status"] == "ready"
+    assert persisted_readiness["scm"]["status"] == "not_configured"
+    assert persisted_readiness["sdwan"]["status"] == "auth_failed"
+    assert persisted_readiness["torq"]["status"] == "timeout"
+
+    summary = result["source_readiness_summary"]
+    assert summary == {
+        "total_sources": 4,
+        "available_sources": ["panos"],
+        "unavailable_sources": ["scm", "sdwan", "torq"],
+        "unknown_sources": [],
+    }
+
+    details = {item["source"]: item for item in result["source_readiness_details"]}
+    assert set(details) == {"panos", "scm", "sdwan", "torq"}
+    assert details["panos"]["status"] == "ready"
+    assert details["panos"]["reason"] == "probe ok"
+    assert details["panos"]["latency_ms"] == 5
+
+    assert details["scm"]["status"] == "not_configured"
+    assert details["scm"]["reason"] == "missing credentials"
+    assert details["scm"]["latency_ms"] is None
+
+    assert details["sdwan"]["status"] == "auth_failed"
+    assert details["sdwan"]["reason"] == "invalid api key"
+    assert details["sdwan"]["latency_ms"] == 7
+
+    assert details["torq"]["status"] == "timeout"
+    assert details["torq"]["reason"] == "request timed out"
+    assert details["torq"]["latency_ms"] is None
