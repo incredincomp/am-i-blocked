@@ -331,10 +331,16 @@
             throw new Error('handoff note fetch failed');
           }
           var text = await response.text();
-          if (!navigator.clipboard || !navigator.clipboard.writeText) {
+          var writeText = null;
+          if (typeof window.__handoffNoteWriteText === 'function') {
+            writeText = window.__handoffNoteWriteText;
+          } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            writeText = navigator.clipboard.writeText.bind(navigator.clipboard);
+          }
+          if (!writeText) {
             throw new Error('clipboard unavailable');
           }
-          await navigator.clipboard.writeText(text);
+          await writeText(text);
           status.textContent = 'Handoff note copied to clipboard.';
         } catch (err) {
           status.textContent = 'Copy could not complete in this browser/session.';

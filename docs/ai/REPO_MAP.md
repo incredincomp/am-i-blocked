@@ -73,6 +73,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 
 - `tests/unit`: step and classifier unit tests.
 - `tests/routes`: FastAPI API/route tests.
+- `tests/routes/test_copy_handoff_note_browser.py`: bounded browser-level Playwright seam for result-page `Copy handoff note` interaction (success and fallback states) using rendered result-page HTML plus mocked fetch/clipboard browser APIs.
 - `tests/routes/test_api_routes.py`: includes route/UI checks for PAN-OS metadata render behavior (present, absent, malformed).
 - `tests/routes/test_api_routes.py`: also covers unknown-confidence explainability rendering, `source_readiness_summary` surfacing in API/UI results, and persisted-result fallback handling for missing/malformed confidence values.
 - `tests/fixtures`: pipeline integration-style tests with mocked adapters/readiness.

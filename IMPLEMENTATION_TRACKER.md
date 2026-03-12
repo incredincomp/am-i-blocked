@@ -829,6 +829,11 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added focused route/UI assertions for copy control rendering, script wiring (`fetch` + `navigator.clipboard.writeText`), and fallback message/link presence in normal result-page render.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_note or request_page_result_includes_evidence_bundle_download_link"` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Added one bounded browser-level Playwright test seam (`tests/routes/test_copy_handoff_note_browser.py`) for result-page `Copy handoff note` interaction states without broad E2E rollout.
+- 2026-03-12: Browser seam explicitly proves success path (`fetch` + clipboard write -> success status) and fallback path (clipboard failure -> readable failure status + fallback link availability) using the existing handoff-note route URL in the rendered control.
+- 2026-03-12: Ran `uv run python -m playwright install chromium` (browser runtime install for local test execution).
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_copy_handoff_note_browser.py` (pass).
+- 2026-03-12: Ran `uv run ruff check tests/routes/test_copy_handoff_note_browser.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -844,7 +849,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded browser-level UI test seam (Playwright or equivalent lightweight harness) for result-page handoff copy behavior to exercise success and fallback states end-to-end without changing API semantics.
+Add one bounded browser-level UI case for `Copy handoff note` fetch-failure path (failed handoff-note retrieval, not just clipboard failure) to complete the client-side fallback matrix without expanding frontend scope.
 
 ## Deferred / Later
 
