@@ -643,6 +643,124 @@ class TestGetResult:
             in resp.text
         )
 
+    def test_handoff_note_download_returns_failed_request_plain_text_handoff(self, client):
+        request_id = "84848484-8484-8484-8484-848484848484"
+        load_result_record = AsyncMock(return_value=None)
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.FAILED,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+                "failure_reason": "adapter unavailable",
+                "failure_stage": "authoritative_correlation",
+                "failure_category": "dependency",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            load_result_record,
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result/handoff-note")
+
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/plain")
+        assert (
+            resp.headers["content-disposition"]
+            == f'attachment; filename="handoff-{request_id}.txt"'
+        )
+        assert "Am I Blocked - Failed Request Handoff" in resp.text
+        assert "Request ID: 84848484-8484-8484-8484-848484848484" in resp.text
+        assert "Status: failed" in resp.text
+        assert "Context:" in resp.text
+        assert "- Destination: api.example.com:443 (fqdn)" in resp.text
+        assert "- Time window: 2026-03-08T00:00:00+00:00 to 2026-03-08T00:15:00+00:00" in resp.text
+        assert "Failure diagnostics:" in resp.text
+        assert "- Stage: authoritative_correlation" in resp.text
+        assert "- Category: dependency" in resp.text
+        assert "- Reason: adapter unavailable" in resp.text
+        load_result_record.assert_not_awaited()
+
+    def test_handoff_note_download_failed_request_omits_missing_failure_lines(self, client):
+        request_id = "85858585-8585-8585-8585-858585858585"
+        load_result_record = AsyncMock(return_value=None)
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.FAILED,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": None,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": None,
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+                "failure_reason": "queue timeout",
+                "failure_stage": None,
+                "failure_category": None,
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            load_result_record,
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result/handoff-note")
+
+        assert resp.status_code == 200
+        assert "Am I Blocked - Failed Request Handoff" in resp.text
+        assert "- Destination: api.example.com (fqdn)" in resp.text
+        assert "- Time window: start 2026-03-08T00:00:00+00:00" in resp.text
+        assert "Failure diagnostics:" in resp.text
+        assert "- Reason: queue timeout" in resp.text
+        assert "- Stage:" not in resp.text
+        assert "- Category:" not in resp.text
+        load_result_record.assert_not_awaited()
+
+    def test_handoff_note_download_failed_request_handles_missing_failure_metadata_gracefully(
+        self, client
+    ):
+        request_id = "86868686-8686-8686-8686-868686868686"
+        load_result_record = AsyncMock(return_value=None)
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.FAILED,
+                "destination_type": DestinationType.UNKNOWN,
+                "destination_value": "",
+                "port": None,
+                "time_window_start": None,
+                "time_window_end": None,
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+                "failure_reason": None,
+                "failure_stage": None,
+                "failure_category": None,
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            load_result_record,
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result/handoff-note")
+
+        assert resp.status_code == 200
+        assert "Status: failed" in resp.text
+        assert "- Destination: n/a" in resp.text
+        assert "- Time window: n/a" in resp.text
+        assert "Failure diagnostics:" not in resp.text
+        assert "- Stage:" not in resp.text
+        assert "- Category:" not in resp.text
+        assert "- Reason:" not in resp.text
+        load_result_record.assert_not_awaited()
+
     def test_evidence_bundle_download_denied_path_preserves_authoritative_metadata_and_readiness(self, client):
         request_id = "78787878-7878-7878-7878-787878787878"
         with patch(

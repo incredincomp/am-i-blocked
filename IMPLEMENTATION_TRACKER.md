@@ -24,6 +24,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - API/UI result rendering now surfaces persisted PAN-OS rule metadata (when present on authoritative PAN-OS deny observed facts) without changing verdict authority semantics.
 - Integration-style lifecycle coverage now proves PAN-OS metadata survives submit -> queue -> worker -> persist -> API result retrieval -> UI rendering via normal persisted retrieval paths.
 - API/UI now surfaces compact unknown-confidence explainability (`path_confidence`, `evidence_completeness`, and `unknown_reason_signals`) for `unknown` verdicts.
+- Existing result handoff-note export route now also emits a compact failed-request plain-text handoff artifact using existing normalized failure metadata only (`failure_stage`, `failure_category`, `failure_reason`) plus request context, so failed tickets have copy/paste parity with completed-result notes.
 - PAN-OS verification fixture pack scaffolding now exists (`docs/fixtures/panos_verification`) with required sample file templates and sanitization rules.
 - PAN-OS fixture validation now confirms current parser marker assumptions against fixture XML shapes (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`).
 - PAN-OS fixture gather helper now writes versioned capture sets (`versions/<panos_version>/<capture_label>_<timestamp>/`), capture metadata manifests, and canonical fixture mirrors for validation tests.
@@ -841,6 +842,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added focused route/UI tests for failed request diagnostics rendering (full metadata, missing metadata hidden, malformed stage/category rendered safely as normalized `unknown` values).
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "request_page_failed"` (pass, 3 selected).
 - 2026-03-12: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Extended the existing `GET /api/v1/requests/{id}/result/handoff-note` export route so `status=failed` requests return a compact plain-text failed-request handoff note using only existing normalized failure metadata (`failure_stage`, `failure_category`, `failure_reason`) plus request id/status/destination/time-window context.
+- 2026-03-12: Added focused route tests proving failed-request handoff-note behavior for full metadata, partial metadata, and fully missing metadata; failed-path export stays plain-text, degrades cleanly, and does not load a result row.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_note or failed_request"` (pass, 6 passed / 82 deselected).
+- 2026-03-12: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -856,7 +861,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded operator-facing failed-request handoff increment that mirrors the compact `Failure diagnostics` block into a plain-text failed-request handoff artifact (using existing normalized failure metadata only) so failed tickets have copy/paste parity with completed-result handoff notes.
+Add one bounded request-detail UI control that exposes the existing failed-request handoff-note export route so operators can copy/download the failed-ticket handoff artifact without manually editing the URL.
 
 ## Deferred / Later
 

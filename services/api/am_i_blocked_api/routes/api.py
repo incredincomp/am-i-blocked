@@ -90,20 +90,68 @@ def _normalize_optional_handoff_summary(value: object) -> str | None:
     return None
 
 
-def _format_handoff_destination(result: DiagnosticResult) -> str:
-    if not result.destination_value:
+def _normalize_optional_request_status(value: object) -> RequestStatus | None:
+    if isinstance(value, RequestStatus):
+        return value
+    if isinstance(value, str):
+        try:
+            return RequestStatus(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _normalize_optional_failure_stage(value: object) -> str | None:
+    if isinstance(value, FailureStage):
+        return value.value
+    if isinstance(value, str) and value.strip():
+        try:
+            return FailureStage(value).value
+        except ValueError:
+            return FailureStage.UNKNOWN.value
+    return None
+
+
+def _normalize_optional_failure_category(value: object) -> str | None:
+    if isinstance(value, FailureCategory):
+        return value.value
+    if isinstance(value, str) and value.strip():
+        try:
+            return FailureCategory(value).value
+        except ValueError:
+            return FailureCategory.UNKNOWN.value
+    return None
+
+
+def _format_handoff_destination_values(
+    destination_value: str | None,
+    destination_port: int | None,
+    destination_type: DestinationType | None,
+) -> str:
+    if not destination_value:
         return "n/a"
-    destination = result.destination_value
-    if result.destination_port is not None:
-        destination = f"{destination}:{result.destination_port}"
-    if result.destination_type is not None:
-        destination = f"{destination} ({result.destination_type.value})"
+    destination = destination_value
+    if destination_port is not None:
+        destination = f"{destination}:{destination_port}"
+    if destination_type is not None:
+        destination = f"{destination} ({destination_type.value})"
     return destination
 
 
-def _format_handoff_time_window(result: DiagnosticResult) -> str:
-    start = result.time_window_start.isoformat() if result.time_window_start else None
-    end = result.time_window_end.isoformat() if result.time_window_end else None
+def _format_handoff_destination(result: DiagnosticResult) -> str:
+    return _format_handoff_destination_values(
+        result.destination_value,
+        result.destination_port,
+        result.destination_type,
+    )
+
+
+def _format_handoff_time_window_values(
+    start_time: datetime | None,
+    end_time: datetime | None,
+) -> str:
+    start = start_time.isoformat() if start_time else None
+    end = end_time.isoformat() if end_time else None
     if start and end:
         return f"{start} to {end}"
     if start:
@@ -111,6 +159,13 @@ def _format_handoff_time_window(result: DiagnosticResult) -> str:
     if end:
         return f"end {end}"
     return "n/a"
+
+
+def _format_handoff_time_window(result: DiagnosticResult) -> str:
+    return _format_handoff_time_window_values(
+        result.time_window_start,
+        result.time_window_end,
+    )
 
 
 def _build_handoff_note(result: DiagnosticResult) -> str:
@@ -173,6 +228,46 @@ def _build_handoff_note(result: DiagnosticResult) -> str:
         lines.extend(f"- {step}" for step in next_steps)
     else:
         lines.append("- none provided")
+
+    return "\n".join(lines)
+
+
+def _build_failed_request_handoff_note(record: dict[str, Any]) -> str:
+    request_id = record.get("request_id")
+    destination_type = _normalize_optional_destination_type(record.get("destination_type"))
+    destination_value = _normalize_optional_destination_value(record.get("destination_value"))
+    destination_port = _normalize_optional_destination_port(record.get("port"))
+    time_window_start = _normalize_optional_datetime(record.get("time_window_start"))
+    time_window_end = _normalize_optional_datetime(record.get("time_window_end"))
+    failure_stage = _normalize_optional_failure_stage(record.get("failure_stage"))
+    failure_category = _normalize_optional_failure_category(record.get("failure_category"))
+    failure_reason = (
+        record.get("failure_reason").strip()
+        if isinstance(record.get("failure_reason"), str) and record.get("failure_reason").strip()
+        else None
+    )
+
+    lines = [
+        "Am I Blocked - Failed Request Handoff",
+        f"Request ID: {request_id}",
+        "Status: failed",
+        "",
+        "Context:",
+        (
+            "- Destination: "
+            f"{_format_handoff_destination_values(destination_value, destination_port, destination_type)}"
+        ),
+        f"- Time window: {_format_handoff_time_window_values(time_window_start, time_window_end)}",
+    ]
+
+    if failure_stage or failure_category or failure_reason:
+        lines.extend(["", "Failure diagnostics:"])
+        if failure_stage:
+            lines.append(f"- Stage: {failure_stage}")
+        if failure_category:
+            lines.append(f"- Category: {failure_category}")
+        if failure_reason:
+            lines.append(f"- Reason: {failure_reason}")
 
     return "\n".join(lines)
 
@@ -870,6 +965,13 @@ async def download_handoff_note(request_id: uuid.UUID) -> PlainTextResponse:
         raise HTTPException(status_code=503, detail="Persistence unavailable") from None
     if not record:
         raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
+
+    if _normalize_optional_request_status(record.get("status")) == RequestStatus.FAILED:
+        handoff_note = _build_failed_request_handoff_note(record)
+        return PlainTextResponse(
+            content=handoff_note,
+            headers={"Content-Disposition": f'attachment; filename="handoff-{request_id}.txt"'},
+        )
 
     try:
         result = await _load_result_record(request_id)

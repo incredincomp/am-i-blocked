@@ -211,7 +211,7 @@ Download a compact plain-text operator handoff note for ticket copy/paste.
 
 - Response content type: `text/plain`
 - Response header: `Content-Disposition: attachment; filename="handoff-{request_id}.txt"`
-- The note is derived from existing normalized request/result fields and uses compact deterministic sections:
+- For completed requests, the note is derived from existing normalized request/result fields and uses compact deterministic sections:
   - request + verdict header (`request_id`, `verdict`, `summary`, optional `operator_handoff_summary`)
   - context (`destination`, `time window`, `path context`, `enforcement plane`)
   - routing (`owner team`, routing reason)
@@ -219,10 +219,15 @@ Download a compact plain-text operator handoff note for ticket copy/paste.
   - readiness snapshot (`source_readiness_summary` counts/source lists)
   - unknown signals section only when verdict is `unknown` and signals are present
   - next steps (`routing_recommendation.next_steps`, or `none provided`)
+- For failed requests (`status=failed`), the same route returns a compact failed-request handoff note using existing normalized request metadata only:
+  - request header (`request_id`, `status`)
+  - context (`destination`, `time window`)
+  - `Failure diagnostics` section using only `failure_stage`, `failure_category`, and `failure_reason`
+  - missing failure fields are omitted cleanly; no raw JSON is included
 - This is presentation-only formatting and does not change verdict/classifier/routing semantics.
 - Result page ergonomics: `/requests/{request_id}` now includes a compact `Copy handoff note` control that fetches this endpoint and attempts clipboard copy; if fetch/copy cannot complete, UI shows a readable fallback message and keeps the existing handoff-note download link available.
 
-**Response** `404 Not Found` if the request does not exist or result is not yet available.
+**Response** `404 Not Found` if the request does not exist or no completed-result/failed-request handoff note is yet available.
 
 ---
 
