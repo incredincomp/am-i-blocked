@@ -189,6 +189,7 @@ For `verdict="unknown"`, API responses may include `unknown_reason_signals` as o
 - `enrichment_only_facts`: observed facts tagged via `classification_role=enrichment_only_unverified` or `authoritative=false`
 - `authoritative_sources`: unique source list for authoritative facts
 - `enrichment_only_sources`: unique source list for enrichment-only facts
+`routing_recommendation.reason` is normalized as a non-empty string in result shaping; malformed or empty persisted values fall back to `"loaded from persisted result"` for API/model safety.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
 

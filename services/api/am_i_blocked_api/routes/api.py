@@ -217,6 +217,37 @@ def _summarize_observed_facts(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_routing_recommendation(report: dict[str, Any], row: ResultRow) -> dict[str, Any]:
+    """Return a model-safe routing recommendation payload from persisted report data."""
+    fallback_reason = "loaded from persisted result"
+    recommendation = report.get("routing_recommendation")
+
+    if not isinstance(recommendation, dict):
+        return {
+            "owner_team": row.owner_team,
+            "reason": fallback_reason,
+            "next_steps": row.next_steps_json or [],
+        }
+
+    owner_team_raw = recommendation.get("owner_team")
+    owner_team = owner_team_raw.strip() if isinstance(owner_team_raw, str) and owner_team_raw.strip() else row.owner_team
+
+    reason_raw = recommendation.get("reason")
+    reason = reason_raw.strip() if isinstance(reason_raw, str) and reason_raw.strip() else fallback_reason
+
+    next_steps_raw = recommendation.get("next_steps")
+    if isinstance(next_steps_raw, list):
+        next_steps = [step.strip() for step in next_steps_raw if isinstance(step, str) and step.strip()]
+    else:
+        next_steps = []
+
+    return {
+        "owner_team": owner_team,
+        "reason": reason,
+        "next_steps": next_steps,
+    }
+
+
 def _get_session_factory(database_url: str) -> async_sessionmaker:
     if database_url not in _sessions:
         if database_url not in _engines:
@@ -480,14 +511,7 @@ async def _load_result_record(request_id: uuid.UUID) -> DiagnosticResult | None:
             "source_readiness_details": _build_source_readiness_details(report),
             "observed_fact_summary": _summarize_observed_facts(report),
             "observed_facts": report.get("observed_facts", []),
-            "routing_recommendation": report.get(
-                "routing_recommendation",
-                {
-                    "owner_team": row.owner_team,
-                    "reason": "loaded from persisted result",
-                    "next_steps": row.next_steps_json or [],
-                },
-            ),
+            "routing_recommendation": _normalize_routing_recommendation(report, row),
             "created_at": report.get("generated_at", datetime.now(tz=UTC).isoformat()),
         }
         return DiagnosticResult.model_validate(payload)

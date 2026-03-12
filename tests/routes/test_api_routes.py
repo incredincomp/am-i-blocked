@@ -895,6 +895,65 @@ class TestGetResult:
         assert summary["authoritative_facts"] == 1
         assert summary["enrichment_only_sources"] == ["logscale"]
 
+    def test_result_includes_routing_recommendation_reason(self, client):
+        request_id = "59595959-5959-5959-5959-595959595959"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "campus_non_sdwan",
+                "path_confidence": 0.9,
+                "result_confidence": 0.9,
+                "evidence_completeness": 0.9,
+                "summary": "Authoritative policy deny was observed.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": [],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 1,
+                    "authoritative_facts": 1,
+                    "enrichment_only_facts": 0,
+                    "authoritative_sources": ["panos"],
+                    "enrichment_only_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "On-prem policy deny evidence matches destination and port.",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        assert (
+            resp.json()["routing_recommendation"]["reason"]
+            == "On-prem policy deny evidence matches destination and port."
+        )
+
 
 class TestUIRoutes:
     def test_index_returns_html(self, client):
@@ -1096,6 +1155,121 @@ class TestUIRoutes:
         assert "Observed facts: <strong>3</strong>" in resp.text
         assert "Authoritative sources: panos, scm" in resp.text
         assert "Enrichment-only sources: logscale" in resp.text
+
+    def test_request_page_renders_routing_recommendation_reason_in_context_block(self, client):
+        request_id = "70707070-7070-7070-7070-707070707070"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "campus_non_sdwan",
+                "path_confidence": 0.9,
+                "result_confidence": 0.9,
+                "evidence_completeness": 0.9,
+                "summary": "Authoritative policy deny was observed.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": [],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 1,
+                    "authoritative_facts": 1,
+                    "enrichment_only_facts": 0,
+                    "authoritative_sources": ["panos"],
+                    "enrichment_only_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "On-prem policy deny evidence matches destination and port.",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert (
+            "Routing context: On-prem policy deny evidence matches destination and port."
+            in resp.text
+        )
+
+    def test_request_page_hides_empty_routing_recommendation_reason(self, client):
+        request_id = "71717171-7171-7171-7171-717171717171"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.2,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": [],
+                    "unavailable_sources": ["scm"],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 0,
+                    "authoritative_facts": 0,
+                    "enrichment_only_facts": 0,
+                    "authoritative_sources": [],
+                    "enrichment_only_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Routing context:" not in resp.text
 
     def test_request_page_handles_missing_source_readiness_details(self, client):
         request_id = "69696969-6969-6969-6969-696969696969"
@@ -1799,3 +1973,42 @@ class TestLoadResultRecordConfidenceFallback:
         assert result.observed_fact_summary.enrichment_only_facts == 1
         assert result.observed_fact_summary.authoritative_sources == ["panos", "scm"]
         assert result.observed_fact_summary.enrichment_only_sources == ["logscale"]
+
+    @pytest.mark.anyio
+    async def test_load_result_record_handles_missing_or_null_routing_reason_gracefully(self):
+        request_id = uuid.UUID("99999999-aaaa-bbbb-cccc-111111111111")
+        row = api_routes.ResultRow(
+            request_id=request_id,
+            verdict="unknown",
+            owner_team="Unknown",
+            result_confidence=0.2,
+            evidence_completeness=0.2,
+            summary="Insufficient evidence.",
+            next_steps_json=["check source health"],
+            report_json={
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": None,
+                    "next_steps": ["  ", "retry after readiness recovery"],
+                },
+                "generated_at": "2026-03-08T00:00:00Z",
+            },
+        )
+
+        with patch(
+            "am_i_blocked_api.routes.api.get_settings",
+            return_value=SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        ), patch(
+            "am_i_blocked_api.routes.api._get_session_factory",
+            return_value=_fake_result_session_factory(row),
+        ):
+            result = await _ORIG_LOAD_RESULT_RECORD(request_id)
+
+        assert result is not None
+        assert result.routing_recommendation.owner_team == "Unknown"
+        assert result.routing_recommendation.reason == "loaded from persisted result"
+        assert result.routing_recommendation.next_steps == ["retry after readiness recovery"]

@@ -76,6 +76,11 @@
           <span>{{ result.routing_recommendation.owner_team }}</span>
         </div>
       </div>
+      {% if result.routing_recommendation.reason %}
+      <p style="margin-top:0.7rem; font-size:0.88rem; color:#475569;">
+        Routing context: {{ result.routing_recommendation.reason }}
+      </p>
+      {% endif %}
       <div style="margin-top:1rem;">
         {% for label, value in [('Path confidence', result.path_confidence), ('Result confidence', result.result_confidence), ('Evidence completeness', result.evidence_completeness)] %}
         <div style="margin-bottom:0.6rem;">

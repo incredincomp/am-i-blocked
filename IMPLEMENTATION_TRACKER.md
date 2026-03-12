@@ -792,6 +792,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added bounded operator-facing `observed_fact_summary` shaping in result API/UI (authority vs enrichment counts and source lists derived from persisted `report_json.observed_facts`) with focused route/load tests and docs updates.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "observed_fact_summary or load_result_record"` (pass, 10 selected).
 - 2026-03-12: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Added bounded API/UI routing-context surfacing: result context block now renders `routing_recommendation.reason` when present, and API result shaping now normalizes malformed/empty routing reason values to a safe fallback (`loaded from persisted result`) without changing routing semantics.
+- 2026-03-12: Added focused route/UI coverage for routing-recommendation reason present and absent rendering behavior plus loader-level malformed/null routing reason normalization.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "routing_recommendation_reason or load_result_record_handles_missing_or_null_routing_reason_gracefully"` (pass, 8 selected).
+- 2026-03-12: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -807,7 +811,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded API/UI milestone that surfaces `routing_recommendation.reason` explicitly in the result page context block (without changing verdict authority or classifier behavior), plus focused route/UI tests.
+Add one bounded API/UI milestone that surfaces request time-window context (`time_window_start`/`time_window_end`) in the result page context block for operator ticket handoff, with focused route/UI tests and no verdict/routing logic changes.
 
 ## Deferred / Later
 
