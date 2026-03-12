@@ -2314,6 +2314,11 @@ class TestUIRoutes:
         assert "Stage: queue_enqueue" in resp.text
         assert "Category: dependency" in resp.text
         assert "Reason: queue timeout" in resp.text
+        assert 'id="download-failed-handoff-note-link"' in resp.text
+        assert (
+            f'href="/api/v1/requests/{request_id}/result/handoff-note"' in resp.text
+        )
+        assert "Download failed handoff note" in resp.text
         assert "First-hop triage" in resp.text
         assert "Suggested action: Check Redis queue availability and worker queue connectivity, then retry." in resp.text
 
@@ -2344,6 +2349,7 @@ class TestUIRoutes:
         assert "Category: unknown" in resp.text
         assert "non_standard_stage" not in resp.text
         assert "non_standard_category" not in resp.text
+        assert 'id="download-failed-handoff-note-link"' in resp.text
         assert "Suggested action: Capture request id and logs, then escalate for manual triage." in resp.text
 
     def test_request_page_failed_hides_diagnostics_block_when_failure_metadata_missing(self, client):
@@ -2373,6 +2379,53 @@ class TestUIRoutes:
         assert "Stage:" not in resp.text
         assert "Category:" not in resp.text
         assert "Reason:" not in resp.text
+        assert 'id="download-failed-handoff-note-link"' in resp.text
+        assert (
+            f'href="/api/v1/requests/{request_id}/result/handoff-note"' in resp.text
+        )
+
+    def test_request_page_complete_hides_failed_handoff_note_link(self, client):
+        request_id = "57575757-5757-5757-5757-575757575757"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.2,
+                "summary": "Insufficient evidence.",
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Telemetry incomplete",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert 'id="download-failed-handoff-note-link"' not in resp.text
+        assert "Download failed handoff note" not in resp.text
 
     def test_request_page_result_labels_enrichment_and_authoritative_facts(self, client):
         request_id = "66666666-6666-6666-6666-666666666666"

@@ -292,6 +292,17 @@
         {% endif %}
       </div>
       {% endif %}
+      {% if record.status == "failed" %}
+      <div style="margin-top:0.7rem; text-align:left;">
+        <a
+          class="download-btn"
+          id="download-failed-handoff-note-link"
+          href="/api/v1/requests/{{ request_id }}/result/handoff-note"
+        >
+          Download failed handoff note
+        </a>
+      </div>
+      {% endif %}
       {% if record.status == "failed" and triage_hint %}
       <div style="margin-top:0.7rem; border:1px solid #fecaca; background:#fef2f2; border-radius:6px; padding:0.65rem; text-align:left;">
         <p style="font-size:0.75rem; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">First-hop triage</p>
