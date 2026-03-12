@@ -168,6 +168,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `routing_recommendation.reason` is rendered in the result page context block when present and is normalized in API result shaping to a non-empty fallback string when persisted values are malformed/empty.
 - Result API payload now includes request-scoped `time_window_start` / `time_window_end` context (when available), and result UI context block renders a compact "Time window" line using request-detail values for operator handoff.
 - Result API payload now includes request destination handoff context (`destination_value`, optional `destination_port`), and result UI context block renders a compact `Destination` line suitable for ticket copy/paste.
+- Result API payload now also includes request `destination_type`, and result UI context block renders destination type compactly alongside destination value/port when present.
 - Diagnostic result now includes a minimal additive explainability field:
   - `unknown_reason_signals` (list of short strings; populated for unknown verdicts when available)
 - Diagnostic result now includes a compact additive readiness field:

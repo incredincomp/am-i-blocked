@@ -955,16 +955,17 @@ class TestGetResult:
         )
 
     @pytest.mark.parametrize(
-        ("destination_value", "port"),
+        ("destination_type", "destination_value", "port"),
         [
-            ("api.example.com", None),
-            ("10.20.30.40", 8443),
-            (None, None),
+            (DestinationType.FQDN, "api.example.com", None),
+            (DestinationType.IP, "10.20.30.40", 8443),
+            (None, None, None),
         ],
     )
     def test_result_includes_destination_context_for_ticket_handoff(
         self,
         client,
+        destination_type,
         destination_value,
         port,
     ):
@@ -975,7 +976,7 @@ class TestGetResult:
             return_value={
                 "request_id": request_id,
                 "status": RequestStatus.COMPLETE,
-                "destination_type": DestinationType.FQDN,
+                "destination_type": destination_type,
                 "destination_value": destination_value,
                 "port": port,
                 "time_window_start": "2026-03-08T00:00:00Z",
@@ -1009,6 +1010,9 @@ class TestGetResult:
             resp = client.get(f"/api/v1/requests/{request_id}/result")
 
         assert resp.status_code == 200
+        assert resp.json()["destination_type"] == (
+            destination_type.value if isinstance(destination_type, DestinationType) else None
+        )
         assert resp.json()["destination_value"] == destination_value
         assert resp.json()["destination_port"] == port
 
@@ -1603,19 +1607,27 @@ class TestUIRoutes:
         assert "Time window:" not in resp.text
 
     @pytest.mark.parametrize(
-        ("destination_value", "destination_port", "expected_fragment"),
+        (
+            "destination_type",
+            "destination_value",
+            "destination_port",
+            "expected_fragment",
+            "expected_type_fragment",
+        ),
         [
-            ("api.example.com", None, "api.example.com"),
-            ("10.20.30.40", 8443, "10.20.30.40:8443"),
-            (None, None, None),
+            ("fqdn", "api.example.com", None, "api.example.com", "(fqdn)"),
+            ("ip", "10.20.30.40", 8443, "10.20.30.40:8443", "(ip)"),
+            (None, None, None, None, None),
         ],
     )
     def test_request_page_destination_context_line_behaves_gracefully(
         self,
         client,
+        destination_type,
         destination_value,
         destination_port,
         expected_fragment,
+        expected_type_fragment,
     ):
         request_id = "75757575-7575-7575-7575-757575757575"
         with patch(
@@ -1638,6 +1650,7 @@ class TestUIRoutes:
             return_value={
                 "request_id": request_id,
                 "verdict": "unknown",
+                "destination_type": destination_type,
                 "destination_value": destination_value,
                 "destination_port": destination_port,
                 "enforcement_plane": "unknown",
@@ -1677,6 +1690,72 @@ class TestUIRoutes:
         else:
             assert "Destination:" in resp.text
             assert expected_fragment in resp.text
+            if expected_type_fragment is not None:
+                assert expected_type_fragment in resp.text
+
+    def test_request_page_renders_compact_operator_handoff_context_block(self, client):
+        request_id = "76767676-7676-7676-7676-767676767676"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "destination_type": "fqdn",
+                "destination_value": "api.example.com",
+                "destination_port": 443,
+                "enforcement_plane": "onprem_palo",
+                "path_context": "campus_non_sdwan",
+                "path_confidence": 0.9,
+                "result_confidence": 0.9,
+                "evidence_completeness": 0.9,
+                "summary": "Authoritative policy deny was observed.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": [],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 1,
+                    "authoritative_facts": 1,
+                    "enrichment_only_facts": 0,
+                    "authoritative_sources": ["panos"],
+                    "enrichment_only_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "On-prem policy deny evidence matches destination and port.",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Routing context: On-prem policy deny evidence matches destination and port." in resp.text
+        assert "Destination:" in resp.text
+        assert "api.example.com:443" in resp.text
+        assert "(fqdn)" in resp.text
+        assert "Time window:" in resp.text
+        assert "2026-03-08T00:00:00Z to 2026-03-08T00:15:00Z" in resp.text
 
     def test_request_page_handles_missing_source_readiness_details(self, client):
         request_id = "69696969-6969-6969-6969-696969696969"

@@ -804,6 +804,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added focused route/UI tests for destination context behavior: destination only, destination + port, and destination missing; API result shaping coverage now verifies graceful `null` handling.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "destination"` (pass, 9 selected).
 - 2026-03-12: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Added bounded handoff-context consolidation slice by surfacing `destination_type` in `/api/v1/requests/{id}/result` and rendering destination as compact `value[:port] (type)` in existing context block when available.
+- 2026-03-12: Added one compact consolidated route/UI contract proof for the operator handoff context block (routing reason + destination value/port/type + time window) to break one-field-at-a-time context slicing.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "destination_type or handoff_context or destination_context"` (pass, 7 selected).
+- 2026-03-12: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -819,7 +823,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded API/UI milestone that surfaces `destination_type` in the result context block and `/api/v1/requests/{id}/result` payload for clearer ticket handoff classification, with focused route/UI tests and no verdict/routing logic changes.
+Pause result-context field additions; add one bounded non-context MVP slice (for example, compact operator-facing result API contract test that verifies all current handoff fields remain stable across `/result` and evidence-bundle retrieval paths).
 
 ## Deferred / Later
 

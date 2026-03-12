@@ -89,6 +89,9 @@
         {% else %}
         {{ result.destination_value }}
         {% endif %}
+        {% if result.destination_type %}
+        ({{ result.destination_type }})
+        {% endif %}
       </p>
       {% endif %}
       {% if record.time_window_start or record.time_window_end %}

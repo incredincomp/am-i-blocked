@@ -128,6 +128,7 @@ Retrieve the diagnostic result for a completed request.
 {
   "request_id": "550e8400-...",
   "verdict": "denied",
+  "destination_type": "fqdn",
   "destination_value": "api.example.com",
   "destination_port": 443,
   "enforcement_plane": "strata_cloud",
@@ -193,7 +194,7 @@ For `verdict="unknown"`, API responses may include `unknown_reason_signals` as o
 - `enrichment_only_facts`: observed facts tagged via `classification_role=enrichment_only_unverified` or `authoritative=false`
 - `authoritative_sources`: unique source list for authoritative facts
 - `enrichment_only_sources`: unique source list for enrichment-only facts
-`destination_value` and optional `destination_port` in result payloads are sourced from persisted request context and are intended for direct operator ticket handoff/copy-paste.
+`destination_type`, `destination_value`, and optional `destination_port` in result payloads are sourced from persisted request context and are intended for direct operator ticket handoff/copy-paste.
 `time_window_start` and `time_window_end` in result payloads are sourced from persisted request context for operator handoff and may be `null` when unavailable.
 `routing_recommendation.reason` is normalized as a non-empty string in result shaping; malformed or empty persisted values fall back to `"loaded from persisted result"` for API/model safety.
 

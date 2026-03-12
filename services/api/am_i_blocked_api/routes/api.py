@@ -73,6 +73,17 @@ def _normalize_optional_destination_port(value: object) -> int | None:
     return None
 
 
+def _normalize_optional_destination_type(value: object) -> DestinationType | None:
+    if isinstance(value, DestinationType):
+        return value
+    if isinstance(value, str):
+        try:
+            return DestinationType(value)
+        except ValueError:
+            return None
+    return None
+
+
 def _derive_unknown_reason_signals(
     report: dict[str, Any],
     path_confidence: float,
@@ -523,6 +534,7 @@ async def _load_result_record(request_id: uuid.UUID) -> DiagnosticResult | None:
         payload = {
             "request_id": str(request_id),
             "verdict": verdict,
+            "destination_type": None,
             "destination_value": None,
             "destination_port": None,
             "enforcement_plane": report.get("enforcement_plane", "unknown"),
@@ -688,6 +700,7 @@ async def get_result(request_id: uuid.UUID) -> DiagnosticResult:
             status_code=404,
             detail=f"Result for request {request_id} not yet available",
         )
+    result.destination_type = _normalize_optional_destination_type(record.get("destination_type"))
     result.destination_value = _normalize_optional_destination_value(record.get("destination_value"))
     result.destination_port = _normalize_optional_destination_port(record.get("port"))
     result.time_window_start = _normalize_optional_datetime(record.get("time_window_start"))
@@ -723,6 +736,9 @@ async def download_evidence_bundle(request_id: uuid.UUID) -> JSONResponse:
     else:
         normalized_result = DiagnosticResult.model_validate(result)
 
+    normalized_result.destination_type = _normalize_optional_destination_type(
+        record.get("destination_type")
+    )
     normalized_result.destination_value = _normalize_optional_destination_value(
         record.get("destination_value")
     )

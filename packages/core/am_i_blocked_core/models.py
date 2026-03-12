@@ -141,6 +141,7 @@ class ObservedFactSummary(BaseModel):
 class DiagnosticResult(BaseModel):
     request_id: uuid.UUID
     verdict: Verdict
+    destination_type: DestinationType | None = None
     destination_value: str | None = None
     destination_port: int | None = None
     enforcement_plane: EnforcementPlane
