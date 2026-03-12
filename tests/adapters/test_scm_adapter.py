@@ -401,6 +401,50 @@ class TestSCMAdapterEvidence:
 
     @pytest.mark.anyio
     @respx.mock
+    async def test_query_evidence_blank_destination_deny_like_candidate_returns_empty(self):
+        adapter = SCMAdapter(
+            client_id="cid",
+            client_secret="sec",
+            tsg_id="tsg",
+            auth_url="https://auth.example.com/oauth2/access_token",
+            api_base_url="https://api.example.com/scm/query",
+        )
+        respx.post("https://auth.example.com/oauth2/access_token").mock(
+            return_value=httpx.Response(200, json={"access_token": "abc123"})
+        )
+        respx.post("https://api.example.com/scm/query").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "records": [
+                        {
+                            # Intentionally blank destination while otherwise deny-like and authoritative.
+                            "source_system": "strata_cloud_manager",
+                            "authoritative": True,
+                            "decision": "deny",
+                            "destination": "   ",
+                            "port": 443,
+                            "timestamp": "2026-03-11T00:00:00Z",
+                            "rule_name": "cloud-block",
+                            "reason": "Policy deny candidate with blank destination",
+                        }
+                    ]
+                },
+            )
+        )
+
+        records = await adapter.query_evidence(
+            destination="api.example.com",
+            port=443,
+            time_window_start="2026-03-11T00:00:00Z",
+            time_window_end="2026-03-11T00:15:00Z",
+            request_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        )
+
+        assert records == []
+
+    @pytest.mark.anyio
+    @respx.mock
     async def test_query_evidence_malformed_response_returns_empty(self):
         adapter = SCMAdapter(
             client_id="cid",

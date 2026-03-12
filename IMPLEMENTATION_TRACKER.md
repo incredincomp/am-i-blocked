@@ -694,6 +694,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added bounded SCM adapter unit proof showing a deny-like authoritative candidate missing source-of-record marker fails closed in normalization and yields no authoritative evidence records.
 - 2026-03-12: Added bounded SCM adapter unit proof showing a deny-like authoritative candidate with invalid non-SCM source marker fails closed in normalization and yields no authoritative evidence records.
 - 2026-03-12: Added bounded SCM adapter unit proof showing a deny-like authoritative candidate with valid SCM source marker and deny semantics still fails closed when destination is missing, yielding no authoritative evidence records.
+- 2026-03-12: Added bounded SCM adapter unit proof showing a deny-like authoritative candidate with valid SCM source marker and deny semantics still fails closed when destination is present but blank/whitespace-only, yielding no authoritative evidence records.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 12 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 14 tests).
@@ -702,6 +703,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py` (pass, 26 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py` (pass, 28 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py` (pass, 30 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py` (pass, 32 tests).
 - 2026-03-12: Ran `uv run ruff check tests/adapters/test_scm_adapter.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
@@ -767,7 +769,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded SCM adapter unit case proving deny-like authoritative candidate with destination present but blank/whitespace fails closed in normalization and emits no authoritative evidence.
+Add one bounded SCM adapter unit case proving deny-like authoritative candidate with destination field present but malformed/unusable type fails closed in normalization and emits no authoritative evidence.
 
 ## Deferred / Later
 
