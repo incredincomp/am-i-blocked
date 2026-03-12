@@ -825,6 +825,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added focused route tests proving structured handoff-note content for denied and unknown cases plus graceful omission/placeholder behavior for absent values.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_note"` (pass, 3 selected).
 - 2026-03-12: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Added bounded result-page `Copy handoff note` control that reuses existing `/api/v1/requests/{id}/result/handoff-note` route content for clipboard copy attempts and shows graceful fallback message + preserved download path when fetch/copy cannot complete.
+- 2026-03-12: Added focused route/UI assertions for copy control rendering, script wiring (`fetch` + `navigator.clipboard.writeText`), and fallback message/link presence in normal result-page render.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_note or request_page_result_includes_evidence_bundle_download_link"` (pass).
+- 2026-03-12: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -840,7 +844,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded operator-facing increment to surface a compact "copy handoff note" control on the result page that prefetches/downloads the structured handoff-note artifact with clear UX fallback on route failure, without changing verdict/classifier/routing behavior.
+Add one bounded browser-level UI test seam (Playwright or equivalent lightweight harness) for result-page handoff copy behavior to exercise success and fallback states end-to-end without changing API semantics.
 
 ## Deferred / Later
 

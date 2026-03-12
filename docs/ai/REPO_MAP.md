@@ -190,3 +190,4 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
   - `GET /api/v1/requests/{request_id}/result/handoff-note`
   - returns plain text with `Content-Disposition: attachment; filename="handoff-{request_id}.txt"`
   - note content is structured into compact sections (context, routing, evidence snapshot, readiness snapshot, conditional unknown signals, next steps) using existing normalized result fields only
+- Result page now includes a compact `Copy handoff note` control that uses the same handoff-note route as source-of-truth and falls back to the existing download link when fetch/clipboard copy cannot complete.

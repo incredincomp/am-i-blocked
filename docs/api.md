@@ -219,6 +219,7 @@ Download a compact plain-text operator handoff note for ticket copy/paste.
   - unknown signals section only when verdict is `unknown` and signals are present
   - next steps (`routing_recommendation.next_steps`, or `none provided`)
 - This is presentation-only formatting and does not change verdict/classifier/routing semantics.
+- Result page ergonomics: `/requests/{request_id}` now includes a compact `Copy handoff note` control that fetches this endpoint and attempts clipboard copy; if fetch/copy cannot complete, UI shows a readable fallback message and keeps the existing handoff-note download link available.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
 

@@ -2321,6 +2321,14 @@ class TestUIRoutes:
         assert resp.status_code == 200
         assert f"/api/v1/requests/{request_id}/result/evidence-bundle" in resp.text
         assert f"/api/v1/requests/{request_id}/result/handoff-note" in resp.text
+        assert 'id="copy-handoff-note-btn"' in resp.text
+        assert 'id="copy-handoff-note-status"' in resp.text
+        assert 'id="copy-handoff-note-fallback"' in resp.text
+        assert 'id="copy-handoff-note-fallback-link"' in resp.text
+        assert "Copy handoff note" in resp.text
+        assert "Copy failed. Use" in resp.text
+        assert "navigator.clipboard.writeText" in resp.text
+        assert "fetch(noteUrl" in resp.text
 
     def test_request_page_unknown_renders_confidence_signals(self, client):
         request_id = "91919191-9191-9191-9191-919191919191"
