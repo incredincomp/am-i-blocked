@@ -288,6 +288,14 @@ def _nondict_readiness_report() -> ReadinessReport:
     return report
 
 
+def _bundle_readiness_report() -> ReadinessReport:
+    report = ReadinessReport()
+    report.record("panos", {"available": True, "status": "ready", "reason": "probe ok", "latency_ms": 6})
+    report.record("scm", {"available": True, "reason": "reachable", "latency_ms": 8})
+    report.record("sdwan", {"available": False, "status": "timeout", "reason": "upstream timeout", "latency_ms": 13})
+    return report
+
+
 async def _run_lifecycle_case(
     deny: bool,
     *,
@@ -295,6 +303,7 @@ async def _run_lifecycle_case(
     source: str = "panos",
     scm_mode: str = "deny",
     readiness_report: ReadinessReport | None = None,
+    bundle_sink: dict[str, object] | None = None,
 ) -> tuple[dict, str, _FakeDb]:
     db = _FakeDb()
     queue: list[dict] = []
@@ -370,8 +379,13 @@ async def _run_lifecycle_case(
         # Result retrieval via API (persisted state).
         result_resp = client.get(f"/api/v1/requests/{request_id}/result")
         assert result_resp.status_code == 200
+        bundle_resp = client.get(f"/api/v1/requests/{request_id}/result/evidence-bundle")
+        assert bundle_resp.status_code == 200
         ui_resp = client.get(f"/requests/{request_id}")
         assert ui_resp.status_code == 200
+        if bundle_sink is not None:
+            bundle_sink["payload"] = bundle_resp.json()
+            bundle_sink["content_disposition"] = bundle_resp.headers.get("Content-Disposition")
 
     return result_resp.json(), ui_resp.text, db
 
@@ -734,3 +748,37 @@ async def test_lifecycle_source_readiness_nondict_entries_are_unknown_in_summary
     assert details["scm"]["status"] == "ready"
     assert details["scm"]["reason"] == "reachable"
     assert details["scm"]["latency_ms"] is None
+
+
+@pytest.mark.anyio
+async def test_lifecycle_evidence_bundle_includes_source_readiness_summary_and_details() -> None:
+    bundle: dict[str, object] = {}
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=False,
+        readiness_report=_bundle_readiness_report(),
+        bundle_sink=bundle,
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+    assert result["source_readiness_summary"] == {
+        "total_sources": 3,
+        "available_sources": ["panos", "scm"],
+        "unavailable_sources": ["sdwan"],
+        "unknown_sources": [],
+    }
+    result_details = {item["source"]: item for item in result["source_readiness_details"]}
+    assert set(result_details) == {"panos", "scm", "sdwan"}
+    assert result_details["panos"]["status"] == "ready"
+    assert result_details["scm"]["status"] == "ready"
+    assert result_details["sdwan"]["status"] == "timeout"
+
+    payload = bundle["payload"]
+    assert isinstance(payload, dict)
+    assert payload["request_id"] == result["request_id"]
+    assert payload["source_readiness_summary"] == result["source_readiness_summary"]
+    assert payload["source_readiness_details"] == result["source_readiness_details"]
+    assert isinstance(bundle["content_disposition"], str)
+    assert f'evidence-{result["request_id"]}.json' in bundle["content_disposition"]
