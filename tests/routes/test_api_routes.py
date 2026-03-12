@@ -455,6 +455,88 @@ class TestGetResult:
         )
         assert resp.json()["request_id"] == request_id
 
+    def test_evidence_bundle_download_denied_path_preserves_authoritative_metadata_and_readiness(self, client):
+        request_id = "78787878-7878-7878-7878-787878787878"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "denied",
+                    "enforcement_plane": "onprem_palo",
+                    "path_context": "vpn_gp_onprem_static",
+                    "path_confidence": 0.8,
+                    "result_confidence": 0.85,
+                    "evidence_completeness": 0.8,
+                    "summary": "On-prem PAN-OS deny detected.",
+                    "observed_facts": [
+                        {
+                            "source": "panos",
+                            "summary": "On-prem PAN deny: rule=block-ext",
+                            "detail": {
+                                "action": "deny",
+                                "authoritative": True,
+                                "rule_name": "block-ext",
+                                "rule_metadata": {
+                                    "rule_name": "block-ext",
+                                    "action": "deny",
+                                    "description": "Block external traffic",
+                                },
+                            },
+                        }
+                    ],
+                    "unknown_reason_signals": [],
+                    "source_readiness_summary": {
+                        "total_sources": 3,
+                        "available_sources": ["panos", "scm"],
+                        "unavailable_sources": ["sdwan"],
+                        "unknown_sources": [],
+                    },
+                    "source_readiness_details": [
+                        {"source": "panos", "status": "ready", "reason": "probe ok", "latency_ms": 9},
+                        {"source": "scm", "status": "ready", "reason": "reachable", "latency_ms": 12},
+                        {"source": "sdwan", "status": "timeout", "reason": "upstream timeout", "latency_ms": None},
+                    ],
+                    "routing_recommendation": {
+                        "owner_team": "SecOps",
+                        "reason": "On-prem PAN deny evidence found",
+                        "next_steps": ["Review PAN-OS rule"],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result/evidence-bundle")
+
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("application/json")
+        assert (
+            resp.headers["content-disposition"]
+            == f'attachment; filename="evidence-{request_id}.json"'
+        )
+        payload = resp.json()
+        assert payload["request_id"] == request_id
+        assert payload["verdict"] == "denied"
+        assert payload["observed_facts"][0]["detail"]["rule_metadata"]["rule_name"] == "block-ext"
+        assert payload["source_readiness_summary"]["total_sources"] == 3
+        assert payload["source_readiness_summary"]["unavailable_sources"] == ["sdwan"]
+        assert len(payload["source_readiness_details"]) == 3
+
     def test_result_includes_panos_rule_metadata_when_present(self, client):
         request_id = "12121212-1212-1212-1212-121212121212"
         with patch(
