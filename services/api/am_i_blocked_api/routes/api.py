@@ -84,6 +84,12 @@ def _normalize_optional_destination_type(value: object) -> DestinationType | Non
     return None
 
 
+def _normalize_optional_handoff_summary(value: object) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
 def _format_handoff_destination(result: DiagnosticResult) -> str:
     if not result.destination_value:
         return "n/a"
@@ -116,11 +122,15 @@ def _build_handoff_note(result: DiagnosticResult) -> str:
     else:
         next_steps_text = "- none provided"
 
-    return "\n".join(
+    lines = [
+        f"Request ID: {result.request_id}",
+        f"Verdict: {result.verdict}",
+        f"Summary: {result.summary}",
+    ]
+    if isinstance(result.operator_handoff_summary, str) and result.operator_handoff_summary.strip():
+        lines.append(f"Operator handoff summary: {result.operator_handoff_summary.strip()}")
+    lines.extend(
         [
-            f"Request ID: {result.request_id}",
-            f"Verdict: {result.verdict}",
-            f"Summary: {result.summary}",
             f"Destination: {_format_handoff_destination(result)}",
             f"Time window: {_format_handoff_time_window(result)}",
             f"Path context: {result.path_context}",
@@ -131,6 +141,7 @@ def _build_handoff_note(result: DiagnosticResult) -> str:
             next_steps_text,
         ]
     )
+    return "\n".join(lines)
 
 
 def _derive_unknown_reason_signals(
@@ -593,6 +604,12 @@ async def _load_result_record(request_id: uuid.UUID) -> DiagnosticResult | None:
             "evidence_completeness": evidence_completeness,
             "time_window_start": None,
             "time_window_end": None,
+            "operator_handoff_summary": (
+                report.get("operator_handoff_summary").strip()
+                if isinstance(report.get("operator_handoff_summary"), str)
+                and report.get("operator_handoff_summary").strip()
+                else None
+            ),
             "summary": row.summary,
             "unknown_reason_signals": unknown_reason_signals,
             "source_readiness_summary": _summarize_source_readiness(report),
@@ -754,6 +771,9 @@ async def get_result(request_id: uuid.UUID) -> DiagnosticResult:
     result.destination_port = _normalize_optional_destination_port(record.get("port"))
     result.time_window_start = _normalize_optional_datetime(record.get("time_window_start"))
     result.time_window_end = _normalize_optional_datetime(record.get("time_window_end"))
+    result.operator_handoff_summary = _normalize_optional_handoff_summary(
+        result.operator_handoff_summary
+    )
     return result
 
 
@@ -794,6 +814,9 @@ async def download_evidence_bundle(request_id: uuid.UUID) -> JSONResponse:
     normalized_result.destination_port = _normalize_optional_destination_port(record.get("port"))
     normalized_result.time_window_start = _normalize_optional_datetime(record.get("time_window_start"))
     normalized_result.time_window_end = _normalize_optional_datetime(record.get("time_window_end"))
+    normalized_result.operator_handoff_summary = _normalize_optional_handoff_summary(
+        normalized_result.operator_handoff_summary
+    )
     payload = normalized_result.model_dump(mode="json")
 
     return JSONResponse(
@@ -839,6 +862,9 @@ async def download_handoff_note(request_id: uuid.UUID) -> PlainTextResponse:
     normalized_result.destination_port = _normalize_optional_destination_port(record.get("port"))
     normalized_result.time_window_start = _normalize_optional_datetime(record.get("time_window_start"))
     normalized_result.time_window_end = _normalize_optional_datetime(record.get("time_window_end"))
+    normalized_result.operator_handoff_summary = _normalize_optional_handoff_summary(
+        normalized_result.operator_handoff_summary
+    )
 
     handoff_note = _build_handoff_note(normalized_result)
     return PlainTextResponse(

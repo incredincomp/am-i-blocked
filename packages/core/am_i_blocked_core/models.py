@@ -151,6 +151,7 @@ class DiagnosticResult(BaseModel):
     evidence_completeness: float = Field(ge=0.0, le=1.0)
     time_window_start: datetime | None = None
     time_window_end: datetime | None = None
+    operator_handoff_summary: str | None = None
     summary: str
     unknown_reason_signals: list[str] = Field(default_factory=list)
     source_readiness_summary: SourceReadinessSummary = Field(default_factory=SourceReadinessSummary)

@@ -483,6 +483,7 @@ class TestGetResult:
                     "path_confidence": 0.8,
                     "result_confidence": 0.85,
                     "evidence_completeness": 0.8,
+                    "operator_handoff_summary": "verdict=denied; path=vpn_gp_onprem_static; enforcement=onprem_palo",
                     "summary": "On-prem PAN-OS deny detected.",
                     "observed_facts": [],
                     "routing_recommendation": {
@@ -504,6 +505,10 @@ class TestGetResult:
         )
         assert "Request ID: 81818181-8181-8181-8181-818181818181" in resp.text
         assert "Verdict: denied" in resp.text
+        assert (
+            "Operator handoff summary: verdict=denied; path=vpn_gp_onprem_static; enforcement=onprem_palo"
+            in resp.text
+        )
         assert "Destination: api.example.com:443 (fqdn)" in resp.text
         assert "Time window: 2026-03-08T00:00:00+00:00 to 2026-03-08T00:15:00+00:00" in resp.text
         assert "Routing reason: On-prem policy deny evidence found" in resp.text
@@ -554,6 +559,7 @@ class TestGetResult:
         assert resp.status_code == 200
         assert "Destination: n/a" in resp.text
         assert "Time window: n/a" in resp.text
+        assert "Operator handoff summary:" not in resp.text
         assert "Routing reason: n/a" in resp.text
         assert "Next steps:\n- none provided" in resp.text
 
@@ -1125,6 +1131,101 @@ class TestGetResult:
             resp.json()["routing_recommendation"]["reason"]
             == "On-prem policy deny evidence matches destination and port."
         )
+
+    def test_result_includes_operator_handoff_summary_when_present(self, client):
+        request_id = "60606060-6060-6060-6060-606060606060"
+        expected_summary = (
+            "verdict=denied; path=campus_non_sdwan; enforcement=onprem_palo; "
+            "authoritative_facts=1; ready_sources=1; unavailable_sources=1; "
+            "routing_reason=On-prem policy deny evidence found"
+        )
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "denied",
+                    "enforcement_plane": "onprem_palo",
+                    "path_context": "campus_non_sdwan",
+                    "path_confidence": 0.9,
+                    "result_confidence": 0.9,
+                    "evidence_completeness": 0.8,
+                    "operator_handoff_summary": expected_summary,
+                    "summary": "Authoritative policy deny was observed.",
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "SecOps",
+                        "reason": "On-prem policy deny evidence found",
+                        "next_steps": [],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        assert resp.json()["operator_handoff_summary"] == expected_summary
+
+    def test_result_handles_missing_operator_handoff_summary_gracefully(self, client):
+        request_id = "61616161-6161-6161-6161-616161616161"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "unknown",
+                    "enforcement_plane": "unknown",
+                    "path_context": "unknown",
+                    "path_confidence": 0.2,
+                    "result_confidence": 0.2,
+                    "evidence_completeness": 0.2,
+                    "operator_handoff_summary": "",
+                    "summary": "Insufficient evidence.",
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "Unknown",
+                        "reason": "Telemetry incomplete",
+                        "next_steps": [],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        assert resp.json()["operator_handoff_summary"] is None
 
     @pytest.mark.parametrize(
         ("destination_type", "destination_value", "port"),
@@ -1916,6 +2017,11 @@ class TestUIRoutes:
                     "reason": "On-prem policy deny evidence matches destination and port.",
                     "next_steps": [],
                 },
+                "operator_handoff_summary": (
+                    "verdict=denied; path=campus_non_sdwan; enforcement=onprem_palo; "
+                    "authoritative_facts=1; ready_sources=1; unavailable_sources=0; "
+                    "routing_reason=On-prem policy deny evidence matches destination and port."
+                ),
                 "created_at": "2026-03-08T00:00:00Z",
             },
         ):
@@ -1923,6 +2029,8 @@ class TestUIRoutes:
 
         assert resp.status_code == 200
         assert "Routing context: On-prem policy deny evidence matches destination and port." in resp.text
+        assert "Handoff summary:" in resp.text
+        assert "verdict=denied; path=campus_non_sdwan; enforcement=onprem_palo;" in resp.text
         assert "Destination:" in resp.text
         assert "api.example.com:443" in resp.text
         assert "(fqdn)" in resp.text
@@ -2671,3 +2779,83 @@ class TestLoadResultRecordConfidenceFallback:
         assert result.routing_recommendation.owner_team == "Unknown"
         assert result.routing_recommendation.reason == "loaded from persisted result"
         assert result.routing_recommendation.next_steps == ["retry after readiness recovery"]
+
+    @pytest.mark.anyio
+    async def test_load_result_record_includes_operator_handoff_summary_when_present(self):
+        request_id = uuid.UUID("12121212-3434-5656-7878-909090909090")
+        summary = (
+            "verdict=unknown; path=unknown; enforcement=unknown; "
+            "authoritative_facts=0; ready_sources=1; unavailable_sources=1; routing_reason=Telemetry incomplete"
+        )
+        row = api_routes.ResultRow(
+            request_id=request_id,
+            verdict="unknown",
+            owner_team="Unknown",
+            result_confidence=0.2,
+            evidence_completeness=0.2,
+            summary="Insufficient evidence.",
+            next_steps_json=[],
+            report_json={
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "operator_handoff_summary": summary,
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Telemetry incomplete",
+                    "next_steps": [],
+                },
+                "generated_at": "2026-03-08T00:00:00Z",
+            },
+        )
+
+        with patch(
+            "am_i_blocked_api.routes.api.get_settings",
+            return_value=SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        ), patch(
+            "am_i_blocked_api.routes.api._get_session_factory",
+            return_value=_fake_result_session_factory(row),
+        ):
+            result = await _ORIG_LOAD_RESULT_RECORD(request_id)
+
+        assert result is not None
+        assert result.operator_handoff_summary == summary
+
+    @pytest.mark.anyio
+    async def test_load_result_record_ignores_blank_operator_handoff_summary(self):
+        request_id = uuid.UUID("98989898-7676-5454-3232-101010101010")
+        row = api_routes.ResultRow(
+            request_id=request_id,
+            verdict="unknown",
+            owner_team="Unknown",
+            result_confidence=0.2,
+            evidence_completeness=0.2,
+            summary="Insufficient evidence.",
+            next_steps_json=[],
+            report_json={
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "operator_handoff_summary": "   ",
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Telemetry incomplete",
+                    "next_steps": [],
+                },
+                "generated_at": "2026-03-08T00:00:00Z",
+            },
+        )
+
+        with patch(
+            "am_i_blocked_api.routes.api.get_settings",
+            return_value=SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        ), patch(
+            "am_i_blocked_api.routes.api._get_session_factory",
+            return_value=_fake_result_session_factory(row),
+        ):
+            result = await _ORIG_LOAD_RESULT_RECORD(request_id)
+
+        assert result is not None
+        assert result.operator_handoff_summary is None

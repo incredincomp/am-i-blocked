@@ -177,6 +177,8 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
   - `source_readiness_details` (list of `source`, `status`, optional `reason`, optional `latency_ms`), derived from persisted `report_json.source_readiness`
 - Diagnostic result now includes a compact observed-fact authority mix field:
   - `observed_fact_summary` (`total_facts`, `authoritative_facts`, `enrichment_only_facts`, `authoritative_sources`, `enrichment_only_sources`), derived from persisted `report_json.observed_facts`
+- Diagnostic result now also includes additive persisted operator handoff text:
+  - `operator_handoff_summary` (compact plain-text summary derived during worker report-bundle assembly from existing normalized fields)
 - `docs/api.md` now also includes `RequestDetail` failed-state response examples documenting:
   - `failure_reason`
   - `failure_stage`

@@ -47,6 +47,31 @@ def _context() -> ContextResult:
     )
 
 
+def test_build_report_bundle_includes_operator_handoff_summary():
+    request_id = str(uuid.uuid4())
+    result = persist_and_report.build_result(
+        request_id=request_id,
+        classification=_classification(),
+        context=_context(),
+    )
+    bundle = persist_and_report.build_report_bundle(
+        request_id=request_id,
+        result=result,
+        evidence=[],
+        probe_results={},
+        readiness={
+            "panos": {"available": True},
+            "scm": {"available": False},
+            "torq": {"status": "unknown"},
+        },
+    )
+
+    assert bundle["operator_handoff_summary"] == (
+        "verdict=unknown; path=unknown; enforcement=unknown; authoritative_facts=0; "
+        "ready_sources=1; unavailable_sources=1; routing_reason=Telemetry incomplete"
+    )
+
+
 @pytest.mark.anyio
 async def test_run_raises_when_db_write_fails():
     req_id = str(uuid.uuid4())

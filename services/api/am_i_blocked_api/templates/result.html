@@ -81,6 +81,11 @@
         Routing context: {{ result.routing_recommendation.reason }}
       </p>
       {% endif %}
+      {% if result.operator_handoff_summary %}
+      <p style="margin-top:0.4rem; font-size:0.88rem; color:#334155;">
+        Handoff summary: {{ result.operator_handoff_summary }}
+      </p>
+      {% endif %}
       {% if result.destination_value %}
       <p style="margin-top:0.4rem; font-size:0.88rem; color:#475569;">
         Destination:

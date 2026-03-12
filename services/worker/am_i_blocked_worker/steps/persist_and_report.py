@@ -90,6 +90,35 @@ def build_report_bundle(
     Raw evidence references are included for privileged consumers.
     Redacted evidence is safe for general distribution.
     """
+    observed_facts = [f.model_dump() for f in result.observed_facts]
+    available_sources = sorted(
+        source
+        for source, value in readiness.items()
+        if isinstance(source, str) and source.strip() and isinstance(value, dict) and value.get("available") is True
+    )
+    unavailable_sources = sorted(
+        source
+        for source, value in readiness.items()
+        if isinstance(source, str) and source.strip() and isinstance(value, dict) and value.get("available") is False
+    )
+    authoritative_fact_count = sum(
+        1
+        for fact in observed_facts
+        if not (
+            isinstance(fact.get("detail"), dict)
+            and (
+                fact["detail"].get("classification_role") == "enrichment_only_unverified"
+                or fact["detail"].get("authoritative") is False
+            )
+        )
+    )
+    operator_handoff_summary = (
+        f"verdict={result.verdict.value}; path={result.path_context.value}; "
+        f"enforcement={result.enforcement_plane.value}; authoritative_facts={authoritative_fact_count}; "
+        f"ready_sources={len(available_sources)}; unavailable_sources={len(unavailable_sources)}; "
+        f"routing_reason={result.routing_recommendation.reason}"
+    )
+
     return {
         "schema_version": "1.0",
         "generated_at": datetime.now(tz=UTC).isoformat(),
@@ -100,8 +129,9 @@ def build_report_bundle(
         "path_confidence": result.path_confidence,
         "result_confidence": result.result_confidence,
         "evidence_completeness": result.evidence_completeness,
+        "operator_handoff_summary": operator_handoff_summary,
         "summary": result.summary,
-        "observed_facts": [f.model_dump() for f in result.observed_facts],
+        "observed_facts": observed_facts,
         "routing_recommendation": result.routing_recommendation.model_dump(),
         "probe_results": probe_results,
         "source_readiness": readiness,

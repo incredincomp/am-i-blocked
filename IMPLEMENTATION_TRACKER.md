@@ -815,6 +815,12 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added focused route/UI tests for handoff-note download behavior (full context and missing optional context) and result-page handoff-note link rendering.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_note or evidence_bundle_download_link"` (pass, targeted subset).
 - 2026-03-12: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Added bounded worker/reporting additive `operator_handoff_summary` persistence in `report_json` derived from existing normalized fields only (verdict, path/enforcement context, authoritative-fact count, readiness availability counts, routing reason); no verdict/classifier/routing logic changes.
+- 2026-03-12: Surfaced `operator_handoff_summary` in API result loading, rendered it compactly in the existing result context block, and included it in handoff-note export when present.
+- 2026-03-12: Added focused tests for persisted summary derivation (`build_report_bundle`), result load/route present+absent handling, result-page rendering, and handoff-note inclusion.
+- 2026-03-12: Ran `uv run pytest -q tests/unit/test_persist_and_report.py -k "handoff_summary"` (pass).
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "operator_handoff_summary or handoff_note"` (pass).
+- 2026-03-12: Ran `uv run ruff check services/worker/am_i_blocked_worker/steps/persist_and_report.py services/api/am_i_blocked_api/routes/api.py tests/unit/test_persist_and_report.py tests/routes/test_api_routes.py packages/core/am_i_blocked_core/models.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -830,7 +836,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded worker/reporting increment that generates a compact persisted `operator_handoff_summary` string in `report_json` (derived from existing normalized fields only) and surfaces it in `/result` + handoff-note output, with focused load/route tests and no verdict/classifier/routing changes.
+Add one bounded route-contract/API/UI proof that `operator_handoff_summary` remains parity-stable between `GET /api/v1/requests/{id}/result` and `GET /api/v1/requests/{id}/result/evidence-bundle`, including present and absent behavior, without changing runtime semantics.
 
 ## Deferred / Later
 

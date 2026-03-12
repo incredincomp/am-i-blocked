@@ -136,6 +136,7 @@ Retrieve the diagnostic result for a completed request.
   "path_confidence": 0.7,
   "result_confidence": 0.9,
   "evidence_completeness": 0.5,
+  "operator_handoff_summary": "verdict=denied; path=vpn_prisma_access; enforcement=strata_cloud; authoritative_facts=1; ready_sources=2; unavailable_sources=1; routing_reason=Cloud policy deny evidence found",
   "time_window_start": "2026-01-01T00:00:00Z",
   "time_window_end": "2026-01-01T00:15:00Z",
   "summary": "Cloud policy deny detected in Strata/Prisma evidence.",
@@ -196,6 +197,7 @@ For `verdict="unknown"`, API responses may include `unknown_reason_signals` as o
 - `enrichment_only_sources`: unique source list for enrichment-only facts
 `destination_type`, `destination_value`, and optional `destination_port` in result payloads are sourced from persisted request context and are intended for direct operator ticket handoff/copy-paste.
 `time_window_start` and `time_window_end` in result payloads are sourced from persisted request context for operator handoff and may be `null` when unavailable.
+`operator_handoff_summary` is an additive compact plain-text handoff line persisted in `report_json` and surfaced in result responses when present.
 `routing_recommendation.reason` is normalized as a non-empty string in result shaping; malformed or empty persisted values fall back to `"loaded from persisted result"` for API/model safety.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
@@ -209,6 +211,7 @@ Download a compact plain-text operator handoff note for ticket copy/paste.
 - Response content type: `text/plain`
 - Response header: `Content-Disposition: attachment; filename="handoff-{request_id}.txt"`
 - The note is derived from existing persisted request/result fields (`verdict`, summary, destination context, time window, path/enforcement context, routing owner/reason, and next steps) and does not change verdict/routing semantics.
+- When available, the note also includes persisted `operator_handoff_summary`.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
 
