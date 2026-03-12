@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from am_i_blocked_api import create_app
 from am_i_blocked_api.routes import api as api_routes
+from am_i_blocked_core.db_models import AuditRow, RequestRow
 from am_i_blocked_core.enums import DestinationType, RequestStatus
 from am_i_blocked_core.models import DiagnosticResult
 from fastapi.testclient import TestClient
 
 _ORIG_LOAD_RESULT_RECORD = api_routes._load_result_record
+_ORIG_LOAD_REQUEST_RECORD = api_routes._load_request_record
 
 
 @pytest.fixture
@@ -233,6 +236,71 @@ class TestGetRequest:
         assert resp.json()["failure_reason"] == "queue timeout"
         assert resp.json()["failure_stage"] == "queue_enqueue"
         assert resp.json()["failure_category"] == "dependency"
+
+    def test_get_request_normalizes_malformed_audit_stage_and_category_to_unknown(self, client):
+        request_id = uuid.UUID("a1a1a1a1-a1a1-4a1a-a1a1-a1a1a1a1a1a1")
+        request_row = RequestRow(
+            request_id=request_id,
+            status=RequestStatus.FAILED.value,
+            destination_type=DestinationType.FQDN.value,
+            destination_value="api.example.com",
+            port=443,
+            time_window_start=datetime(2026, 3, 8, 0, 0, tzinfo=UTC),
+            time_window_end=datetime(2026, 3, 8, 0, 15, tzinfo=UTC),
+            requester="anonymous",
+            created_at=datetime(2026, 3, 8, 0, 0, tzinfo=UTC),
+        )
+        audit_row = AuditRow(
+            request_id=request_id,
+            actor="worker",
+            action="request_failed",
+            params_json={
+                "reason": "synthetic failure reason",
+                "stage": "totally_bad_stage",
+                "category": "totally_bad_category",
+            },
+            timestamp=datetime(2026, 3, 8, 0, 1, tzinfo=UTC),
+        )
+
+        class _FakeRequestSession:
+            async def get(self, model, key):  # type: ignore[no-untyped-def]
+                if model is RequestRow and key == request_id:
+                    return request_row
+                return None
+
+            async def execute(self, _stmt):  # type: ignore[no-untyped-def]
+                return SimpleNamespace(scalar_one_or_none=lambda: audit_row)
+
+        class _FakeRequestSessionContext:
+            async def __aenter__(self):
+                return _FakeRequestSession()
+
+            async def __aexit__(self, exc_type, exc, tb):  # type: ignore[no-untyped-def]
+                return None
+
+        def _fake_request_session_factory():
+            return _FakeRequestSessionContext()
+
+        with patch(
+            "am_i_blocked_api.routes.api.get_settings",
+            return_value=SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        ), patch(
+            "am_i_blocked_api.routes.api._get_session_factory",
+            return_value=_fake_request_session_factory,
+        ), patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new=_ORIG_LOAD_REQUEST_RECORD,
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert resp.json()["failure_reason"] == "synthetic failure reason"
+        assert resp.json()["failure_stage"] == "unknown"
+        assert resp.json()["failure_category"] == "unknown"
 
 
 class TestFailureMetadataHelpers:

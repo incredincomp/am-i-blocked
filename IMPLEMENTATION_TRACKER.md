@@ -706,6 +706,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added lifecycle integration proof that `/result/evidence-bundle` preserves authoritative observed-fact metadata (PAN-OS `detail.rule_metadata`) with parity to normal result retrieval, while readiness summary/details remain present and unchanged.
 - 2026-03-12: Added lifecycle integration proof that unknown-confidence explainability signals (`unknown_reason_signals`) survive persisted retrieval parity into `/result/evidence-bundle` alongside readiness summary/details for an unknown verdict case.
 - 2026-03-12: Added lifecycle failure-path proof for submit -> queue -> worker failure -> persist -> API request-detail retrieval: controlled source-readiness-step exception now verifies persisted `failure_reason`, normalized `failure_stage`, and normalized `failure_category` visibility in `GET /api/v1/requests/{id}`.
+- 2026-03-12: Added bounded request-detail route contract proof that malformed persisted audit metadata (`stage`/`category`) is normalized to `unknown` in `GET /api/v1/requests/{id}` while preserving `failure_reason`.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 12 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 14 tests).
@@ -726,9 +727,11 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 26 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 28 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 30 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 49 tests).
 - 2026-03-12: Ran `uv run ruff check tests/adapters/test_scm_adapter.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py` (pass).
+- 2026-03-12: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "load_result_record_unknown_derives_reasons_from_confidence_and_readiness or load_result_record_unknown_handles_missing_or_malformed_confidence_values"` (pass, 4 selected).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py` (pass, 43 tests).
@@ -793,7 +796,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Pause parity/lifecycle micro-slices for now; execute one bounded non-lifecycle MVP milestone (for example, targeted API route contract test asserting failed request-detail normalization fallback for malformed audit metadata values remains stable and explicit).
+Pause failure-metadata contract micro-slices for now; execute one bounded non-failure MVP milestone (for example, targeted API route test asserting evidence-bundle attachment retrieval remains available for denied-path results with authoritative observed-fact metadata + readiness fields).
 
 ## Deferred / Later
 
