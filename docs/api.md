@@ -133,6 +133,8 @@ Retrieve the diagnostic result for a completed request.
   "path_confidence": 0.7,
   "result_confidence": 0.9,
   "evidence_completeness": 0.5,
+  "time_window_start": "2026-01-01T00:00:00Z",
+  "time_window_end": "2026-01-01T00:15:00Z",
   "summary": "Cloud policy deny detected in Strata/Prisma evidence.",
   "source_readiness_summary": {
     "total_sources": 4,
@@ -189,6 +191,7 @@ For `verdict="unknown"`, API responses may include `unknown_reason_signals` as o
 - `enrichment_only_facts`: observed facts tagged via `classification_role=enrichment_only_unverified` or `authoritative=false`
 - `authoritative_sources`: unique source list for authoritative facts
 - `enrichment_only_sources`: unique source list for enrichment-only facts
+`time_window_start` and `time_window_end` in result payloads are sourced from persisted request context for operator handoff and may be `null` when unavailable.
 `routing_recommendation.reason` is normalized as a non-empty string in result shaping; malformed or empty persisted values fall back to `"loaded from persisted result"` for API/model safety.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.

@@ -50,6 +50,17 @@ def _coerce_confidence(value: object, default: float = 0.0) -> float:
     return max(0.0, min(1.0, coerced))
 
 
+def _normalize_optional_datetime(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
+
+
 def _derive_unknown_reason_signals(
     report: dict[str, Any],
     path_confidence: float,
@@ -505,6 +516,8 @@ async def _load_result_record(request_id: uuid.UUID) -> DiagnosticResult | None:
             "path_confidence": path_confidence,
             "result_confidence": result_confidence,
             "evidence_completeness": evidence_completeness,
+            "time_window_start": None,
+            "time_window_end": None,
             "summary": row.summary,
             "unknown_reason_signals": unknown_reason_signals,
             "source_readiness_summary": _summarize_source_readiness(report),
@@ -661,6 +674,8 @@ async def get_result(request_id: uuid.UUID) -> DiagnosticResult:
             status_code=404,
             detail=f"Result for request {request_id} not yet available",
         )
+    result.time_window_start = _normalize_optional_datetime(record.get("time_window_start"))
+    result.time_window_end = _normalize_optional_datetime(record.get("time_window_end"))
     return result
 
 
@@ -688,9 +703,13 @@ async def download_evidence_bundle(request_id: uuid.UUID) -> JSONResponse:
         )
 
     if isinstance(result, DiagnosticResult):
-        payload = result.model_dump(mode="json")
+        normalized_result = result
     else:
-        payload = DiagnosticResult.model_validate(result).model_dump(mode="json")
+        normalized_result = DiagnosticResult.model_validate(result)
+
+    normalized_result.time_window_start = _normalize_optional_datetime(record.get("time_window_start"))
+    normalized_result.time_window_end = _normalize_optional_datetime(record.get("time_window_end"))
+    payload = normalized_result.model_dump(mode="json")
 
     return JSONResponse(
         content=payload,

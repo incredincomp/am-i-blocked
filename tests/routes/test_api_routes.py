@@ -954,6 +954,109 @@ class TestGetResult:
             == "On-prem policy deny evidence matches destination and port."
         )
 
+    def test_result_includes_time_window_context_from_request_record(self, client):
+        request_id = "5a5a5a5a-5a5a-5a5a-5a5a-5a5a5a5a5a5a"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "unknown",
+                    "enforcement_plane": "unknown",
+                    "path_context": "unknown",
+                    "path_confidence": 0.2,
+                    "result_confidence": 0.2,
+                    "evidence_completeness": 0.2,
+                    "summary": "Insufficient evidence.",
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "Unknown",
+                        "reason": "Insufficient evidence",
+                        "next_steps": [],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        assert resp.json()["time_window_start"] == "2026-03-08T00:00:00Z"
+        assert resp.json()["time_window_end"] == "2026-03-08T00:15:00Z"
+
+    @pytest.mark.parametrize(
+        ("time_window_start", "time_window_end"),
+        [
+            (None, "2026-03-08T00:15:00Z"),
+            ("2026-03-08T00:00:00Z", None),
+            (None, None),
+        ],
+    )
+    def test_result_handles_partial_or_missing_time_window_context(
+        self,
+        client,
+        time_window_start,
+        time_window_end,
+    ):
+        request_id = "5b5b5b5b-5b5b-5b5b-5b5b-5b5b5b5b5b5b"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": time_window_start,
+                "time_window_end": time_window_end,
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "unknown",
+                    "enforcement_plane": "unknown",
+                    "path_context": "unknown",
+                    "path_confidence": 0.2,
+                    "result_confidence": 0.2,
+                    "evidence_completeness": 0.2,
+                    "summary": "Insufficient evidence.",
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "Unknown",
+                        "reason": "Insufficient evidence",
+                        "next_steps": [],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result")
+
+        assert resp.status_code == 200
+        assert resp.json()["time_window_start"] == time_window_start
+        assert resp.json()["time_window_end"] == time_window_end
+
 
 class TestUIRoutes:
     def test_index_returns_html(self, client):
@@ -1270,6 +1373,176 @@ class TestUIRoutes:
 
         assert resp.status_code == 200
         assert "Routing context:" not in resp.text
+
+    def test_request_page_renders_time_window_range_in_context_block(self, client):
+        request_id = "72727272-7272-7272-7272-727272727272"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "campus_non_sdwan",
+                "path_confidence": 0.9,
+                "result_confidence": 0.9,
+                "evidence_completeness": 0.9,
+                "summary": "Authoritative policy deny was observed.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": ["panos"],
+                    "unavailable_sources": [],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 1,
+                    "authoritative_facts": 1,
+                    "enrichment_only_facts": 0,
+                    "authoritative_sources": ["panos"],
+                    "enrichment_only_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "On-prem policy deny evidence matches destination and port.",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Time window:" in resp.text
+        assert "2026-03-08T00:00:00Z to 2026-03-08T00:15:00Z" in resp.text
+
+    def test_request_page_renders_partial_time_window_context(self, client):
+        request_id = "73737373-7373-7373-7373-737373737373"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": None,
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.2,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": [],
+                    "unavailable_sources": ["scm"],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 0,
+                    "authoritative_facts": 0,
+                    "enrichment_only_facts": 0,
+                    "authoritative_sources": [],
+                    "enrichment_only_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Time window:" in resp.text
+        assert "end 2026-03-08T00:15:00Z" in resp.text
+
+    def test_request_page_hides_time_window_when_values_missing(self, client):
+        request_id = "74747474-7474-7474-7474-747474747474"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": None,
+                "time_window_end": None,
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "unknown",
+                "enforcement_plane": "unknown",
+                "path_context": "unknown",
+                "path_confidence": 0.2,
+                "result_confidence": 0.2,
+                "evidence_completeness": 0.2,
+                "summary": "Insufficient evidence.",
+                "unknown_reason_signals": [],
+                "source_readiness_summary": {
+                    "total_sources": 1,
+                    "available_sources": [],
+                    "unavailable_sources": ["scm"],
+                    "unknown_sources": [],
+                },
+                "observed_fact_summary": {
+                    "total_facts": 0,
+                    "authoritative_facts": 0,
+                    "enrichment_only_facts": 0,
+                    "authoritative_sources": [],
+                    "enrichment_only_sources": [],
+                },
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "Unknown",
+                    "reason": "Insufficient evidence",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Time window:" not in resp.text
 
     def test_request_page_handles_missing_source_readiness_details(self, client):
         request_id = "69696969-6969-6969-6969-696969696969"

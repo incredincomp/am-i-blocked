@@ -81,6 +81,18 @@
         Routing context: {{ result.routing_recommendation.reason }}
       </p>
       {% endif %}
+      {% if record.time_window_start or record.time_window_end %}
+      <p style="margin-top:0.4rem; font-size:0.88rem; color:#475569;">
+        Time window:
+        {% if record.time_window_start and record.time_window_end %}
+        {{ record.time_window_start }} to {{ record.time_window_end }}
+        {% elif record.time_window_start %}
+        start {{ record.time_window_start }}
+        {% else %}
+        end {{ record.time_window_end }}
+        {% endif %}
+      </p>
+      {% endif %}
       <div style="margin-top:1rem;">
         {% for label, value in [('Path confidence', result.path_confidence), ('Result confidence', result.result_confidence), ('Evidence completeness', result.evidence_completeness)] %}
         <div style="margin-bottom:0.6rem;">

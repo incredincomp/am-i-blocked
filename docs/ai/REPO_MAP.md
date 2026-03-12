@@ -166,6 +166,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
   - `authoritative` (boolean; `false` indicates enrichment-only context)
 - PAN-OS rule metadata is currently surfaced through existing observed-fact detail payload (`observed_facts[].detail.rule_metadata`) without introducing new top-level API fields.
 - `routing_recommendation.reason` is rendered in the result page context block when present and is normalized in API result shaping to a non-empty fallback string when persisted values are malformed/empty.
+- Result API payload now includes request-scoped `time_window_start` / `time_window_end` context (when available), and result UI context block renders a compact "Time window" line using request-detail values for operator handoff.
 - Diagnostic result now includes a minimal additive explainability field:
   - `unknown_reason_signals` (list of short strings; populated for unknown verdicts when available)
 - Diagnostic result now includes a compact additive readiness field:
