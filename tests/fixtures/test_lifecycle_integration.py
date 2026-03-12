@@ -821,3 +821,38 @@ async def test_lifecycle_evidence_bundle_preserves_authoritative_observed_fact_m
     assert bundle_panos_fact["detail"]["rule_metadata"] == panos_fact["detail"]["rule_metadata"]
     assert payload["source_readiness_summary"] == result["source_readiness_summary"]
     assert payload["source_readiness_details"] == result["source_readiness_details"]
+
+
+@pytest.mark.anyio
+async def test_lifecycle_evidence_bundle_preserves_unknown_reason_signals_with_readiness_and_metadata_fields() -> None:
+    bundle: dict[str, object] = {}
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=False,
+        source="scm",
+        scm_mode="malformed_decision_shape",
+        readiness_report=_bundle_readiness_report(),
+        bundle_sink=bundle,
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    assert result["verdict"] == "unknown"
+    assert isinstance(result["unknown_reason_signals"], list)
+    assert len(result["unknown_reason_signals"]) > 0
+    assert result["source_readiness_summary"] == {
+        "total_sources": 3,
+        "available_sources": ["panos", "scm"],
+        "unavailable_sources": ["sdwan"],
+        "unknown_sources": [],
+    }
+    assert len(result["source_readiness_details"]) == 3
+
+    payload = bundle["payload"]
+    assert isinstance(payload, dict)
+    assert payload["verdict"] == "unknown"
+    assert payload["unknown_reason_signals"] == result["unknown_reason_signals"]
+    assert payload["source_readiness_summary"] == result["source_readiness_summary"]
+    assert payload["source_readiness_details"] == result["source_readiness_details"]
