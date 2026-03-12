@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -13,6 +14,8 @@ from am_i_blocked_core.db_models import AuditRow, RequestRow, ResultRow
 from am_i_blocked_core.enums import (
     EvidenceKind,
     EvidenceSource,
+    FailureCategory,
+    FailureStage,
     RequestStatus,
 )
 from am_i_blocked_core.models import EvidenceRecord
@@ -41,6 +44,8 @@ class _FakeSession:
 
     def add(self, obj) -> None:  # type: ignore[no-untyped-def]
         if isinstance(obj, RequestRow):
+            if getattr(obj, "created_at", None) is None:
+                obj.created_at = datetime.now(tz=UTC)
             self._db.requests[obj.request_id] = obj
         elif isinstance(obj, ResultRow):
             self._db.results[obj.request_id] = obj
@@ -49,6 +54,13 @@ class _FakeSession:
 
     async def commit(self) -> None:
         return None
+
+    async def execute(self, _stmt):  # type: ignore[no-untyped-def]
+        latest_failed = next(
+            (row for row in reversed(self._db.audit) if isinstance(row, AuditRow) and row.action == "request_failed"),
+            None,
+        )
+        return SimpleNamespace(scalar_one_or_none=lambda: latest_failed)
 
 
 class _FakeSessionContext:
@@ -856,3 +868,86 @@ async def test_lifecycle_evidence_bundle_preserves_unknown_reason_signals_with_r
     assert payload["unknown_reason_signals"] == result["unknown_reason_signals"]
     assert payload["source_readiness_summary"] == result["source_readiness_summary"]
     assert payload["source_readiness_details"] == result["source_readiness_details"]
+
+
+@pytest.mark.anyio
+async def test_lifecycle_worker_failure_persists_and_returns_failure_metadata_in_request_detail() -> None:
+    db = _FakeDb()
+    queue: list[dict] = []
+    settings = _settings(
+        database_url="postgresql+psycopg://test/lifecycle",
+        redis_url="redis://test/0",
+    )
+
+    async def _enqueue_job(_redis_url: str, payload: dict) -> None:
+        queue.append(payload)
+
+    async def _dequeue_job(_redis_url: str, timeout_s: int = 5) -> dict | None:
+        if queue:
+            return queue.pop(0)
+        return None
+
+    app = create_app()
+    with TestClient(app) as client, patch(
+        "am_i_blocked_api.routes.api.get_settings",
+        return_value=settings,
+    ), patch(
+        "am_i_blocked_api.routes.api.enqueue_job",
+        side_effect=_enqueue_job,
+    ), patch(
+        "am_i_blocked_api.routes.api._get_session_factory",
+        return_value=_fake_session_factory(db),
+    ), patch(
+        "am_i_blocked_worker.steps.persist_and_report._get_session_factory",
+        return_value=_fake_session_factory(db),
+    ), patch(
+        "am_i_blocked_worker.steps.persist_and_report.get_settings",
+        return_value=settings,
+    ), patch(
+        "am_i_blocked_worker.pipeline.get_settings",
+        return_value=settings,
+    ), patch(
+        "am_i_blocked_worker.main.dequeue_job",
+        side_effect=_dequeue_job,
+    ), patch(
+        "am_i_blocked_worker.steps.source_readiness_check.run",
+        side_effect=RuntimeError("synthetic readiness failure"),
+    ):
+        submit = client.post(
+            "/api/v1/am-i-blocked",
+            json={"destination": "api.example.com", "port": 443, "time_window": "last_15m"},
+        )
+        assert submit.status_code == 202
+        request_id = submit.json()["request_id"]
+
+        assert len(queue) == 1
+        queued_job = queue[0]
+        assert queued_job["request_id"] == request_id
+
+        job = await worker_main.dequeue_job(settings.redis_url)
+        assert job is not None
+        assert job["request_id"] == request_id
+        assert len(queue) == 0
+
+        with pytest.raises(RuntimeError, match="synthetic readiness failure"):
+            await worker_main._process_job(job)
+
+        request_detail_resp = client.get(f"/api/v1/requests/{request_id}")
+        assert request_detail_resp.status_code == 200
+
+    request_detail = request_detail_resp.json()
+    assert request_detail["status"] == RequestStatus.FAILED.value
+    assert request_detail["failure_stage"] == FailureStage.SOURCE_READINESS_CHECK.value
+    assert request_detail["failure_category"] == FailureCategory.DEPENDENCY.value
+    assert "synthetic readiness failure" in request_detail["failure_reason"]
+
+    request_uuid = uuid.UUID(request_id)
+    assert request_uuid in db.requests
+    assert db.requests[request_uuid].status == RequestStatus.FAILED.value
+    assert any(
+        row.action == "request_failed"
+        and row.params_json.get("stage") == FailureStage.SOURCE_READINESS_CHECK.value
+        and row.params_json.get("category") == FailureCategory.DEPENDENCY.value
+        and "synthetic readiness failure" in str(row.params_json.get("reason", ""))
+        for row in db.audit
+    )
