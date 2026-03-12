@@ -202,6 +202,18 @@ For `verdict="unknown"`, API responses may include `unknown_reason_signals` as o
 
 ---
 
+### GET /api/v1/requests/{request_id}/result/handoff-note
+
+Download a compact plain-text operator handoff note for ticket copy/paste.
+
+- Response content type: `text/plain`
+- Response header: `Content-Disposition: attachment; filename="handoff-{request_id}.txt"`
+- The note is derived from existing persisted request/result fields (`verdict`, summary, destination context, time window, path/enforcement context, routing owner/reason, and next steps) and does not change verdict/routing semantics.
+
+**Response** `404 Not Found` if the request does not exist or result is not yet available.
+
+---
+
 ## Observed Fact Detail Contract
 
 `observed_facts[].detail` is an extensible metadata object. For UI fact-type labeling, these keys are reserved:

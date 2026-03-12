@@ -455,6 +455,108 @@ class TestGetResult:
         )
         assert resp.json()["request_id"] == request_id
 
+    def test_handoff_note_download_returns_plain_text_attachment(self, client):
+        request_id = "81818181-8181-8181-8181-818181818181"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "denied",
+                    "enforcement_plane": "onprem_palo",
+                    "path_context": "vpn_gp_onprem_static",
+                    "path_confidence": 0.8,
+                    "result_confidence": 0.85,
+                    "evidence_completeness": 0.8,
+                    "summary": "On-prem PAN-OS deny detected.",
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "SecOps",
+                        "reason": "On-prem policy deny evidence found",
+                        "next_steps": ["Review PAN-OS rule", "Open SecOps ticket"],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result/handoff-note")
+
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/plain")
+        assert (
+            resp.headers["content-disposition"]
+            == f'attachment; filename="handoff-{request_id}.txt"'
+        )
+        assert "Request ID: 81818181-8181-8181-8181-818181818181" in resp.text
+        assert "Verdict: denied" in resp.text
+        assert "Destination: api.example.com:443 (fqdn)" in resp.text
+        assert "Time window: 2026-03-08T00:00:00+00:00 to 2026-03-08T00:15:00+00:00" in resp.text
+        assert "Routing reason: On-prem policy deny evidence found" in resp.text
+        assert "- Review PAN-OS rule" in resp.text
+        assert "- Open SecOps ticket" in resp.text
+
+    def test_handoff_note_download_handles_missing_optional_context(self, client):
+        request_id = "82828282-8282-8282-8282-828282828282"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.UNKNOWN,
+                "destination_value": "",
+                "port": None,
+                "time_window_start": None,
+                "time_window_end": None,
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "unknown",
+                    "enforcement_plane": "unknown",
+                    "path_context": "unknown",
+                    "path_confidence": 0.2,
+                    "result_confidence": 0.2,
+                    "evidence_completeness": 0.2,
+                    "summary": "Insufficient evidence.",
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "Unknown",
+                        "reason": "",
+                        "next_steps": [],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result/handoff-note")
+
+        assert resp.status_code == 200
+        assert "Destination: n/a" in resp.text
+        assert "Time window: n/a" in resp.text
+        assert "Routing reason: n/a" in resp.text
+        assert "Next steps:\n- none provided" in resp.text
+
     def test_evidence_bundle_download_denied_path_preserves_authoritative_metadata_and_readiness(self, client):
         request_id = "78787878-7878-7878-7878-787878787878"
         with patch(
@@ -2030,6 +2132,7 @@ class TestUIRoutes:
 
         assert resp.status_code == 200
         assert f"/api/v1/requests/{request_id}/result/evidence-bundle" in resp.text
+        assert f"/api/v1/requests/{request_id}/result/handoff-note" in resp.text
 
     def test_request_page_unknown_renders_confidence_signals(self, client):
         request_id = "91919191-9191-9191-9191-919191919191"

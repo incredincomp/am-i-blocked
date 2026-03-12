@@ -811,6 +811,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added one bounded non-context route-contract parity proof for full operator handoff fields across `/result` and `/result/evidence-bundle` (`routing_recommendation.reason`, `time_window_start`, `time_window_end`, `destination_value`, `destination_port`, `destination_type`) while preserving attachment-style bundle retrieval.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_fields_match_result_payload"` (pass, 1 selected).
 - 2026-03-12: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Added bounded non-contract operator handoff export milestone: new route `GET /api/v1/requests/{id}/result/handoff-note` returns a compact plain-text attachment built from existing persisted request/result context (verdict, summary, destination/time window, path/enforcement, routing owner/reason, next steps), and result page now includes a direct handoff-note download link.
+- 2026-03-12: Added focused route/UI tests for handoff-note download behavior (full context and missing optional context) and result-page handoff-note link rendering.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_note or evidence_bundle_download_link"` (pass, targeted subset).
+- 2026-03-12: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -826,7 +830,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Pause route-contract micro-slices and execute one bounded non-contract MVP increment outside result/evidence-bundle parity assertions.
+Add one bounded worker/reporting increment that generates a compact persisted `operator_handoff_summary` string in `report_json` (derived from existing normalized fields only) and surfaces it in `/result` + handoff-note output, with focused load/route tests and no verdict/classifier/routing changes.
 
 ## Deferred / Later
 

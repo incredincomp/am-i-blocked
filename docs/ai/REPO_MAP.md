@@ -184,3 +184,6 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Result evidence bundle download route for UI/operator workflows:
   - `GET /api/v1/requests/{request_id}/result/evidence-bundle`
   - returns JSON with `Content-Disposition: attachment; filename="evidence-{request_id}.json"`
+- Result handoff-note export route for operator ticket copy/paste workflows:
+  - `GET /api/v1/requests/{request_id}/result/handoff-note`
+  - returns plain text with `Content-Disposition: attachment; filename="handoff-{request_id}.txt"`

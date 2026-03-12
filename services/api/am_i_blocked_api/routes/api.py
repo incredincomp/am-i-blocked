@@ -27,7 +27,7 @@ from am_i_blocked_core.models import (
 )
 from am_i_blocked_core.queue import enqueue_job
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
@@ -82,6 +82,55 @@ def _normalize_optional_destination_type(value: object) -> DestinationType | Non
         except ValueError:
             return None
     return None
+
+
+def _format_handoff_destination(result: DiagnosticResult) -> str:
+    if not result.destination_value:
+        return "n/a"
+    destination = result.destination_value
+    if result.destination_port is not None:
+        destination = f"{destination}:{result.destination_port}"
+    if result.destination_type is not None:
+        destination = f"{destination} ({result.destination_type.value})"
+    return destination
+
+
+def _format_handoff_time_window(result: DiagnosticResult) -> str:
+    start = result.time_window_start.isoformat() if result.time_window_start else None
+    end = result.time_window_end.isoformat() if result.time_window_end else None
+    if start and end:
+        return f"{start} to {end}"
+    if start:
+        return f"start {start}"
+    if end:
+        return f"end {end}"
+    return "n/a"
+
+
+def _build_handoff_note(result: DiagnosticResult) -> str:
+    recommendation = result.routing_recommendation
+    reason = recommendation.reason.strip() if recommendation.reason.strip() else "n/a"
+    next_steps = [step.strip() for step in recommendation.next_steps if step.strip()]
+    if next_steps:
+        next_steps_text = "\n".join(f"- {step}" for step in next_steps)
+    else:
+        next_steps_text = "- none provided"
+
+    return "\n".join(
+        [
+            f"Request ID: {result.request_id}",
+            f"Verdict: {result.verdict}",
+            f"Summary: {result.summary}",
+            f"Destination: {_format_handoff_destination(result)}",
+            f"Time window: {_format_handoff_time_window(result)}",
+            f"Path context: {result.path_context}",
+            f"Enforcement plane: {result.enforcement_plane}",
+            f"Owner team: {recommendation.owner_team}",
+            f"Routing reason: {reason}",
+            "Next steps:",
+            next_steps_text,
+        ]
+    )
 
 
 def _derive_unknown_reason_signals(
@@ -750,4 +799,49 @@ async def download_evidence_bundle(request_id: uuid.UUID) -> JSONResponse:
     return JSONResponse(
         content=payload,
         headers={"Content-Disposition": f'attachment; filename="evidence-{request_id}.json"'},
+    )
+
+
+@router.get(
+    "/requests/{request_id}/result/handoff-note",
+    summary="Download operator handoff note",
+)
+async def download_handoff_note(request_id: uuid.UUID) -> PlainTextResponse:
+    """Download a compact plain-text handoff note for operator ticketing."""
+    try:
+        record = await _load_request_record(request_id)
+    except DependencyUnavailableError:
+        raise HTTPException(status_code=503, detail="Persistence unavailable") from None
+    if not record:
+        raise HTTPException(status_code=404, detail=f"Request {request_id} not found")
+
+    try:
+        result = await _load_result_record(request_id)
+    except DependencyUnavailableError:
+        raise HTTPException(status_code=503, detail="Persistence unavailable") from None
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Result for request {request_id} not yet available",
+        )
+
+    if isinstance(result, DiagnosticResult):
+        normalized_result = result
+    else:
+        normalized_result = DiagnosticResult.model_validate(result)
+
+    normalized_result.destination_type = _normalize_optional_destination_type(
+        record.get("destination_type")
+    )
+    normalized_result.destination_value = _normalize_optional_destination_value(
+        record.get("destination_value")
+    )
+    normalized_result.destination_port = _normalize_optional_destination_port(record.get("port"))
+    normalized_result.time_window_start = _normalize_optional_datetime(record.get("time_window_start"))
+    normalized_result.time_window_end = _normalize_optional_datetime(record.get("time_window_end"))
+
+    handoff_note = _build_handoff_note(normalized_result)
+    return PlainTextResponse(
+        content=handoff_note,
+        headers={"Content-Disposition": f'attachment; filename="handoff-{request_id}.txt"'},
     )
