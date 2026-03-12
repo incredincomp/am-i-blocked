@@ -821,6 +821,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run pytest -q tests/unit/test_persist_and_report.py -k "handoff_summary"` (pass).
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "operator_handoff_summary or handoff_note"` (pass).
 - 2026-03-12: Ran `uv run ruff check services/worker/am_i_blocked_worker/steps/persist_and_report.py services/api/am_i_blocked_api/routes/api.py tests/unit/test_persist_and_report.py tests/routes/test_api_routes.py packages/core/am_i_blocked_core/models.py` (pass).
+- 2026-03-12: Upgraded handoff-note export from flat lines to compact deterministic ticket sections built from existing normalized result fields: context, routing, evidence snapshot (`observed_fact_summary`), readiness snapshot (`source_readiness_summary`), conditional unknown signals, and next steps.
+- 2026-03-12: Added focused route tests proving structured handoff-note content for denied and unknown cases plus graceful omission/placeholder behavior for absent values.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_note"` (pass, 3 selected).
+- 2026-03-12: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -836,7 +840,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded route-contract/API/UI proof that `operator_handoff_summary` remains parity-stable between `GET /api/v1/requests/{id}/result` and `GET /api/v1/requests/{id}/result/evidence-bundle`, including present and absent behavior, without changing runtime semantics.
+Add one bounded operator-facing increment to surface a compact "copy handoff note" control on the result page that prefetches/downloads the structured handoff-note artifact with clear UX fallback on route failure, without changing verdict/classifier/routing behavior.
 
 ## Deferred / Later
 

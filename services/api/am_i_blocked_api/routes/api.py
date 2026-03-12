@@ -117,30 +117,63 @@ def _build_handoff_note(result: DiagnosticResult) -> str:
     recommendation = result.routing_recommendation
     reason = recommendation.reason.strip() if recommendation.reason.strip() else "n/a"
     next_steps = [step.strip() for step in recommendation.next_steps if step.strip()]
-    if next_steps:
-        next_steps_text = "\n".join(f"- {step}" for step in next_steps)
-    else:
-        next_steps_text = "- none provided"
+
+    def _join_or_none(values: list[str]) -> str:
+        return ", ".join(values) if values else "none"
+
+    evidence_summary = result.observed_fact_summary
+    readiness_summary = result.source_readiness_summary
 
     lines = [
+        "Am I Blocked - Operator Handoff",
         f"Request ID: {result.request_id}",
         f"Verdict: {result.verdict}",
         f"Summary: {result.summary}",
     ]
     if isinstance(result.operator_handoff_summary, str) and result.operator_handoff_summary.strip():
         lines.append(f"Operator handoff summary: {result.operator_handoff_summary.strip()}")
+
     lines.extend(
         [
-            f"Destination: {_format_handoff_destination(result)}",
-            f"Time window: {_format_handoff_time_window(result)}",
-            f"Path context: {result.path_context}",
-            f"Enforcement plane: {result.enforcement_plane}",
-            f"Owner team: {recommendation.owner_team}",
-            f"Routing reason: {reason}",
-            "Next steps:",
-            next_steps_text,
+            "",
+            "Context:",
+            f"- Destination: {_format_handoff_destination(result)}",
+            f"- Time window: {_format_handoff_time_window(result)}",
+            f"- Path context: {result.path_context}",
+            f"- Enforcement plane: {result.enforcement_plane}",
+            "",
+            "Routing:",
+            f"- Owner team: {recommendation.owner_team}",
+            f"- Reason: {reason}",
+            "",
+            "Evidence snapshot:",
+            (
+                "- Observed facts: "
+                f"total={evidence_summary.total_facts}, "
+                f"authoritative={evidence_summary.authoritative_facts}, "
+                f"enrichment_only={evidence_summary.enrichment_only_facts}"
+            ),
+            f"- Authoritative sources: {_join_or_none(evidence_summary.authoritative_sources)}",
+            f"- Enrichment-only sources: {_join_or_none(evidence_summary.enrichment_only_sources)}",
+            "",
+            "Readiness snapshot:",
+            f"- Sources checked: {readiness_summary.total_sources}",
+            f"- Available: {_join_or_none(readiness_summary.available_sources)}",
+            f"- Unavailable: {_join_or_none(readiness_summary.unavailable_sources)}",
+            f"- Unknown: {_join_or_none(readiness_summary.unknown_sources)}",
         ]
     )
+
+    if result.verdict.value == "unknown" and result.unknown_reason_signals:
+        lines.extend(["", "Unknown signals:"])
+        lines.extend(f"- {signal}" for signal in result.unknown_reason_signals)
+
+    lines.extend(["", "Next steps:"])
+    if next_steps:
+        lines.extend(f"- {step}" for step in next_steps)
+    else:
+        lines.append("- none provided")
+
     return "\n".join(lines)
 
 

@@ -210,8 +210,15 @@ Download a compact plain-text operator handoff note for ticket copy/paste.
 
 - Response content type: `text/plain`
 - Response header: `Content-Disposition: attachment; filename="handoff-{request_id}.txt"`
-- The note is derived from existing persisted request/result fields (`verdict`, summary, destination context, time window, path/enforcement context, routing owner/reason, and next steps) and does not change verdict/routing semantics.
-- When available, the note also includes persisted `operator_handoff_summary`.
+- The note is derived from existing normalized request/result fields and uses compact deterministic sections:
+  - request + verdict header (`request_id`, `verdict`, `summary`, optional `operator_handoff_summary`)
+  - context (`destination`, `time window`, `path context`, `enforcement plane`)
+  - routing (`owner team`, routing reason)
+  - evidence snapshot (`observed_fact_summary` counts/sources)
+  - readiness snapshot (`source_readiness_summary` counts/source lists)
+  - unknown signals section only when verdict is `unknown` and signals are present
+  - next steps (`routing_recommendation.next_steps`, or `none provided`)
+- This is presentation-only formatting and does not change verdict/classifier/routing semantics.
 
 **Response** `404 Not Found` if the request does not exist or result is not yet available.
 

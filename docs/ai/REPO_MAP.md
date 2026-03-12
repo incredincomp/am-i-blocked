@@ -189,3 +189,4 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Result handoff-note export route for operator ticket copy/paste workflows:
   - `GET /api/v1/requests/{request_id}/result/handoff-note`
   - returns plain text with `Content-Disposition: attachment; filename="handoff-{request_id}.txt"`
+  - note content is structured into compact sections (context, routing, evidence snapshot, readiness snapshot, conditional unknown signals, next steps) using existing normalized result fields only

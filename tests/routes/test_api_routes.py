@@ -503,15 +503,22 @@ class TestGetResult:
             resp.headers["content-disposition"]
             == f'attachment; filename="handoff-{request_id}.txt"'
         )
+        assert "Am I Blocked - Operator Handoff" in resp.text
         assert "Request ID: 81818181-8181-8181-8181-818181818181" in resp.text
         assert "Verdict: denied" in resp.text
         assert (
             "Operator handoff summary: verdict=denied; path=vpn_gp_onprem_static; enforcement=onprem_palo"
             in resp.text
         )
-        assert "Destination: api.example.com:443 (fqdn)" in resp.text
-        assert "Time window: 2026-03-08T00:00:00+00:00 to 2026-03-08T00:15:00+00:00" in resp.text
-        assert "Routing reason: On-prem policy deny evidence found" in resp.text
+        assert "Context:" in resp.text
+        assert "- Destination: api.example.com:443 (fqdn)" in resp.text
+        assert "- Time window: 2026-03-08T00:00:00+00:00 to 2026-03-08T00:15:00+00:00" in resp.text
+        assert "Routing:" in resp.text
+        assert "- Reason: On-prem policy deny evidence found" in resp.text
+        assert "Evidence snapshot:" in resp.text
+        assert "- Observed facts: total=0, authoritative=0, enrichment_only=0" in resp.text
+        assert "Readiness snapshot:" in resp.text
+        assert "- Sources checked: 0" in resp.text
         assert "- Review PAN-OS rule" in resp.text
         assert "- Open SecOps ticket" in resp.text
 
@@ -557,11 +564,84 @@ class TestGetResult:
             resp = client.get(f"/api/v1/requests/{request_id}/result/handoff-note")
 
         assert resp.status_code == 200
-        assert "Destination: n/a" in resp.text
-        assert "Time window: n/a" in resp.text
+        assert "- Destination: n/a" in resp.text
+        assert "- Time window: n/a" in resp.text
         assert "Operator handoff summary:" not in resp.text
-        assert "Routing reason: n/a" in resp.text
-        assert "Next steps:\n- none provided" in resp.text
+        assert "- Reason: n/a" in resp.text
+        assert "Unknown signals:" not in resp.text
+        assert "Next steps:" in resp.text
+        assert "- none provided" in resp.text
+
+    def test_handoff_note_download_includes_unknown_signals_and_summaries(self, client):
+        request_id = "83838383-8383-8383-8383-838383838383"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": None,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "unknown",
+                    "enforcement_plane": "unknown",
+                    "path_context": "unknown",
+                    "path_confidence": 0.2,
+                    "result_confidence": 0.2,
+                    "evidence_completeness": 0.2,
+                    "summary": "Insufficient evidence.",
+                    "unknown_reason_signals": [
+                        "No authoritative deny evidence was found; this is not confirmation that access is allowed."
+                    ],
+                    "source_readiness_summary": {
+                        "total_sources": 3,
+                        "available_sources": ["panos"],
+                        "unavailable_sources": ["scm"],
+                        "unknown_sources": ["torq"],
+                    },
+                    "observed_fact_summary": {
+                        "total_facts": 2,
+                        "authoritative_facts": 1,
+                        "enrichment_only_facts": 1,
+                        "authoritative_sources": ["scm"],
+                        "enrichment_only_sources": ["logscale"],
+                    },
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "Unknown",
+                        "reason": "Telemetry incomplete",
+                        "next_steps": [],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            resp = client.get(f"/api/v1/requests/{request_id}/result/handoff-note")
+
+        assert resp.status_code == 200
+        assert "- Observed facts: total=2, authoritative=1, enrichment_only=1" in resp.text
+        assert "- Authoritative sources: scm" in resp.text
+        assert "- Enrichment-only sources: logscale" in resp.text
+        assert "- Sources checked: 3" in resp.text
+        assert "- Available: panos" in resp.text
+        assert "- Unavailable: scm" in resp.text
+        assert "- Unknown: torq" in resp.text
+        assert "Unknown signals:" in resp.text
+        assert (
+            "- No authoritative deny evidence was found; this is not confirmation that access is allowed."
+            in resp.text
+        )
 
     def test_evidence_bundle_download_denied_path_preserves_authoritative_metadata_and_readiness(self, client):
         request_id = "78787878-7878-7878-7878-787878787878"
