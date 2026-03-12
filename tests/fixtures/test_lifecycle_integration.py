@@ -272,6 +272,14 @@ def _fallback_readiness_report() -> ReadinessReport:
     return report
 
 
+def _details_skip_readiness_report() -> ReadinessReport:
+    report = ReadinessReport()
+    report.record("panos", {"available": True, "status": "ready", "reason": "probe ok", "latency_ms": 3})
+    report.record("scm", {"available": True, "reason": "reachable"})
+    report.record("logscale", {})
+    return report
+
+
 async def _run_lifecycle_case(
     deny: bool,
     *,
@@ -644,3 +652,40 @@ async def test_lifecycle_source_readiness_fallback_status_survives_persist_and_r
     assert details["torq"]["status"] == "unknown"
     assert details["torq"]["reason"] == "status missing and available missing"
     assert details["torq"]["latency_ms"] is None
+
+
+@pytest.mark.anyio
+async def test_lifecycle_source_readiness_details_skip_meaningless_entries() -> None:
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=False,
+        readiness_report=_details_skip_readiness_report(),
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    persisted_readiness = db.results[request_id].report_json.get("source_readiness")
+    assert isinstance(persisted_readiness, dict)
+    assert persisted_readiness["logscale"] == {}
+
+    summary = result["source_readiness_summary"]
+    assert summary == {
+        "total_sources": 3,
+        "available_sources": ["panos", "scm"],
+        "unavailable_sources": [],
+        "unknown_sources": ["logscale"],
+    }
+
+    details = {item["source"]: item for item in result["source_readiness_details"]}
+    assert set(details) == {"panos", "scm"}
+    assert "logscale" not in details
+
+    assert details["panos"]["status"] == "ready"
+    assert details["panos"]["reason"] == "probe ok"
+    assert details["panos"]["latency_ms"] == 3
+
+    assert details["scm"]["status"] == "ready"
+    assert details["scm"]["reason"] == "reachable"
+    assert details["scm"]["latency_ms"] is None

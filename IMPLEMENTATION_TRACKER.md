@@ -700,6 +700,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Consolidated remaining SCM normalization fail-closed gaps into one table-driven adapter unit batch proving deny-like authoritative candidates are dropped when critical fields are malformed/missing for `port` (missing/object-typed) and `timestamp` (missing), ending the one-field-per-run micro-loop.
 - 2026-03-12: Added integration-style lifecycle proof that mixed source readiness states survive submit -> queue -> worker -> persist -> API result retrieval, with persisted `source_readiness` yielding expected `source_readiness_summary` and `source_readiness_details` in result output.
 - 2026-03-12: Added lifecycle integration proof for fallback readiness-status derivation end-to-end: persisted mixed readiness entries with `available` but no explicit `status` now have retrieval assertions for `ready`/`unavailable` fallback statuses (plus optional `unknown` fallback when both fields are absent).
+- 2026-03-12: Added lifecycle integration proof that `source_readiness_details` omits meaningless entries with no readiness keys while valid explicit/fallback entries still survive persistence and API retrieval; `source_readiness_summary` remains correct for valid availability signals.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 12 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 14 tests).
@@ -714,6 +715,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run pytest -q tests/adapters/test_scm_adapter.py` (pass, 42 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 16 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 18 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 20 tests).
 - 2026-03-12: Ran `uv run ruff check tests/adapters/test_scm_adapter.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 - 2026-03-11: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "source_readiness or unknown_reason_signals"` (pass, 2 selected).
@@ -780,7 +782,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded lifecycle integration case proving persisted readiness details skip entries with no meaningful readiness keys (`status`, `reason`, `available`, `latency_ms`) while summary still reflects source availability for valid entries.
+Add one bounded lifecycle integration case proving `source_readiness_summary` gracefully handles non-dict readiness entries as `unknown_sources` while `source_readiness_details` excludes those non-dict entries.
 
 ## Deferred / Later
 
