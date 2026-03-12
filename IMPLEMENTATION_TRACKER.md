@@ -834,6 +834,9 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run python -m playwright install chromium` (browser runtime install for local test execution).
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_copy_handoff_note_browser.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/routes/test_copy_handoff_note_browser.py` (pass).
+- 2026-03-12: Added one bounded browser-level fetch-failure case for `Copy handoff note` to close the remaining client fallback path: non-OK fetch response now has explicit UI proof for readable failure status, visible fallback block, and preserved fallback link.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_copy_handoff_note_browser.py` (pass, 3 selected).
+- 2026-03-12: Ran `uv run ruff check tests/routes/test_copy_handoff_note_browser.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -849,7 +852,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded browser-level UI case for `Copy handoff note` fetch-failure path (failed handoff-note retrieval, not just clipboard failure) to complete the client-side fallback matrix without expanding frontend scope.
+Treat `Copy handoff note` browser-behavior slice as complete (success, clipboard-failure, fetch-failure proven). Next, pivot to a non-micro-slice MVP increment outside this control unless a concrete regression is reported.
 
 ## Deferred / Later
 

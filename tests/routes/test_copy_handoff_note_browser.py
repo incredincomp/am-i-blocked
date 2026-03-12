@@ -121,3 +121,45 @@ def test_copy_handoff_note_clipboard_failure_shows_fallback_state():
         fallback_href = page.get_attribute("#copy-handoff-note-fallback-link", "href")
         assert fallback_href == f"/api/v1/requests/{request_id}/result/handoff-note"
         browser.close()
+
+
+def test_copy_handoff_note_fetch_failure_shows_fallback_state():
+    request_id = "2c2c2c2c-2c2c-4c2c-8c2c-2c2c2c2c2c2c"
+    html = _result_page_html(request_id)
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html)
+        page.evaluate(
+            """
+            () => {
+              window.__fetchUrls = [];
+              window.__writeCalled = false;
+              window.fetch = async (url) => {
+                window.__fetchUrls.push(String(url));
+                return new Response("upstream unavailable", { status: 503 });
+              };
+              window.__handoffNoteWriteText = async () => { window.__writeCalled = true; };
+            }
+            """
+        )
+
+        assert page.locator("#copy-handoff-note-btn").count() == 1
+        page.click("#copy-handoff-note-btn")
+        page.wait_for_function(
+            "() => document.querySelector('#copy-handoff-note-status').textContent.includes('could not complete')"
+        )
+
+        assert (
+            page.inner_text("#copy-handoff-note-status")
+            == "Copy could not complete in this browser/session."
+        )
+        fallback_classes = page.get_attribute("#copy-handoff-note-fallback", "class") or ""
+        assert "hidden" not in fallback_classes
+        fallback_href = page.get_attribute("#copy-handoff-note-fallback-link", "href")
+        assert fallback_href == f"/api/v1/requests/{request_id}/result/handoff-note"
+        fetched = page.evaluate("() => window.__fetchUrls")
+        assert fetched == [f"/api/v1/requests/{request_id}/result/handoff-note"]
+        assert page.evaluate("() => window.__writeCalled") is False
+        browser.close()
