@@ -613,6 +613,76 @@ class TestGetResult:
         assert bundle_payload["source_readiness_summary"] == result_payload["source_readiness_summary"]
         assert bundle_payload["source_readiness_details"] == result_payload["source_readiness_details"]
 
+    def test_evidence_bundle_handoff_fields_match_result_payload(self, client):
+        request_id = "80808080-8080-8080-8080-808080808080"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value=DiagnosticResult.model_validate(
+                {
+                    "request_id": request_id,
+                    "verdict": "denied",
+                    "destination_type": "fqdn",
+                    "destination_value": "api.example.com",
+                    "destination_port": 443,
+                    "enforcement_plane": "onprem_palo",
+                    "path_context": "campus_non_sdwan",
+                    "path_confidence": 0.8,
+                    "result_confidence": 0.9,
+                    "evidence_completeness": 0.8,
+                    "time_window_start": "2026-03-08T00:00:00Z",
+                    "time_window_end": "2026-03-08T00:15:00Z",
+                    "summary": "Authoritative policy deny was observed.",
+                    "observed_facts": [],
+                    "routing_recommendation": {
+                        "owner_team": "SecOps",
+                        "reason": "On-prem policy deny evidence matches destination and port.",
+                        "next_steps": ["Review deny policy"],
+                    },
+                    "created_at": "2026-03-08T00:00:00Z",
+                }
+            ),
+        ):
+            result_resp = client.get(f"/api/v1/requests/{request_id}/result")
+            bundle_resp = client.get(f"/api/v1/requests/{request_id}/result/evidence-bundle")
+
+        assert result_resp.status_code == 200
+        assert bundle_resp.status_code == 200
+        assert (
+            bundle_resp.headers["content-disposition"]
+            == f'attachment; filename="evidence-{request_id}.json"'
+        )
+
+        result_payload = result_resp.json()
+        bundle_payload = bundle_resp.json()
+        handoff_fields = [
+            "destination_type",
+            "destination_value",
+            "destination_port",
+            "time_window_start",
+            "time_window_end",
+        ]
+        for field in handoff_fields:
+            assert bundle_payload[field] == result_payload[field]
+        assert (
+            bundle_payload["routing_recommendation"]["reason"]
+            == result_payload["routing_recommendation"]["reason"]
+        )
+
     def test_result_includes_panos_rule_metadata_when_present(self, client):
         request_id = "12121212-1212-1212-1212-121212121212"
         with patch(

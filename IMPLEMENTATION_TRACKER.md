@@ -808,6 +808,9 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added one compact consolidated route/UI contract proof for the operator handoff context block (routing reason + destination value/port/type + time window) to break one-field-at-a-time context slicing.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "destination_type or handoff_context or destination_context"` (pass, 7 selected).
 - 2026-03-12: Ran `uv run ruff check packages/core/am_i_blocked_core/models.py services/api/am_i_blocked_api/routes/api.py tests/routes/test_api_routes.py` (pass).
+- 2026-03-12: Added one bounded non-context route-contract parity proof for full operator handoff fields across `/result` and `/result/evidence-bundle` (`routing_recommendation.reason`, `time_window_start`, `time_window_end`, `destination_value`, `destination_port`, `destination_type`) while preserving attachment-style bundle retrieval.
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "handoff_fields_match_result_payload"` (pass, 1 selected).
+- 2026-03-12: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -823,7 +826,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Pause result-context field additions; add one bounded non-context MVP slice (for example, compact operator-facing result API contract test that verifies all current handoff fields remain stable across `/result` and evidence-bundle retrieval paths).
+Pause route-contract micro-slices and execute one bounded non-contract MVP increment outside result/evidence-bundle parity assertions.
 
 ## Deferred / Later
 
