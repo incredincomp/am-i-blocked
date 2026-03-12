@@ -122,6 +122,82 @@ class TestSCMAdapterReadiness:
 
 class TestSCMAdapterEvidence:
     @pytest.mark.anyio
+    @pytest.mark.parametrize(
+        ("case_name", "record_updates"),
+        [
+            (
+                "missing_port",
+                {
+                    "port": None,
+                },
+            ),
+            (
+                "object_port",
+                {
+                    "port": {"value": 443},
+                },
+            ),
+            (
+                "missing_timestamp",
+                {
+                    "timestamp": None,
+                },
+            ),
+        ],
+    )
+    @respx.mock
+    async def test_query_evidence_remaining_critical_field_gaps_fail_closed(
+        self,
+        case_name: str,
+        record_updates: dict[str, object],
+    ):
+        adapter = SCMAdapter(
+            client_id="cid",
+            client_secret="sec",
+            tsg_id="tsg",
+            auth_url="https://auth.example.com/oauth2/access_token",
+            api_base_url="https://api.example.com/scm/query",
+        )
+        respx.post("https://auth.example.com/oauth2/access_token").mock(
+            return_value=httpx.Response(200, json={"access_token": "abc123"})
+        )
+
+        base_record: dict[str, object] = {
+            "source_system": "strata_cloud_manager",
+            "authoritative": True,
+            "decision": "deny",
+            "destination": "api.example.com",
+            "port": 443,
+            "timestamp": "2026-03-11T00:00:00Z",
+            "rule_name": "cloud-block",
+            "reason": f"Policy deny candidate critical-field malformed case={case_name}",
+        }
+        for key, value in record_updates.items():
+            if value is None:
+                base_record.pop(key, None)
+            else:
+                base_record[key] = value
+
+        respx.post("https://api.example.com/scm/query").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "records": [base_record],
+                },
+            )
+        )
+
+        records = await adapter.query_evidence(
+            destination="api.example.com",
+            port=443,
+            time_window_start="2026-03-11T00:00:00Z",
+            time_window_end="2026-03-11T00:15:00Z",
+            request_id="10101010-1010-1010-1010-101010101010",
+        )
+
+        assert records == [], f"case={case_name} should fail closed"
+
+    @pytest.mark.anyio
     @respx.mock
     async def test_query_evidence_returns_authoritative_deny_record(self):
         adapter = SCMAdapter(
