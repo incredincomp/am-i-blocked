@@ -703,6 +703,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added lifecycle integration proof that `source_readiness_details` omits meaningless entries with no readiness keys while valid explicit/fallback entries still survive persistence and API retrieval; `source_readiness_summary` remains correct for valid availability signals.
 - 2026-03-12: Added lifecycle integration proof that non-dict readiness entries are classified under `unknown_sources` in summary and excluded from details, plus a tiny runtime hardening in `ReadinessReport` dict-guards to prevent worker crashes on malformed readiness shapes.
 - 2026-03-12: Added lifecycle integration proof that persisted readiness shaping survives into `/result/evidence-bundle`: mixed explicit/fallback/degraded source-readiness summary/details match between normal result API and evidence-bundle payload without schema expansion.
+- 2026-03-12: Added lifecycle integration proof that `/result/evidence-bundle` preserves authoritative observed-fact metadata (PAN-OS `detail.rule_metadata`) with parity to normal result retrieval, while readiness summary/details remain present and unchanged.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 10 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 12 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 14 tests).
@@ -720,6 +721,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 20 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 22 tests).
 - 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 24 tests).
+- 2026-03-12: Ran `uv run pytest -q tests/fixtures/test_lifecycle_integration.py` (pass, 26 tests).
 - 2026-03-12: Ran `uv run ruff check tests/adapters/test_scm_adapter.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py` (pass).
 - 2026-03-12: Ran `uv run ruff check tests/fixtures/test_lifecycle_integration.py services/worker/am_i_blocked_worker/steps/source_readiness_check.py` (pass).
@@ -787,7 +789,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Pause readiness/evidence-bundle parity micro-cases and execute one bounded non-readiness milestone: add one integration-style assertion that evidence-bundle download continues to preserve authoritative observed-fact metadata (for example PAN-OS rule metadata) alongside readiness fields through persisted retrieval.
+Pause readiness/evidence-bundle parity micro-cases and execute one bounded non-readiness milestone: add one integration-style assertion that evidence-bundle download preserves unknown-confidence explainability signals (`unknown_reason_signals`) alongside readiness and observed-fact metadata through persisted retrieval.
 
 ## Deferred / Later
 

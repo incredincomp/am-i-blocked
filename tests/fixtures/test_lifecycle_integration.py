@@ -782,3 +782,42 @@ async def test_lifecycle_evidence_bundle_includes_source_readiness_summary_and_d
     assert payload["source_readiness_details"] == result["source_readiness_details"]
     assert isinstance(bundle["content_disposition"], str)
     assert f'evidence-{result["request_id"]}.json' in bundle["content_disposition"]
+
+
+@pytest.mark.anyio
+async def test_lifecycle_evidence_bundle_preserves_authoritative_observed_fact_metadata() -> None:
+    bundle: dict[str, object] = {}
+    result, _ui_html, db = await _run_lifecycle_case(
+        deny=True,
+        metadata_mode="present",
+        readiness_report=_bundle_readiness_report(),
+        bundle_sink=bundle,
+    )
+    request_id = uuid.UUID(result["request_id"])
+
+    assert request_id in db.requests
+    assert request_id in db.results
+    assert db.requests[request_id].status == RequestStatus.COMPLETE.value
+
+    # Normal result path contains authoritative PAN-OS observed-fact metadata.
+    panos_fact = next(f for f in result["observed_facts"] if f["source"] == "panos")
+    assert panos_fact["detail"]["rule_metadata"]["rule_name"] == "block-ext"
+    assert panos_fact["detail"]["rule_metadata"]["action"] == "deny"
+    assert panos_fact["detail"]["rule_metadata"]["description"] == "Block external traffic"
+    assert panos_fact["detail"]["rule_metadata"]["tags"] == ["internet", "critical"]
+
+    # Readiness parity remains present.
+    assert result["source_readiness_summary"] == {
+        "total_sources": 3,
+        "available_sources": ["panos", "scm"],
+        "unavailable_sources": ["sdwan"],
+        "unknown_sources": [],
+    }
+    assert len(result["source_readiness_details"]) == 3
+
+    payload = bundle["payload"]
+    assert isinstance(payload, dict)
+    bundle_panos_fact = next(f for f in payload["observed_facts"] if f["source"] == "panos")
+    assert bundle_panos_fact["detail"]["rule_metadata"] == panos_fact["detail"]["rule_metadata"]
+    assert payload["source_readiness_summary"] == result["source_readiness_summary"]
+    assert payload["source_readiness_details"] == result["source_readiness_details"]
