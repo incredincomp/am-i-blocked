@@ -532,6 +532,14 @@ async def _persist_request_db(record: dict) -> bool:
                     status=record["status"].value,
                 )
             )
+            session.add(
+                AuditRow(
+                    request_id=record["request_id"],
+                    actor="api",
+                    action="request_submitted",
+                    params_json={"status": record["status"].value},
+                )
+            )
             await session.commit()
         return True
     except Exception as exc:
@@ -648,6 +656,30 @@ async def _load_failure_metadata(request_id: uuid.UUID) -> dict[str, str | None]
         if row is None:
             return {"reason": None, "stage": None, "category": None}
         return _extract_failure_metadata(row.params_json)
+    except Exception as exc:
+        raise DependencyUnavailableError(f"database unavailable: {exc}") from exc
+
+
+async def _load_request_audit_events(request_id: uuid.UUID) -> list[dict[str, Any]]:
+    settings = get_settings()
+    session_factory = _get_session_factory(settings.database_url)
+    try:
+        async with session_factory() as session:
+            stmt = (
+                select(AuditRow)
+                .where(AuditRow.request_id == request_id)
+                .order_by(AuditRow.timestamp.asc())
+            )
+            rows = list((await session.execute(stmt)).scalars().all())
+        return [
+            {
+                "action": row.action,
+                "actor": row.actor,
+                "timestamp": row.timestamp,
+                "params": row.params_json if isinstance(row.params_json, dict) else {},
+            }
+            for row in rows
+        ]
     except Exception as exc:
         raise DependencyUnavailableError(f"database unavailable: {exc}") from exc
 

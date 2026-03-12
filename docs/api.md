@@ -117,6 +117,7 @@ Failed-state triage interpretation:
 - UI triage hints are derived from `failure_stage` + `failure_category`; these fields are operational metadata and do not change verdict authority rules.
 - Request-detail UI renders a compact `Failure diagnostics` block from these normalized fields when present and hides it when failure metadata is absent.
 - Request-detail UI also exposes a compact failed-request handoff control that links to the existing `GET /api/v1/requests/{request_id}/result/handoff-note` export route only when `status=failed`.
+- Request-detail UI now also renders a compact `Request lifecycle` section derived from persisted request/audit state: submitted, running, complete, and failed transitions are shown when available, with graceful fallback to request/result timestamps for older records that predate lifecycle auditing.
 
 ---
 

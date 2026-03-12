@@ -26,6 +26,7 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - API/UI now surfaces compact unknown-confidence explainability (`path_confidence`, `evidence_completeness`, and `unknown_reason_signals`) for `unknown` verdicts.
 - Existing result handoff-note export route now also emits a compact failed-request plain-text handoff artifact using existing normalized failure metadata only (`failure_stage`, `failure_category`, `failure_reason`) plus request context, so failed tickets have copy/paste parity with completed-result notes.
 - Request-detail failed-state UI now exposes a compact `Download failed handoff note` control wired to the existing failed-request handoff-note export route, so operators do not need to edit URLs manually on failed tickets.
+- Request lifecycle transitions are now persisted as audit events (`request_submitted`, `request_running`, `request_complete`, `request_failed`) and rendered as a compact `Request lifecycle` section on the request-detail page, reducing ambiguity across pending, complete, and failed states.
 - PAN-OS verification fixture pack scaffolding now exists (`docs/fixtures/panos_verification`) with required sample file templates and sanitization rules.
 - PAN-OS fixture validation now confirms current parser marker assumptions against fixture XML shapes (`.//job`, `.//status`, `.//logs/entry`, `.//entry[@name]`).
 - PAN-OS fixture gather helper now writes versioned capture sets (`versions/<panos_version>/<capture_label>_<timestamp>/`), capture metadata manifests, and canonical fixture mirrors for validation tests.
@@ -851,6 +852,12 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-13: Added focused route/UI tests proving failed pages render the control with the existing handoff-note URL, while non-failed pages hide it cleanly.
 - 2026-03-13: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "request_page_failed or failed_handoff"` (pass).
 - 2026-03-13: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
+- 2026-03-13: Reconciled stale next-task guidance away from another failed-request UI assertion slice and pivoted to a higher-value lifecycle milestone using existing persistence.
+- 2026-03-13: Added bounded lifecycle auditing for request submission, worker running, and request completion on top of the existing failed audit path; request-detail UI now renders a compact `Request lifecycle` section from persisted audit events with fallback to request/result timestamps for older records.
+- 2026-03-13: Added focused route tests for pending/complete/failed lifecycle rendering plus helper/unit tests proving submission, running, completion, and failure audit writes.
+- 2026-03-13: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "lifecycle or request_page_pending or request_page_failed or request_page_renders"` (pass, 14 selected).
+- 2026-03-13: Ran `uv run pytest -q tests/unit/test_persist_and_report.py -k "audit"` (pass, 4 passed / 9 deselected).
+- 2026-03-13: Ran `uv run ruff check services/api/am_i_blocked_api/routes/api.py services/api/am_i_blocked_api/routes/ui.py services/worker/am_i_blocked_worker/steps/persist_and_report.py tests/routes/test_api_routes.py tests/unit/test_persist_and_report.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -866,7 +873,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded browser-free route/UI proof that the failed-request handoff-note control stays adjacent to the existing failed diagnostics area and does not appear on pending requests.
+Add one bounded operator-facing evidence-highlights milestone that derives compact authoritative/enrichment fact headlines from existing `observed_facts` summaries and surfaces them in the result page and handoff note without changing verdict authority.
 
 ## Deferred / Later
 

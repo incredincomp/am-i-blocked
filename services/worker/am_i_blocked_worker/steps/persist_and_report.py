@@ -215,6 +215,18 @@ async def _persist_result_db(
                 result_row.next_steps_json = result.routing_recommendation.next_steps
                 result_row.report_json = bundle
 
+            session.add(
+                AuditRow(
+                    request_id=req_uuid,
+                    actor="worker",
+                    action="request_complete",
+                    params_json={
+                        "status": RequestStatus.COMPLETE.value,
+                        "verdict": result.verdict.value,
+                    },
+                )
+            )
+
             await session.commit()
         return True
     except Exception as exc:
@@ -250,6 +262,7 @@ async def _update_request_status_db(
                 normalized_stage = _normalize_failure_stage(stage).value
                 normalized_category = _normalize_failure_category(category).value
                 params = {
+                    "status": RequestStatus.FAILED.value,
                     "reason": reason or "unknown",
                     "stage": normalized_stage,
                     "category": normalized_category,
@@ -260,6 +273,15 @@ async def _update_request_status_db(
                         actor=actor,
                         action="request_failed",
                         params_json=params,
+                    )
+                )
+            else:
+                session.add(
+                    AuditRow(
+                        request_id=request_id,
+                        actor=actor,
+                        action=f"request_{normalized}",
+                        params_json={"status": normalized},
                     )
                 )
             await session.commit()

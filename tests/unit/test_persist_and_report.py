@@ -6,6 +6,7 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from am_i_blocked_core.db_models import AuditRow
 from am_i_blocked_core.enums import (
     EnforcementPlane,
     FailureCategory,
@@ -175,6 +176,7 @@ async def test_update_request_status_db_stores_structured_failure_metadata(monke
     assert ok is True
     assert len(captured_audit) == 1
     assert captured_audit[0].params_json == {
+        "status": "failed",
         "reason": "boom",
         "stage": "classify",
         "category": "pipeline_step",
@@ -229,3 +231,106 @@ async def test_update_request_status_db_normalizes_unknown_failure_fields(monkey
     assert ok is True
     assert captured_audit[0].params_json["stage"] == "unknown"
     assert captured_audit[0].params_json["category"] == "unknown"
+
+
+@pytest.mark.anyio
+async def test_update_request_status_db_records_running_audit_event(monkeypatch):
+    request_id = uuid.uuid4()
+    captured_audit = []
+
+    class _Session:
+        def __init__(self):
+            self.row = MagicMock()
+            self.row.status = "pending"
+
+        async def get(self, model, key):
+            if model.__name__ == "RequestRow" and key == request_id:
+                return self.row
+            return None
+
+        def add(self, obj):
+            captured_audit.append(obj)
+
+        async def commit(self):
+            return None
+
+    class _Ctx:
+        async def __aenter__(self):
+            return _Session()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+    monkeypatch.setattr(
+        persist_and_report,
+        "_get_session_factory",
+        lambda _url: (lambda: _Ctx()),
+    )
+
+    settings = MagicMock(database_url="postgresql+psycopg://x/y")
+    ok = await persist_and_report._update_request_status_db(
+        request_id,
+        "running",
+        actor="worker",
+        settings=settings,
+    )
+
+    assert ok is True
+    assert len(captured_audit) == 1
+    assert captured_audit[0].action == "request_running"
+    assert captured_audit[0].params_json == {"status": "running"}
+
+
+@pytest.mark.anyio
+async def test_persist_result_db_records_completion_audit_event(monkeypatch):
+    request_id = uuid.uuid4()
+    captured_audit = []
+    request_row = MagicMock()
+    request_row.status = "running"
+
+    class _Session:
+        async def get(self, model, key):
+            if model.__name__ == "RequestRow" and key == request_id:
+                return request_row
+            return None
+
+        def add(self, obj):
+            captured_audit.append(obj)
+
+        async def commit(self):
+            return None
+
+    class _Ctx:
+        async def __aenter__(self):
+            return _Session()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+    monkeypatch.setattr(
+        persist_and_report,
+        "_get_session_factory",
+        lambda _url: (lambda: _Ctx()),
+    )
+
+    settings = MagicMock(database_url="postgresql+psycopg://x/y")
+    result = persist_and_report.build_result(
+        request_id=str(request_id),
+        classification=_classification(),
+        context=_context(),
+    )
+    ok = await persist_and_report._persist_result_db(
+        request_id=str(request_id),
+        result=result,
+        bundle={"report": "x"},
+        settings=settings,
+    )
+
+    assert ok is True
+    completion_audit = next(
+        obj for obj in captured_audit if isinstance(obj, AuditRow) and obj.action == "request_complete"
+    )
+    assert completion_audit.params_json == {
+        "status": "complete",
+        "verdict": result.verdict.value,
+    }

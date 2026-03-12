@@ -41,6 +41,10 @@ def mock_db_storage():
         new_callable=AsyncMock,
         return_value=None,
     ), patch(
+        "am_i_blocked_api.routes.api._load_request_audit_events",
+        new_callable=AsyncMock,
+        return_value=[],
+    ), patch(
         "am_i_blocked_api.routes.api.enqueue_job",
         new_callable=AsyncMock,
         return_value=None,
@@ -339,6 +343,57 @@ class TestFailureMetadataHelpers:
             "stage": "unknown",
             "category": "unknown",
         }
+
+
+class TestAuditPersistenceHelpers:
+    @pytest.mark.anyio
+    async def test_persist_request_db_records_submission_audit_event(self, monkeypatch):
+        captured = []
+
+        class _Session:
+            def add(self, obj):
+                captured.append(obj)
+
+            async def commit(self):
+                return None
+
+        class _Ctx:
+            async def __aenter__(self):
+                return _Session()
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+        monkeypatch.setattr(
+            api_routes,
+            "_get_session_factory",
+            lambda _url: (lambda: _Ctx()),
+        )
+        monkeypatch.setattr(
+            api_routes,
+            "get_settings",
+            lambda: SimpleNamespace(database_url="postgresql+psycopg://test/routes"),
+        )
+
+        request_id = uuid.uuid4()
+        ok = await api_routes._persist_request_db(
+            {
+                "request_id": request_id,
+                "status": RequestStatus.PENDING,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": datetime(2026, 3, 8, 0, 0, tzinfo=UTC),
+                "time_window_end": datetime(2026, 3, 8, 0, 15, tzinfo=UTC),
+                "requester": "anonymous",
+                "created_at": datetime(2026, 3, 8, 0, 0, tzinfo=UTC),
+            }
+        )
+
+        assert ok is True
+        submission_audit = next(obj for obj in captured if isinstance(obj, AuditRow))
+        assert submission_audit.action == "request_submitted"
+        assert submission_audit.params_json == {"status": "pending"}
 
 
 class TestGetResult:
@@ -1618,6 +1673,127 @@ class TestUIRoutes:
             resp = client.get(f"/requests/{request_id}")
         assert resp.status_code == 200
         assert "text/html" in resp.headers["content-type"]
+        assert "Request lifecycle" in resp.text
+        assert "Submitted" in resp.text
+        assert "2026-03-08T00:00:00Z" in resp.text
+
+    def test_request_page_renders_lifecycle_events_for_complete_request(self, client):
+        request_id = "34343434-3434-3434-3434-343434343434"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.COMPLETE,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": 443,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_result_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "verdict": "denied",
+                "enforcement_plane": "onprem_palo",
+                "path_context": "vpn_gp_onprem_static",
+                "path_confidence": 0.8,
+                "result_confidence": 0.9,
+                "evidence_completeness": 0.7,
+                "summary": "On-prem deny detected.",
+                "observed_facts": [],
+                "routing_recommendation": {
+                    "owner_team": "SecOps",
+                    "reason": "Policy deny",
+                    "next_steps": [],
+                },
+                "created_at": "2026-03-08T00:12:00Z",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_request_audit_events",
+            new_callable=AsyncMock,
+            return_value=[
+                {
+                    "action": "request_submitted",
+                    "timestamp": "2026-03-08T00:00:00Z",
+                    "params": {"status": "pending"},
+                },
+                {
+                    "action": "request_running",
+                    "timestamp": "2026-03-08T00:01:00Z",
+                    "params": {"status": "running"},
+                },
+                {
+                    "action": "request_complete",
+                    "timestamp": "2026-03-08T00:12:00Z",
+                    "params": {"status": "complete", "verdict": "denied"},
+                },
+            ],
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Request lifecycle" in resp.text
+        assert "Submitted" in resp.text
+        assert "Running" in resp.text
+        assert "Complete" in resp.text
+        assert "Verdict: denied" in resp.text
+
+    def test_request_page_renders_lifecycle_failure_details(self, client):
+        request_id = "35353535-3535-3535-3535-353535353535"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.FAILED,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": None,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+                "failure_reason": "adapter unavailable",
+                "failure_stage": "authoritative_correlation",
+                "failure_category": "dependency",
+            },
+        ), patch(
+            "am_i_blocked_api.routes.api._load_request_audit_events",
+            new_callable=AsyncMock,
+            return_value=[
+                {
+                    "action": "request_submitted",
+                    "timestamp": "2026-03-08T00:00:00Z",
+                    "params": {"status": "pending"},
+                },
+                {
+                    "action": "request_running",
+                    "timestamp": "2026-03-08T00:01:00Z",
+                    "params": {"status": "running"},
+                },
+                {
+                    "action": "request_failed",
+                    "timestamp": "2026-03-08T00:03:00Z",
+                    "params": {
+                        "status": "failed",
+                        "stage": "authoritative_correlation",
+                        "category": "dependency",
+                        "reason": "adapter unavailable",
+                    },
+                },
+            ],
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Request lifecycle" in resp.text
+        assert "Failed" in resp.text
+        assert "stage=authoritative_correlation | category=dependency | reason=adapter unavailable" in resp.text
 
     def test_request_page_renders_source_readiness_summary(self, client):
         request_id = "67676767-6767-6767-6767-676767676767"

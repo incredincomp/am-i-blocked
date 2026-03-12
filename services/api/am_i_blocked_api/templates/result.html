@@ -63,6 +63,19 @@
       </div>
     </div>
 
+    <div class="section">
+      <h3>Request lifecycle</h3>
+      {% for event in lifecycle_events %}
+      <div class="evidence-card">
+        <div class="ev-source">{{ event.label }}</div>
+        <div class="ev-summary">
+          {% if event.timestamp %}<strong>{{ event.timestamp }}</strong>{% endif %}
+          {% if event.summary %}<span>{% if event.timestamp %} | {% endif %}{{ event.summary }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
     {% if result %}
     <div class="section">
       <h3>Context &amp; confidence</h3>
