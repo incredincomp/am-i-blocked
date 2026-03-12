@@ -115,6 +115,7 @@ Failed-state triage interpretation:
 - `failure_stage`: normalized pipeline location where failure was recorded (for example `queue_enqueue`, `validate_request`, `authoritative_correlation`, `persist_and_report`).
 - `failure_category`: normalized class used for routing (`dependency`, `validation`, `pipeline_step`, `persistence`, `internal`, `unknown`).
 - UI triage hints are derived from `failure_stage` + `failure_category`; these fields are operational metadata and do not change verdict authority rules.
+- Request-detail UI renders a compact `Failure diagnostics` block from these normalized fields when present and hides it when failure metadata is absent.
 
 ---
 

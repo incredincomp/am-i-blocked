@@ -2192,9 +2192,10 @@ class TestUIRoutes:
         ):
             resp = client.get(f"/requests/{request_id}")
         assert resp.status_code == 200
-        assert "Failure reason: queue timeout" in resp.text
-        assert "Failure stage: queue_enqueue" in resp.text
-        assert "Failure category: dependency" in resp.text
+        assert "Failure diagnostics" in resp.text
+        assert "Stage: queue_enqueue" in resp.text
+        assert "Category: dependency" in resp.text
+        assert "Reason: queue timeout" in resp.text
         assert "First-hop triage" in resp.text
         assert "Suggested action: Check Redis queue availability and worker queue connectivity, then retry." in resp.text
 
@@ -2220,7 +2221,40 @@ class TestUIRoutes:
         ):
             resp = client.get(f"/requests/{request_id}")
         assert resp.status_code == 200
+        assert "Failure diagnostics" in resp.text
+        assert "Stage: unknown" in resp.text
+        assert "Category: unknown" in resp.text
+        assert "non_standard_stage" not in resp.text
+        assert "non_standard_category" not in resp.text
         assert "Suggested action: Capture request id and logs, then escalate for manual triage." in resp.text
+
+    def test_request_page_failed_hides_diagnostics_block_when_failure_metadata_missing(self, client):
+        request_id = "56565656-5656-5656-5656-565656565656"
+        with patch(
+            "am_i_blocked_api.routes.api._load_request_record",
+            new_callable=AsyncMock,
+            return_value={
+                "request_id": request_id,
+                "status": RequestStatus.FAILED,
+                "destination_type": DestinationType.FQDN,
+                "destination_value": "api.example.com",
+                "port": None,
+                "time_window_start": "2026-03-08T00:00:00Z",
+                "time_window_end": "2026-03-08T00:15:00Z",
+                "requester": "anonymous",
+                "created_at": "2026-03-08T00:00:00Z",
+                "failure_reason": None,
+                "failure_stage": None,
+                "failure_category": None,
+            },
+        ):
+            resp = client.get(f"/requests/{request_id}")
+
+        assert resp.status_code == 200
+        assert "Failure diagnostics" not in resp.text
+        assert "Stage:" not in resp.text
+        assert "Category:" not in resp.text
+        assert "Reason:" not in resp.text
 
     def test_request_page_result_labels_enrichment_and_authoritative_facts(self, client):
         request_id = "66666666-6666-6666-6666-666666666666"

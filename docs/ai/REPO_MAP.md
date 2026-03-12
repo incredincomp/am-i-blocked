@@ -46,6 +46,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - Pipeline no longer carries `request_store`/`result_store` in-memory request/result parameters; persistence failures now fail the job and are tracked via failed request status metadata.
 - Failed status transitions are written to `audit` with structured metadata (`reason`, `stage`, `category`) using bounded enums (`FailureStage`, `FailureCategory`) and read back by API/UI (`failure_reason`, `failure_stage`, `failure_category`).
 - UI request page maps normalized failure stage/category to compact first-hop triage hints while preserving raw failure values in the rendered metadata.
+- UI request page failed-state area now includes a compact `Failure diagnostics` block that surfaces existing normalized failure metadata (`failure_stage`, `failure_category`, `failure_reason`) when present and hides cleanly when absent.
 - Result evidence cards now visually distinguish observed facts tagged as enrichment-only vs authoritative using observed-fact detail metadata.
 - Result evidence cards now also render minimal PAN-OS metadata from persisted observed-fact detail when authoritative PAN-OS deny facts include `detail.rule_metadata`.
 - Unknown verdicts now render compact confidence explainability (`path_confidence`, `evidence_completeness`, `unknown_reason_signals`) in the result page "Why this is unknown" section, including explicit copy that `unknown` is not equivalent to `allowed`.

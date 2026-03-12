@@ -278,14 +278,19 @@
       {% endif %}
       <p>Request ID: <code>{{ request_id }}</code></p>
       <p style="margin-top:0.5rem; font-size:0.85rem; color:#999;">Status: {{ record.status }}</p>
-      {% if record.status == "failed" and record.failure_reason %}
-      <p style="margin-top:0.5rem; font-size:0.9rem; color:#b42318;">Failure reason: {{ record.failure_reason }}</p>
-      {% endif %}
-      {% if record.status == "failed" and record.failure_stage %}
-      <p style="margin-top:0.35rem; font-size:0.85rem; color:#b42318;">Failure stage: {{ record.failure_stage }}</p>
-      {% endif %}
-      {% if record.status == "failed" and record.failure_category %}
-      <p style="margin-top:0.35rem; font-size:0.85rem; color:#b42318;">Failure category: {{ record.failure_category }}</p>
+      {% if record.status == "failed" and (record.failure_reason or record.failure_stage or record.failure_category) %}
+      <div style="margin-top:0.7rem; border:1px solid #fecaca; background:#fff5f5; border-radius:6px; padding:0.65rem; text-align:left;">
+        <p style="font-size:0.75rem; color:#991b1b; text-transform:uppercase; letter-spacing:0.04em;">Failure diagnostics</p>
+        {% if record.failure_stage %}
+        <p style="margin-top:0.2rem; font-size:0.85rem; color:#7f1d1d;">Stage: {{ triage_hint.stage if triage_hint else record.failure_stage }}</p>
+        {% endif %}
+        {% if record.failure_category %}
+        <p style="margin-top:0.2rem; font-size:0.85rem; color:#7f1d1d;">Category: {{ triage_hint.category if triage_hint else record.failure_category }}</p>
+        {% endif %}
+        {% if record.failure_reason %}
+        <p style="margin-top:0.2rem; font-size:0.85rem; color:#7f1d1d;">Reason: {{ record.failure_reason }}</p>
+        {% endif %}
+      </div>
       {% endif %}
       {% if record.status == "failed" and triage_hint %}
       <div style="margin-top:0.7rem; border:1px solid #fecaca; background:#fef2f2; border-radius:6px; padding:0.65rem; text-align:left;">

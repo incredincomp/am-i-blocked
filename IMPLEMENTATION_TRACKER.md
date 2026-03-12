@@ -837,6 +837,10 @@ Current PAN-OS evidence focus: **observability-gated token validation** for `11.
 - 2026-03-12: Added one bounded browser-level fetch-failure case for `Copy handoff note` to close the remaining client fallback path: non-OK fetch response now has explicit UI proof for readable failure status, visible fallback block, and preserved fallback link.
 - 2026-03-12: Ran `uv run pytest -q tests/routes/test_copy_handoff_note_browser.py` (pass, 3 selected).
 - 2026-03-12: Ran `uv run ruff check tests/routes/test_copy_handoff_note_browser.py` (pass).
+- 2026-03-12: Added bounded request-detail failed-state UI diagnostics block (`Failure diagnostics`) that renders normalized stage/category plus reason when failure metadata is present, remains compact in existing failed-status area, and hides cleanly when failure metadata is absent.
+- 2026-03-12: Added focused route/UI tests for failed request diagnostics rendering (full metadata, missing metadata hidden, malformed stage/category rendered safely as normalized `unknown` values).
+- 2026-03-12: Ran `uv run pytest -q tests/routes/test_api_routes.py -k "request_page_failed"` (pass, 3 selected).
+- 2026-03-12: Ran `uv run ruff check tests/routes/test_api_routes.py` (pass).
 
 ## Historical / Superseded Checkpoints
 
@@ -852,7 +856,7 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Treat `Copy handoff note` browser-behavior slice as complete (success, clipboard-failure, fetch-failure proven). Next, pivot to a non-micro-slice MVP increment outside this control unless a concrete regression is reported.
+Add one bounded operator-facing failed-request handoff increment that mirrors the compact `Failure diagnostics` block into a plain-text failed-request handoff artifact (using existing normalized failure metadata only) so failed tickets have copy/paste parity with completed-result handoff notes.
 
 ## Deferred / Later
 
