@@ -1,8 +1,8 @@
 ---
 title: AI Agent Vendor Knowledge Base
 description: Repo-native grounding file for AI coding agents working on the Network Self-Diagnosis + Routing Assistant MVP.
-repo_intent: Internal Network Self-Diagnosis + Routing Assistant
-phase: Phase 1 MVP
+repo_intent: Self-hosted Network Security Evidence Appliance
+phase: Product v1 architecture
 primary_flow: Am I blocked?
 status: active
 last_curated_utc: 2026-03-07T00:00:00Z
@@ -60,11 +60,13 @@ The agent must never treat this file as a license to:
 
 These are repo-level facts the agent should assume unless the user explicitly changes them.
 
-### 3.1 MVP goal
-The current MVP is the single flow:
+### 3.1 Product v1 goal
+The proven baseline remains the single flow:
 **“Am I blocked?”**
 
-The MVP answers, for one destination and a short time window:
+The active Product v1 milestone packages that evidence engine as a self-hosted appliance, moves vendor integration behind a versioned connector protocol, and adds a synthetic public demo. See `docs/product-v1.md`.
+
+The diagnostic flow answers, for one destination and a short time window:
 - `allowed`
 - `denied`
 - `unknown`
@@ -401,17 +403,15 @@ If the repo already supports or plans these, keep them distinct:
 
 ## 8. Known-safe implementation biases for Codex
 
-When choosing what to build next, bias in this order unless the user explicitly says otherwise:
-1. persist requests/results in PostgreSQL
-2. wire API → queue → worker correctly
-3. implement one real authoritative PAN-OS deny path end-to-end
-4. normalize evidence records
-5. harden readiness checks and unknown reasons
-6. improve SCM/Prisma enrichment only after authoritative path exists
-7. add SD-WAN context improvements
-8. add optional Torq/LogScale enrichments
+When choosing what to build next, follow the active Product v1 order unless the user explicitly says otherwise:
+1. freeze connector-protocol v1 models, compatibility, and fail-closed version behavior
+2. bridge the existing `BaseAdapter` path without changing its proven evidence semantics
+3. implement a deterministic synthetic connector and public-demo scenarios through the real result/evidence presentation path
+4. migrate the proven PAN-OS path behind the connector boundary
+5. harden the Compose appliance boundary, identity/configuration, health, and supportability
+6. expand additional vendor connectors only after the protocol boundary is stable
 
-This ordering is safer than trying to build every adapter at once.
+Do not resume the old "add vendor breadth first" ordering merely because historical MVP notes mention SCM/SD-WAN/LogScale/Torq.
 
 ---
 
