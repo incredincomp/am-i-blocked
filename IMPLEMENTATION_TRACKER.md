@@ -8,11 +8,13 @@ This ledger summarizes current implementation state and next MVP work. It should
 
 ## Current Objective
 
-Deliver the MVP single-destination flow that returns `allowed | denied | unknown` with path context, confidence, and evidence-backed routing recommendations.
+Execute **AIB Product v1**: preserve the proven single-destination evidence flow while freezing a self-hosted appliance boundary, a versioned vendor-neutral connector protocol, and a public-safe synthetic demo that exercises the same evidence/result contracts.
 
 ## Current Phase
 
-MVP single-flow execution with persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, and unknown-confidence explainability wording tightened for operator clarity, plus fixture-based PAN-OS parser-shape verification and version-aware fixture-capture tooling completed with minimal query-token reconciliation aligned to real-capture evidence.
+**Product v1 architecture transition — 2026-09-27.** The existing internal MVP is now the evidence-engine baseline for a product-shaped, self-hosted appliance. Active architecture work is owned by Linear DEV-281 / DEV-282 and `docs/product-v1.md`. Productization must preserve the existing evidence authority model and safety constraints while making vendor integrations replaceable through a versioned connector boundary and adding a synthetic public demo with zero arbitrary-target network behavior.
+
+The inherited MVP baseline remains: persistence/queue lifecycle complete, PAN-OS deny path operational, PAN-OS metadata visible in operator output, unknown-confidence explainability implemented, and fixture-based PAN-OS parser/token verification guarded by real-capture evidence.
 
 Current PAN-OS evidence focus: **observability-gated token validation** for `11.0.6-h1` with one completed fresh-row-coupled Stage 1/Stage 2 success pair (`deny-hit-udp-obsgate-stage1_20260311T052621Z`, `deny-hit-udp-obsgate-stage2-addrdst-dport_20260311T052747Z`).
 
@@ -873,12 +875,12 @@ The previous checkpoint sequence B-R (2026-03-08) was compressed into the consol
 
 ## Next Recommended Task
 
-Add one bounded operator-facing evidence-highlights milestone that derives compact authoritative/enrichment fact headlines from existing `observed_facts` summaries and surfaces them in the result page and handoff note without changing verdict authority.
+**Product v1 Slice 1:** freeze the appliance/connector contract in code: add protocol-versioned manifest, readiness, and bounded evidence-query models plus compatibility tests and a bridge for the existing `BaseAdapter` path. Do not add new vendor breadth until this contract is stable. The first synthetic connector should then drive the public-demo scenarios through the existing result/evidence presentation path.
 
 ## Deferred / Later
 
-- SCM/Prisma deepening after first authoritative PAN-OS path is complete.
-- SD-WAN deeper path-health enrichment after core deny authority path is live.
-- LogScale query-job implementation only after explicit verification and intentional scope expansion.
-- Torq outbound enrichment after core verdict path is stable.
-- Multi-destination flows, broad UI work, and platform expansion (out of MVP scope).
+- Additional vendor breadth (SCM/Prisma, SD-WAN, LogScale, Torq) follows the connector-protocol freeze instead of extending bespoke in-process assumptions.
+- The previously queued operator evidence-highlights polish is deferred behind Product v1 Slice 1.
+- Commercial licensing/entitlements, support tiers, connector marketplace mechanics, and signed automatic-update implementation follow after the appliance/connector boundary is frozen.
+- Multi-destination flows remain deferred.
+- Arbitrary public-target probing, scanning, packet crafting, and automated policy remediation remain prohibited.
