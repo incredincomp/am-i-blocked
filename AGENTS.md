@@ -12,11 +12,13 @@ This document is the durable execution contract for any AI agent (Codex/CoPilot)
 
 ## Mission
 
-Provide an internal, automated front‑end that answers "Am I blocked?" for a given destination, port, and time range.  Each run should make **small, test‑backed changes** that move the MVP forward within a tightly constrained scope.
+Build **Am I Blocked?** as a self-hosted, vendor-neutral network-security evidence product. Preserve the proven single-destination diagnostic semantics while making deployment, vendor integration, and demonstration product-shaped, safe, and supportable.
 
 ## Current Phase / Scope
 
-**MVP single‑flow:**
+**AIB Product v1** is the active milestone. Read `docs/product-v1.md` before Product v1 work.
+
+The inherited evidence flow remains the compatibility baseline:
 - One destination at a time (FQDN, URL, or IP)
 - Optional single port
 - Time windows: now, last_15m, last_60m
@@ -24,27 +26,34 @@ Provide an internal, automated front‑end that answers "Am I blocked?" for a gi
 - Provide owner team routing recommendations with supporting evidence bundle
 - Evidence must be authoritative; no guesses
 
-The codebase currently contains a thin FastAPI API, a worker pipeline, and stubbed vendor adapters.  Only the flow above is allowed.  Vendor work is **stubbed** and must remain so unless explicitly asked to implement and verify.
+Product v1 expands architecture only across three deliberate boundaries:
+1. a Docker-Compose-first self-hosted appliance boundary;
+2. a versioned vendor-neutral connector protocol with incremental compatibility for current adapters;
+3. a deterministic synthetic public demo that uses the real evidence/result presentation contract without arbitrary-target egress.
+
+Do not expand vendor breadth ahead of the connector-protocol freeze.
 
 ## In Scope
 
-1. Completing or refining pipeline steps (validation, context resolving, classification)
-2. Adding concrete adapter implementations *only when a task is explicitly queued*.
-3. Small refactors that simplify tests or reduce duplication, provided they do not expand scope.
-4. Documentation, tests, and tracker updates that support the MVP.
-5. Enforcing and codifying product invariants.
+1. Product v1 appliance/process/trust-boundary work explicitly tracked in `IMPLEMENTATION_TRACKER.md`.
+2. Versioned connector manifest, readiness, bounded evidence-query, compatibility, and failure semantics.
+3. Compatibility bridging for the existing `BaseAdapter` path; no forced big-bang adapter rewrite.
+4. Synthetic demo scenarios and UI needed to exercise the real evidence/result experience safely.
+5. Completing/refining pipeline steps, evidence semantics, classification, persistence, audit, and operator handoff.
+6. Concrete vendor implementations only when explicitly queued after or as part of protocol migration.
+7. Small refactors, documentation, and tests that support Product v1.
 
 ## Out of Scope
 
-- Any feature outside the "Am I blocked?" verdict flow.
-- Supporting multiple destinations/ports concurrently.
-- UI changes beyond minimal support for the flow.
-- Introducing new databases, queues, or architectures (no Kubernetes, no new storage types).
-- Creating network scanning capabilities, packet crafting, or automated remediation.
+- Multi-destination or multi-port scan-style flows.
+- Arbitrary public-target probing or turning the demo into a network proxy.
+- Network scanning, packet crafting, or automated policy remediation.
 - Vendor access from the API tier.
-- Broad refactorings that touch unrelated subsystems.
-- Hardcoding secrets or adding credentials in source control.
-- Guessing or inventing vendor API behaviour not present in repository or documentation.
+- Hardcoding secrets or customer credentials.
+- SaaS multi-tenancy, marketplace mechanics, licensing enforcement, or automatic updater implementation unless explicitly queued after the Product v1 boundary freeze.
+- Kubernetes or additional orchestration targets before the Compose appliance contract is qualified.
+- Guessing or inventing vendor API behavior.
+- Broad unrelated refactors.
 
 ## Product Invariants
 
@@ -67,9 +76,10 @@ The codebase currently contains a thin FastAPI API, a worker pipeline, and stubb
 - Monorepo Python packages under `packages/` and services under `services/`.
 - FastAPI API (`services/api`) handles HTTP requests and HTML templates.
 - Worker (`services/worker`) consumes a Redis queue and orchestrates steps defined under `am_i_blocked_worker.steps`.
-- Adapters live in `packages/adapters/am_i_blocked_adapters` and implement `BaseAdapter`.
+- Current adapters live in `packages/adapters/am_i_blocked_adapters` and implement `BaseAdapter`; Product v1 treats this as the compatibility implementation, not the permanent vendor integration boundary.
+- Product v1 connector semantics are defined in `docs/product-v1.md`; core owns classification/authority policy, connectors own vendor access and normalization.
 - Database models and shared types live in `packages/core/am_i_blocked_core`.
-- Docker Compose is the approved local/infra orchestration; do not introduce Kubernetes or other orchestrators.
+- Docker Compose is the first supported appliance orchestration target; do not introduce Kubernetes or additional orchestrators before that boundary is qualified.
 - Configuration is via Pydantic settings; secrets come from environment.
 
 ## Safety / Guardrails
