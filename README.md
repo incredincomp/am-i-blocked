@@ -4,6 +4,18 @@
 
 > _"Is my traffic to this destination being blocked — and by whom?"_
 
+## Current product milestone — AIB Product v1
+
+The existing internal MVP is now the evidence-engine baseline for **AIB Product v1**: a self-hosted, vendor-neutral network-security evidence appliance.
+
+Product v1 freezes three boundaries before broadening vendor integrations:
+
+- **Appliance boundary** — Docker-Compose-first packaging around the API/UI, worker, persistence/queue, identity/configuration, audit, and health/version surfaces.
+- **Connector protocol v1** — versioned manifest/capabilities, readiness, and bounded evidence-query semantics so vendor integrations are replaceable and independently supportable.
+- **Synthetic public demo** — deterministic firewall/SSE/DNS/TLS/unknown scenarios driven through the real evidence/result presentation path, with no arbitrary public-target network activity.
+
+See `docs/product-v1.md` for the active architecture milestone. Existing evidence rules remain non-negotiable: authoritative evidence for deny, valid `unknown`, readiness before confidence, no scanning, and no automated policy changes.
+
 It determines the likely **verdict** (`allowed | denied | unknown`), **enforcement plane**, **path context**, and **owner team routing recommendation**, backed by authoritative telemetry from your security and network stack.
 
 ---
