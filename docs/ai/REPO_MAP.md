@@ -14,6 +14,7 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
 - `infra`: Docker Compose and `.env.example`.
 - `tests`: unit, routes, fixtures, adapter contract tests.
 - `docs` and `docs/ai`: architecture and agent-grounding docs.
+- `docs/product-v1.md`: active Product v1 appliance/connector/demo architecture contract.
 - `docs/review`: operator review packs generated from repo-owned persisted result samples for bounded feedback workflows.
 - `docs/fixtures/panos_verification`: sanitized PAN-OS XML verification fixture pack templates plus versioned evidence-capture folders (`versions/<panos_version>/<capture_label>_<timestamp>/`).
 - `docs/fixtures/panos_verification/LIVE_DENY_OBSERVABILITY_TEMPLATE.md`: optional manual observability supplement (not required for every orchestrator run).
@@ -197,3 +198,15 @@ Living repository map for AI agents. Keep this aligned to real code paths, impor
   - for completed requests, note content is structured into compact sections (context, routing, evidence snapshot, readiness snapshot, conditional unknown signals, next steps) using existing normalized result fields only
   - for failed requests, the same route returns a compact failed-request note using only existing normalized failure metadata (`failure_stage`, `failure_category`, `failure_reason`) plus request context (`request_id`, `status`, destination, time window`)
 - Result page now includes a compact `Copy handoff note` control that uses the same handoff-note route as source-of-truth and falls back to the existing download link when fetch/clipboard copy cannot complete.
+
+
+## Product v1 Target Boundary
+
+- Active Product v1 owner: Linear DEV-281; execution lane DEV-282.
+- Canonical architecture milestone: `docs/product-v1.md`.
+- Existing `BaseAdapter` classes are the current compatibility implementation, not the permanent cross-vendor product boundary.
+- Target connector contract is versioned and exposes manifest/capabilities, readiness, and bounded evidence-query semantics.
+- Core retains context/correlation/classification/confidence/routing authority; connectors provide bounded normalized evidence and readiness.
+- First supported appliance target remains Docker Compose.
+- Public demo target is synthetic-only and must reach the existing result/evidence presentation path without external destination/vendor egress.
+- Vendor breadth is intentionally frozen behind the connector-contract milestone.

@@ -2,7 +2,17 @@
 
 ## Scope
 
-This threat model covers the Am I Blocked? internal diagnostic application. It is intended for internal use only and must not be exposed to the public internet.
+This threat model covers the Am I Blocked? self-hosted diagnostic appliance. The real appliance is intended for authenticated customer/internal deployment and must not be exposed as an unauthenticated public diagnostic proxy.
+
+---
+
+## Product v1 deployment modes
+
+**Self-hosted appliance:** may perform bounded probes and read customer-authorized telemetry through connectors. It remains authenticated and internal/customer-controlled.
+
+**Public synthetic demo:** is a separate presentation mode backed only by deterministic synthetic scenarios. It must not accept arbitrary destinations for outbound network access, hold customer/vendor credentials, call vendor APIs, or expose the appliance connector network.
+
+The public demo is therefore not an exception to the appliance's network-abuse controls; it has no real target/vendor execution capability.
 
 ---
 

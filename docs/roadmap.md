@@ -1,5 +1,35 @@
 # Roadmap
 
+## Active milestone: AIB Product v1
+
+Product v1 supersedes the old calendar-based next-step ordering while preserving the completed MVP foundation.
+
+### Boundary 1 — appliance
+- Freeze the Compose-first self-hosted product boundary and trust model.
+- Make product/version identity, health/readiness, configuration ownership, and connector placement explicit.
+- Preserve thin API, worker-owned orchestration, persistence/audit, and evidence export.
+
+### Boundary 2 — connector protocol v1
+- Add protocol-versioned manifest/capability, readiness, and bounded evidence-query contracts.
+- Define compatibility and fail-closed version behavior.
+- Bridge the existing `BaseAdapter` implementation so migration is incremental.
+- Migrate PAN-OS only after the protocol contract is test-backed.
+
+### Boundary 3 — synthetic public demo
+- Build deterministic firewall deny, SSE deny, DNS failure, TLS failure, and degraded/unknown scenarios.
+- Drive the existing result/evidence UI contract from synthetic evidence.
+- Prohibit arbitrary public-target egress, customer credentials, vendor API access, scanning, and remediation.
+
+### Product v1 exit
+- Connector contract is explicit and testable.
+- Appliance boundary is explicit and supportable.
+- Synthetic demo uses the real evidence presentation path.
+- Existing authority/readiness/unknown safety semantics remain intact.
+
+Commercial licensing, support packaging, signed automatic updates, connector marketplace mechanics, and broad connector expansion follow this boundary freeze.
+
+## Historical MVP roadmap
+
 ## Week 1–2: Core "Am I Blocked?" workflow
 
 ### Goals
