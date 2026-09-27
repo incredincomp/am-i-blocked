@@ -4,6 +4,14 @@
 
 Am I Blocked? is a monorepo-style Python application structured around a **thin API layer** and a **separate async worker** that orchestrates all vendor interactions.
 
+## Product v1 target architecture
+
+The current in-process adapter implementation remains valid as a compatibility baseline, but Product v1 moves the supported integration boundary to a versioned connector protocol. The core appliance owns orchestration, evidence authority policy, classification, confidence, persistence, audit, and presentation. Connectors own vendor credentials, vendor API access, readiness, and bounded normalization.
+
+The first supported appliance target is Docker Compose. Connector processes/containers communicate only across the private appliance network. The synthetic public demo uses a synthetic connector and the same evidence/result contracts, but performs no arbitrary-target or vendor network access.
+
+See `docs/product-v1.md` for the active boundary and migration rules.
+
 ## Component diagram
 
 ```
@@ -108,7 +116,7 @@ Client                API                  Redis           Worker
 
 ## Adapter boundaries
 
-Each adapter in `packages/adapters/` must implement the `BaseAdapter` interface:
+Current in-process adapters in `packages/adapters/` implement the `BaseAdapter` interface. Under Product v1 this is the **compatibility implementation** while integrations migrate behind the versioned connector protocol:
 
 ```python
 class BaseAdapter(ABC):
@@ -116,7 +124,7 @@ class BaseAdapter(ABC):
     async def query_evidence(...) -> list[EvidenceRecord]: ...
 ```
 
-Adapters are only instantiated by the worker, never by the API service.
+Adapters/connectors are only invoked by the worker-side orchestration path, never by the API service. Product v1 must provide a bounded compatibility bridge so existing `BaseAdapter` implementations continue to work while protocol-native connectors are introduced incrementally.
 
 ## Data flow and redaction
 
